@@ -55,6 +55,8 @@ Most items need a person with an account; none costs money. Use a **throwaway pr
 | G10 | Same | In a cloud environment add a setup script that runs the R2 commands against the private repo. Does it clone? Is the plugin there in a new session? | A12 |
 | G11 | The collaborator | After G7, restart Claude Code signed in with the same claude.ai account: is `isg-model-alignment@synced` listed? Push `0.1.1` to `stable`, use "Check for updates" or "Sync automatically" and see what the account gets. | A10, A2 |
 
+**Step-by-step runbook with exact commands, pass criteria and a results table: `docs/dev/T0-part2-runbook.md`.**
+
 Record each result in this file (replace "Not tested") and update section 1.5 of the spec. If **A15 fails**, stop: R1 is not offered, and the spec changes first (REQ-ACC-01).
 
 ## 4. Sample outputs
