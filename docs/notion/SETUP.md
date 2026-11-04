@@ -29,7 +29,7 @@ Crie o banco **Assuntos** com as propriedades (nome exato → tipo):
 | Prazo de revisão (dias úteis) | Número (padrão 2) |
 | Casos para ativar regra | Número (padrão 2) |
 | Erros para retirar regra | Número (padrão 3) |
-| Confiança mínima para decidir | Seleção: alta, média, baixa |
+| Confiança mínima para decidir | Número (percentual de 0 a 100; padrão 85) |
 | Ativo | Caixa de seleção |
 | Base de memória | URL |
 | Base de registro | URL |
@@ -57,7 +57,7 @@ Dentro de **ISG — Agente**, crie a página **EQV — Equivalência de componen
 | Enunciado | Texto |
 | Evidência | Texto |
 | Justificativa | Texto |
-| Confiança | Seleção: alta, média, baixa |
+| Confiança | Número (percentual de 0 a 100) |
 | Casos de suporte | Relação → o próprio banco |
 | Relacionado | Relação → o próprio banco |
 | Substitui | Relação → o próprio banco |

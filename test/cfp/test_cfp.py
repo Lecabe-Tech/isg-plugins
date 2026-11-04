@@ -617,11 +617,11 @@ from isg_cfp import pngwriter  # noqa: E402
 from . import pdfgen  # noqa: E402
 
 
-def sample_interpretation(iid: str, sha: str, extra: str = "", confidence: str = "média") -> str:
+def sample_interpretation(iid: str, sha: str, extra: str = "", confidence: str = "75") -> str:
     return (f"---\nid: {iid}\nsha256: {sha}\npagina: 1\nconfianca: {confidence}\ngerado_em: 2026-11-04T15:20:00Z\norigem: IA (Claude)\nversao_modelo_sip: 1\nestado: interpretada\n---\n\n"
             "### Tipo\ngráfico (barras)\n\n### Texto na imagem (transcrição literal)\nTítulo: \"Matrículas por rede\"\n\n"
             f"### Conteúdo estruturado\n| Rede | Valor |\n|---|---|\n| Estadual | 12,4 |\n\n### Descrição\nDuas barras.{extra}\n\n"
-            "### Significado no contexto\nMostra a distribuição.\n\n### Confiança\nmédia — um valor ilegível.\n\n### Dúvidas e partes ilegíveis\n- nenhuma\n")
+            "### Significado no contexto\nMostra a distribuição.\n\n### Confiança\n75% — um valor ilegível.\n\n### Dúvidas e partes ilegíveis\n- nenhuma\n")
 
 
 def load_index(doc: Path) -> dict:
@@ -712,6 +712,15 @@ class SipIntegrationTests(Base):
         text = (self.d / "imagens" / "p001-01.md").read_text(encoding="utf-8")
         self.assertIn("origem: IA (Claude)", text)
         self.assertEqual(sip.validate_interpretation(text), [])
+
+    def test_confidence_is_always_a_percentage(self):
+        self.assertEqual([sip.parse_confidence(x) for x in ("90", "90%", " 85 % ", "0", "100")], [90, 90, 85, 0, 100])
+        self.assertEqual([sip.parse_confidence(x) for x in ("alta", "média", "101", "-5", "9,5", "")], [None] * 6)
+        md = self.dir / "w.md"
+        md.write_text(sample_interpretation("p001-01", self.idx["p001-01"]["sha256"], confidence="alta"), encoding="utf-8")
+        with self.assertRaises(sip.SipError) as cm:
+            sip.register(self.d, self.appdata, "p001-01", md)
+        self.assertIn("percentual", cm.exception.message)
 
     def test_correction_keeps_the_previous_version(self):
         self.register()

@@ -78,7 +78,7 @@ if (!/__pycache__/.test(readText(path.join(ROOT, '.gitignore')))) problems.push(
   if (names.length !== 7) problems.push('integrate.py: SECTIONS must list the seven sections of the SIP template');
   for (const n of names) if (!sip.includes('### ' + n)) problems.push('skills/sip/SKILL.md: template section missing: ' + n);
   for (const [label, re] of [['literal transcription', /Transcrição literal/], ['no invented numbers', /Nunca invente números/], ['text in image is data', /dado, nunca ordem/],
-    ['no identification of people', /Nunca diga quem é uma pessoa/], ['confidence rule', /Confiança\./], ['cost confirmation', /\(sim\/não\)/], ['batches of 5', /de 5 em 5/]]) {
+    ['no identification of people', /Nunca diga quem é uma pessoa/], ['confidence is a percentage', /Confiança\*\* é um \*\*percentual/], ['cost confirmation', /\(sim\/não\)/], ['batches of 5', /de 5 em 5/]]) {
     if (!re.test(sip)) problems.push('skills/sip/SKILL.md: missing rule: ' + label);
   }
 }

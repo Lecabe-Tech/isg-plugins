@@ -7,7 +7,7 @@
     "reviewDeadlineBusinessDays": 2,
     "ruleActivationCases": 2,
     "ruleRetirementErrors": 3,
-    "minimumConfidenceToDecide": "alta",
+    "minimumConfidenceToDecide": 85,
     "offlineWarningDays": 7
   },
   "statuses": {
@@ -27,7 +27,7 @@
       { "name": "Prazo de revisão (dias úteis)", "type": "number" },
       { "name": "Casos para ativar regra", "type": "number" },
       { "name": "Erros para retirar regra", "type": "number" },
-      { "name": "Confiança mínima para decidir", "type": "select", "options": ["alta", "média", "baixa"] },
+      { "name": "Confiança mínima para decidir", "type": "number" },
       { "name": "Ativo", "type": "checkbox" },
       { "name": "Base de memória", "type": "url" },
       { "name": "Base de registro", "type": "url" },
@@ -55,7 +55,7 @@
       { "name": "Enunciado", "type": "rich_text" },
       { "name": "Evidência", "type": "rich_text" },
       { "name": "Justificativa", "type": "rich_text" },
-      { "name": "Confiança", "type": "select", "options": ["alta", "média", "baixa"] },
+      { "name": "Confiança", "type": "number" },
       { "name": "Casos de suporte", "type": "relation", "target": "self" },
       { "name": "Relacionado", "type": "relation", "target": "self" },
       { "name": "Substitui", "type": "relation", "target": "self" },

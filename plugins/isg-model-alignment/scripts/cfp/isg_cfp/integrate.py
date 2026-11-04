@@ -15,7 +15,6 @@ from pathlib import Path
 
 SIP_TEMPLATE_VERSION = 1
 SECTIONS = ["Tipo", "Texto na imagem (transcrição literal)", "Conteúdo estruturado", "Descrição", "Significado no contexto", "Confiança", "Dúvidas e partes ilegíveis"]
-CONFIDENCE = ("alta", "média", "baixa")
 STATES_DONE = ("interpretada", "corrigida")
 TOKENS_STANDARD_CAP = 1568
 TOKENS_HIGHRES_CAP = 4784
@@ -49,6 +48,14 @@ def split_front_matter(text: str) -> tuple:
     return meta, text[end + 5:].lstrip("\n")
 
 
+def parse_confidence(value) -> int | None:
+    """'90', '90%' or '90 %' -> 90; anything else (including words like 'alta') -> None. Confidence is always a percentage."""
+    m = re.fullmatch(r"\s*(\d{1,3})\s*%?\s*", str(value))
+    if not m or int(m.group(1)) > 100:
+        return None
+    return int(m.group(1))
+
+
 def validate_interpretation(text: str) -> list:
     """Template lint (REQ-SIP-01, 06, SQL-01/03): the problems found, [] when the Markdown follows the template."""
     problems = []
@@ -56,8 +63,8 @@ def validate_interpretation(text: str) -> list:
     for key in ("id", "sha256", "confianca", "origem", "versao_modelo_sip", "estado"):
         if not meta.get(key):
             problems.append(f"campo ausente no cabeçalho: {key}")
-    if meta.get("confianca") and meta["confianca"] not in CONFIDENCE:
-        problems.append("confianca deve ser alta, média ou baixa")
+    if meta.get("confianca") and parse_confidence(meta["confianca"]) is None:
+        problems.append("confianca deve ser um percentual de 0 a 100")
     if meta.get("origem") and not meta["origem"].startswith("IA") and meta.get("estado") != "corrigida":
         problems.append("origem deve começar com 'IA'")
     pos = -1
@@ -192,12 +199,17 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _pct(v) -> str:
+    n = parse_confidence(v)
+    return f"{n}%" if n is not None else ""
+
+
 def _block(entry: dict, state: str, md_text: str | None, original: str) -> str:
     iid, page = entry["id"], entry["pagina"]
     if md_text is not None:
         meta, body = split_front_matter(md_text)
         label = "corrigida por analista" if state == "corrigida" else "interpretação por IA"
-        head = f'<!-- SIP início id={iid} original="{original}" sha256={meta.get("sha256", "")} confianca={meta.get("confianca", "")} estado={state} -->'
+        head = f'<!-- SIP início id={iid} original="{original}" sha256={meta.get("sha256", "")} confianca={_pct(meta.get("confianca", ""))} estado={state} -->'
         lines = [f"> **Imagem p. {page} — {label}, conferir no PDF** (id {iid})", ">"] + [("> " + ln) if ln.strip() else ">" for ln in body.strip().split("\n")]
     else:
         why = {"pendente": "ainda não interpretada", "pequena": "ícone pequeno, não interpretado", "não extraível": "não foi possível extrair" + (f" ({entry['motivo']})" if entry.get("motivo") else ""),

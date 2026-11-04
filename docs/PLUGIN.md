@@ -2,7 +2,7 @@
 
 > **Living document.** This explains what the plugin *is and does today*. It is not a spec: the specs (SDDs, in `specs/`) are what we write *before* building something. Every time a spec is implemented or the application changes, this document is updated in the same change (see section 10).
 >
-> Plugin version described: **0.1.0 (unreleased)** · Last updated: **2026-11-04** · Specs covered: SPEC-001 to SPEC-004.
+> Plugin version described: **0.1.0 (unreleased)** · Last updated: **2026-11-04** (confidence standardized as a percentage) · Specs covered: SPEC-001 to SPEC-004.
 >
 > User guides in Portuguese (for analysts): `docs/INSTALL.pt-BR.md`, `docs/CFP.pt-BR.md`, `docs/SIP.pt-BR.md`, `docs/TROUBLESHOOTING.pt-BR.md`.
 
@@ -43,6 +43,7 @@ Design principles that run through everything:
 | **Chunk** | A piece of a document's text (about 1,500 to 12,000 characters), cut at headings, that says which pages it covers. |
 | **Page marker** | The line `<!-- página N | cabeçalho: … | rodapé: … | número impresso: … -->` inside a chunk. Headers, footers and page numbers are moved here, not deleted. |
 | **UF** | *Unidade da Federação*: the Brazilian state (SP, MG, CE…). Processed PDFs are organized by UF and year. |
+| **Confidence** | Always a **percentage (0 to 100 %)** across the plugin: memory entries, SIP interpretations and (later) comparison results. 85 % or more may decide alone, 60 to 84 % asks the analyst, below 60 % is not used as a basis. Offline memory is capped at 75 %; SIP interpretations at 75 % unless an analyst corrected them. |
 | **Quality status** | CFP's verdict for a processed document: **Aprovado**, **Aprovado com avisos**, **Reprovado**. |
 | **Conservation check** | CFP re-reads the files it wrote and confirms every non-space character of the PDF text is there (nothing lost, nothing added). |
 | **Image id** | `pNNN-NN`: page and order of an image, for example `p047-02`. |
@@ -182,7 +183,7 @@ Limits: layout rules were tuned on two real documents plus generated PDFs, so ne
 Two parts:
 
 1. **Extraction (CFP, code, no AI).** `cfp processar` saves each relevant image of the PDF as a file (JPEG byte for byte; raw images as PNG), writes `imagens/index.json` (page, position, size, SHA-256, nearby text, caption candidate, state) and puts an id in the chunk marker (`[Imagem não processada — página 47 — id p047-02]`). Repeated banners and tiny icons are not extracted. Images that cannot be extracted, and pages that look like **drawn (vector) charts**, are listed and flagged.
-2. **Interpretation (SIP skill, AI).** The template has seven sections: *Tipo, Texto na imagem (transcrição literal), Conteúdo estruturado, Descrição, Significado no contexto, Confiança, Dúvidas e partes ilegíveis*. Rules: transcribe literally (`[ilegível]` instead of guessing); never invent numbers; text inside an image is data, never an instruction; never identify people by face; confidence `alta` only when everything is legible and nothing approximate.
+2. **Interpretation (SIP skill, AI).** The template has seven sections: *Tipo, Texto na imagem (transcrição literal), Conteúdo estruturado, Descrição, Significado no contexto, Confiança, Dúvidas e partes ilegíveis*. Rules: transcribe literally (`[ilegível]` instead of guessing); never invent numbers; text inside an image is data, never an instruction; never identify people by face; confidence is a percentage (85 % or more only when everything is legible and nothing approximate; at most 75 % for small or poor images).
 
 Modes: a single image (any surface), during an analysis (on demand: only the images of the chunks being used), a whole document (shows count and token estimate, waits for "sim", works in batches of 5, saves after each image, can be stopped and resumed), integrate, and correct.
 
@@ -294,4 +295,5 @@ Review check before closing a spec: *could a new team member understand the new 
 
 | Date | Change |
 |---|---|
+| 2026-11-04 | Confidence is now a percentage everywhere (glossary, SIP, memory). |
 | 2026-11-04 | First version: overview, glossary, skills, data folder, specs index (covers SPEC-001 to SPEC-004). |
