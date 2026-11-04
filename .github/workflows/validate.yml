@@ -85,8 +85,11 @@ jobs:
       - name: VAL-11 language (PT-BR)
         run: node scripts/ci/check-language.mjs
 
-      - name: VAL-13 portable core
+      - name: VAL-13 portable core (includes VAL-M05, the bundled Notion connection)
         run: node scripts/ci/check-portable.mjs
+
+      - name: VAL-M02..M04 memory protocol, copies, Notion schema (SPEC-002)
+        run: node scripts/ci/check-memory.mjs
 
       - name: Unit and script tests
         run: npm test

@@ -24,6 +24,12 @@ export const MIN_NODE_MAJOR = 20;
 // Path of the plugin inside the marketplace repository (used to read the latest version from `stable`).
 export const PLUGIN_DIR_IN_REPO = `plugins/${PLUGIN_NAME}`;
 
+// SPEC-002: skills that use the shared memory get a copy of shared/memory-protocol.md;
+// skills that need the Notion layout also get shared/notion-schema.json (scripts/ci/sync-protocol.mjs).
+// Subject skills of SPEC-003+ are added to MEMORY_SKILLS.
+export const MEMORY_SKILLS = ['feedback', 'memory', 'memory-sync', 'memory-setup', 'memory-audit'];
+export const SCHEMA_SKILLS = ['memory-setup', 'memory-audit'];
+
 // Timeouts (milliseconds). Scripts never wait without a limit (REQ-CMD-13).
 export const DEFAULT_TIMEOUT_MS = 60_000;
 export const NETWORK_TIMEOUT_MS = 30_000;

@@ -11,6 +11,7 @@ const steps = [
   ['VAL-07 no root writes', [path.join(here, 'check-no-root-writes.mjs')]],
   ['VAL-11 language', [path.join(here, 'check-language.mjs')]],
   ['VAL-13 portable core', [path.join(here, 'check-portable.mjs')]],
+  ['VAL-M02..M04 memory protocol', [path.join(here, 'check-memory.mjs')]],
   ['unit and script tests', ['--test', path.join(root, 'test', 'lib.test.mjs'), path.join(root, 'test', 'scripts.test.mjs')]],
   ['VAL-12 non-interactive', [path.join(here, 'check-non-interactive.mjs')]],
 ];

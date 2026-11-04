@@ -1,0 +1,93 @@
+{
+  "$comment": "SPEC-002 sections 4.1-4.4: the Notion layout used by the agent memory. Single source: copied into the skills that need it by scripts/ci/sync-protocol.mjs. Names are contracts: renaming a property in Notion breaks the agent (P-M14).",
+  "schemaVersion": 1,
+  "teamspace": "ISG — Agente",
+  "subjectTemplatePage": "Modelo de assunto",
+  "defaults": {
+    "reviewDeadlineBusinessDays": 2,
+    "ruleActivationCases": 2,
+    "ruleRetirementErrors": 3,
+    "minimumConfidenceToDecide": "alta",
+    "offlineWarningDays": 7
+  },
+  "statuses": {
+    "all": ["Rascunho", "Pendente", "Ativo", "Aprovado", "Auto-aprovado", "Em observação", "Em conflito", "Rejeitado", "Retirado", "Substituído"],
+    "readable": ["Ativo", "Aprovado", "Auto-aprovado", "Em observação"],
+    "lowerConfidence": ["Em observação"],
+    "mustAsk": ["Em conflito"]
+  },
+  "subjects": {
+    "database": "Assuntos",
+    "properties": [
+      { "name": "Nome", "type": "title" },
+      { "name": "Código", "type": "rich_text" },
+      { "name": "Descrição", "type": "rich_text" },
+      { "name": "Campos-chave", "type": "rich_text" },
+      { "name": "Revisores", "type": "people" },
+      { "name": "Prazo de revisão (dias úteis)", "type": "number" },
+      { "name": "Casos para ativar regra", "type": "number" },
+      { "name": "Erros para retirar regra", "type": "number" },
+      { "name": "Confiança mínima para decidir", "type": "select", "options": ["alta", "média", "baixa"] },
+      { "name": "Ativo", "type": "checkbox" },
+      { "name": "Base de memória", "type": "url" },
+      { "name": "Base de registro", "type": "url" },
+      { "name": "Última alteração da memória", "type": "rollup" },
+      { "name": "Versão da memória", "type": "number" }
+    ]
+  },
+  "memory": {
+    "databaseName": "Memória — {CODE}",
+    "views": ["Legível — {CODE}", "Em conflito — {CODE}", "Pendentes", "Perto de ser retiradas"],
+    "properties": [
+      { "name": "Título", "type": "title" },
+      { "name": "ID", "type": "unique_id", "prefix": "{CODE}" },
+      { "name": "Assunto", "type": "relation", "target": "Assuntos" },
+      { "name": "Tipo", "type": "select", "options": ["Fato", "Rejeição", "Regra"] },
+      { "name": "Status", "type": "status", "options": "statuses.all" },
+      { "name": "UF / Órgão", "type": "rich_text" },
+      { "name": "Documento", "type": "rich_text" },
+      { "name": "Ano", "type": "number" },
+      { "name": "Escopo geral", "type": "checkbox" },
+      { "name": "Termo externo", "type": "rich_text" },
+      { "name": "Componente ISG", "type": "rich_text" },
+      { "name": "Enunciado", "type": "rich_text" },
+      { "name": "Evidência", "type": "rich_text" },
+      { "name": "Justificativa", "type": "rich_text" },
+      { "name": "Confiança", "type": "select", "options": ["alta", "média", "baixa"] },
+      { "name": "Casos de suporte", "type": "relation", "target": "self" },
+      { "name": "Relacionado", "type": "relation", "target": "self" },
+      { "name": "Substitui", "type": "relation", "target": "self" },
+      { "name": "Erros", "type": "number" },
+      { "name": "Revisores", "type": "people" },
+      { "name": "Prazo de revisão", "type": "date" },
+      { "name": "Decidido por", "type": "people" },
+      { "name": "Decisão em", "type": "date" },
+      { "name": "Motivo da decisão", "type": "rich_text" },
+      { "name": "Criado por", "type": "created_by" },
+      { "name": "Criado em", "type": "created_time" }
+    ]
+  },
+  "log": {
+    "databaseName": "Registro — {CODE}",
+    "form": "Enviar feedback — {CODE}",
+    "properties": [
+      { "name": "Título", "type": "title" },
+      { "name": "Tipo de evento", "type": "select", "options": ["Feedback", "Mudança de status", "Cartão importado", "Auditoria"] },
+      { "name": "Assunto", "type": "relation", "target": "Assuntos" },
+      { "name": "Analista", "type": "created_by" },
+      { "name": "Superfície", "type": "select", "options": ["Chat", "Cowork", "Claude Code", "Claude Code na web"] },
+      { "name": "Pergunta / trecho da resposta", "type": "rich_text" },
+      { "name": "Veredito", "type": "select", "options": ["Correto", "Incorreto", "Parcial"] },
+      { "name": "Motivo", "type": "rich_text" },
+      { "name": "Memórias usadas", "type": "relation", "target": "memory" },
+      { "name": "Entradas criadas ou alteradas", "type": "relation", "target": "memory" },
+      { "name": "De / Para (status)", "type": "rich_text" }
+    ]
+  },
+  "firstSubject": {
+    "Nome": "Equivalência de componentes",
+    "Código": "EQV",
+    "Descrição": "Decide se um componente descrito em um documento externo (por exemplo, uma orientação de secretaria estadual de educação) corresponde a um componente do Instituto, mesmo com outro nome.",
+    "Campos-chave": "UF / Órgão, Documento, Ano, Termo externo, Componente ISG"
+  }
+}
