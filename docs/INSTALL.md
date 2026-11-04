@@ -61,6 +61,15 @@ Open Claude Code and run `/isg-model-alignment:configure`.
 
 **Update:** `/isg-model-alignment:upgrade`, then restart Claude Code or run `/reload-plugins`.
 
+## 3b. Connect Notion (every route, once)
+
+The plugin already includes the Notion connection (where the agent's shared memory lives). You only **authenticate**:
+
+- **Claude Code:** `/mcp` → `plugin:isg-model-alignment:notion` → **Authenticate** → in the browser pick the **Instituto Sonho Grande** workspace and allow.
+- **claude.ai, Desktop app, Cowork:** Customize > Plugins > **ISG Model Alignment** > **Connectors** tab > **Connect** on **notion**, same workspace choice.
+
+You must be a **member** of the Instituto's Notion workspace (guests cannot connect). Check with `/isg-model-alignment:configure` (item C-13).
+
 ## 4. Route C — Team/Enterprise organization owners
 
 If your Claude organization owner blocked "add marketplace", they can sync this repo in **Organization settings > Plugins & skills**. **All members** of that Claude organization then get the plugin, GitHub access or not. Use only if that is acceptable (see `docs/RELEASING.md`).

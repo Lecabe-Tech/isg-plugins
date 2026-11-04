@@ -67,6 +67,15 @@ Abra o Claude Code e rode `/isg-model-alignment:configure`.
 
 **Atualizar:** `/isg-model-alignment:upgrade` (mostra o que mudou e pede a sua confirmação). Depois reinicie o Claude Code ou rode `/reload-plugins`.
 
+## 3b. Conectar o Notion (todas as rotas, uma vez só)
+
+O plugin já traz a conexão com o Notion (onde fica a memória compartilhada do agente). Você só precisa **autenticar**:
+
+- **Claude Code:** rode `/mcp`, escolha `plugin:isg-model-alignment:notion` e clique em **Authenticate**. No navegador, escolha o espaço de trabalho do **Instituto Sonho Grande** e permita o acesso.
+- **claude.ai, app Desktop e Cowork:** Customize > Plugins > **ISG Model Alignment** > aba **Connectors** > **Connect** no item **notion**, e a mesma escolha de espaço de trabalho.
+
+Você precisa ser **membro** do espaço de trabalho do Instituto no Notion (convidados não conseguem conectar). Confira com `/isg-model-alignment:configure` (item C-13).
+
 ## 4. Rota C — organização Team/Enterprise (para quem administra)
 
 Se o dono da sua organização no Claude bloqueou "adicionar marketplace", ele pode sincronizar este repositório em **Organization settings > Plugins & skills**.

@@ -21,6 +21,12 @@ Responda nesta ordem:
 
 O plugin está instalado pelas duas rotas. Mantenha uma só: `claude plugin disable isg-model-alignment@synced` (ou desinstale a cópia que não quer).
 
+## O agente diz que está "sem memória compartilhada" / o Notion não conecta
+
+- Autentique o Notion (veja "Conectar o Notion" no guia de instalação). No Claude Code: `/mcp` → `plugin:isg-model-alignment:notion` → **Authenticate**.
+- Escolha o espaço de trabalho do **Instituto Sonho Grande**, não um espaço pessoal.
+- Você precisa ser **membro** do espaço de trabalho (convidados não conseguem conectar). Peça aos responsáveis.
+
 ## "node: comando não encontrado"
 
 Instale o **Node.js LTS** (versão 20 ou mais) em https://nodejs.org e abra uma nova sessão. Só `/isg-model-alignment:configure` e `/isg-model-alignment:upgrade` precisam do Node.

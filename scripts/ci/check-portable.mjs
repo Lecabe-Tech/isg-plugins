@@ -6,13 +6,37 @@ import { PLUGIN_DIR, SKILLS_DIR, finish, parseSkill, readJson, readText, rel, wa
 
 const problems = [];
 
-for (const forbidden of ['bin', 'hooks', 'agents', 'output-styles', 'themes', 'monitors', 'workflows', '.mcp.json', '.lsp.json', 'settings.json', 'CLAUDE.md']) {
-  if (fs.existsSync(path.join(PLUGIN_DIR, forbidden))) problems.push(`plugin must not contain "${forbidden}" in v1 (REQ-SRF-03)`);
+for (const forbidden of ['bin', 'hooks', 'agents', 'output-styles', 'themes', 'monitors', 'workflows', '.lsp.json', 'settings.json', 'CLAUDE.md']) {
+  if (fs.existsSync(path.join(PLUGIN_DIR, forbidden))) problems.push(`plugin must not contain "${forbidden}" (REQ-SRF-03)`);
+}
+
+// .mcp.json: only REMOTE servers on a fixed https URL, nothing secret (SPEC-001 REQ-SRF-03 as amended in v0.7,
+// SPEC-002 REQ-MCP-01, REQ-MCP-05). Local (command) servers would not work in chat and are forbidden.
+const MCP_FILE = path.join(PLUGIN_DIR, '.mcp.json');
+const ALLOWED_MCP = { notion: 'https://mcp.notion.com/mcp' };
+if (fs.existsSync(MCP_FILE)) {
+  let mcp = null;
+  try {
+    mcp = readJson(MCP_FILE);
+  } catch (e) {
+    problems.push(`.mcp.json is not valid JSON: ${e.message}`);
+  }
+  const servers = mcp?.mcpServers ?? {};
+  for (const [name, cfg] of Object.entries(servers)) {
+    const where = `.mcp.json server "${name}"`;
+    if (!(name in ALLOWED_MCP)) problems.push(`${where}: not allowed by the spec (only: ${Object.keys(ALLOWED_MCP).join(', ')})`);
+    if (cfg.type !== 'http') problems.push(`${where}: type must be "http" (remote), got "${cfg.type}"`);
+    if (ALLOWED_MCP[name] && cfg.url !== ALLOWED_MCP[name]) problems.push(`${where}: url must be ${ALLOWED_MCP[name]}`);
+    for (const key of ['command', 'args', 'env', 'headers', 'headersHelper', 'oauth']) {
+      if (key in cfg) problems.push(`${where}: "${key}" is not allowed (no local servers, no secrets)`);
+    }
+    if (JSON.stringify(cfg).includes('${')) problems.push(`${where}: no \${...} substitutions allowed`);
+  }
 }
 
 const plugin = readJson(path.join(PLUGIN_DIR, '.claude-plugin', 'plugin.json'));
 for (const key of ['hooks', 'agents', 'mcpServers', 'lspServers', 'outputStyles', 'experimental', 'channels', 'settings', 'dependencies']) {
-  if (key in plugin) problems.push(`plugin.json must not declare "${key}" in v1 (REQ-SRF-03)`);
+  if (key in plugin) problems.push(`plugin.json must not declare "${key}" (REQ-SRF-03; MCP servers go only in .mcp.json)`);
 }
 for (const [key, cfg] of Object.entries(plugin.userConfig ?? {})) {
   if (cfg.required === true) problems.push(`userConfig.${key} must not be required (REQ-SRF-05)`);

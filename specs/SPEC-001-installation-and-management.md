@@ -18,7 +18,7 @@
 | **Status** | v0.6 — design approved; **implementation T1, T3–T7 done in the repo `C:\dev\isg-plugins` (not yet committed or published)**; T2, T8 and T0 Part 2 need people and accounts (see 7.1). R1 must not be offered to users until A15 is confirmed. |
 | **Date** | 2026-11-04 |
 | **Scope of this spec** | Distribution, access control, install, upgrade, release process, `configure` and `upgrade` commands, support on every surface |
-| **Out of scope (next spec)** | Domain skills that implement the quality process (SPEC-002+). SPEC-002 must follow REQ-SRF-02 (portable core) and REQ-LNG. |
+| **Out of scope (next spec)** | Agent improvement system (SPEC-002) and domain skills of the quality process (SPEC-003+). Both must follow REQ-SRF-02 (portable core) and REQ-LNG. |
 
 > **Method: Spec-Driven Development.** This document is the source of truth. Code is written only to satisfy a numbered requirement. A requirement is "done" only when its acceptance criteria (AC, section 3) pass through the validation steps (VAL/UAT, section 6). **If the spec is wrong or incomplete, fix the spec first (in a PR), then the code.** Never let code and spec disagree.
 
@@ -32,6 +32,7 @@
 | v0.4 | 2026-11-04 | Instituto approved the v0.3 design choices (D5, D6, D8, REQ-LNG-04, REQ-ACC-07). Approved to start T0. |
 | v0.5 | 2026-11-04 | **Support for every surface** (Desktop Code tab and chat, Claude Code on the web, claude.ai chat, Cowork). New: section 1.6 (surfaces, plans, install routes R1–R4); D11 `stable` is the repo **default branch**; D12 the **claude.ai account route (R1) is primary**; REQ-SRF group (portable core, no required `userConfig`, surface-aware commands); assumptions A10–A17; sections 4.11–4.12; new AC, VAL-13, UAT-14..20, P-32..P-41. Changed: D3, D8, REQ-INS-01/08, REQ-CMD-03, C-09, 4.3, 4.4, 4.7, 4.10. **Approved by the Instituto on 2026-11-04.** |
 | v0.5.1 | 2026-11-04 | Answers to open questions: marketplace/repo renamed to `isg-plugins` (Q1); GitHub org to be created in T2 (Q2); Q9 and Q10 decided; Q3 and Q11 still open. |
+| v0.7 | 2026-11-04 | For SPEC-002: REQ-SRF-03 and VAL-13 amended to allow a **remote** MCP server with a fixed URL (the bundled Notion connection); new check C-13; out-of-scope line now points to SPEC-002 / SPEC-003+. |
 | v0.6 | 2026-11-04 | **Implementation.** Repo created at `C:\dev\isg-plugins` (outside OneDrive, P-26): scaffold, `configure`/`upgrade` skills and scripts, CI check scripts, 31 tests, `validate.yml`, `release.yml`, docs. New spec text: 7.1 status; file list in 4.1; test-only hooks and `redact()` in 4.8; REQ-CST-02 (no path filters); VAL-03 method verified. The repo copy of `specs/` is canonical from now on. |
 | v0.5.2 | 2026-11-04 | **T0 Part 1** (this machine): results in `SPEC-001-T0-results.md`; 1.5 status table; CLI resolution via `CLAUDE_CODE_EXECPATH` and script-file quoting rule (4.8); C-03; P-42, P-43; `MIN_CLAUDE_VERSION` = 2.1.317 provisional. Part 2 (GitHub, claude.ai, cloud) pending. |
 
@@ -329,7 +330,7 @@ Both commands are skills: `/isg-model-alignment:configure` and `/isg-model-align
 |---|---|---|
 | REQ-SRF-01 | M | The plugin installs and its skills load on **S1–S6** through R1, and on S1–S2 through R2. S3 is supported through R1 if A11 holds, else through R4 if A12 holds; if neither holds, S3 is documented as not supported until the platform allows it. |
 | REQ-SRF-02 | M | **Portable core.** Every user-facing skill (now and in SPEC-002+) must deliver its main value on **every** surface using **instructions only**: no shell, no scripts, no hooks, no agents, no local MCP, no `userConfig`, no `${CLAUDE_PLUGIN_ROOT}`. Scripts, agents and hooks may only add **optional** extras where the surface supports them, and the skill must say what to do when they are absent. `configure` and `upgrade` are the only skills whose main path uses scripts, and they also have a no-script path (4.11). |
-| REQ-SRF-03 | M | The plugin has **no top-level `bin/`** (it would be refused on S4–S6) and, in v1, **no hooks, no agents, no MCP servers, no LSP, no output styles**. Adding any of them later requires a spec change that states its behavior per surface. |
+| REQ-SRF-03 | M | The plugin has **no top-level `bin/`** (it would be refused on S4–S6) and **no hooks, no agents, no local MCP servers, no LSP, no output styles**. **Amended v0.7:** a **remote** MCP server with a fixed `https://` URL and no headers, tokens, environment variables or `${user_config}` is allowed in `.mcp.json`, because it works on every surface (Claude Code loads it; chat and Cowork show it on the plugin's Connectors tab). Today only the Notion server of SPEC-002 REQ-MCP-01. Adding anything else still requires a spec change that states its behavior per surface. |
 | REQ-SRF-04 | M | `configure` and `upgrade` **detect the surface and route** (4.11) and follow the matching column. Where they cannot run commands, Claude **never claims** to have run or checked something; it gives the manual PT-BR steps. |
 | REQ-SRF-05 | M | `userConfig` fields are **optional** (no `required: true`). A skill that uses a value must ask the user in the conversation when the value is not available (S4–S6 never prompt for it). |
 | REQ-SRF-06 | M | The plugin fits claude.ai limits: < 200 MB and < 5,000 files (in practice a few hundred KB). |
@@ -650,6 +651,7 @@ Each check has an ID, a result (`ok`, `fail`, `warn`, `skip`), a PT-BR message a
 | C-10 | HTTPS preference | R2 | `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` | offer change (b) of REQ-CMD-05 |
 | C-11 | Auto-update | R2 | on for `isg-plugins` (`warn` if off) | offer change (a) of REQ-CMD-05 |
 | C-12 | One route only | S1, S2 | not both `@synced` and `@isg-plugins` enabled | disable one (P-33) |
+| C-13 | Notion connection (SPEC-002 REQ-MCP-03) | S1–S3 | reported by the skill (not the script): Claude checks whether Notion tools are available and the "ISG — Agente" teamspace is reachable | `/mcp` → notion → Authenticate; choose the Instituto workspace |
 
 Exit code of `configure --check`: `0` if no `fail`, `1` if at least one `fail`.
 
@@ -791,7 +793,7 @@ The running script lives in the **old** version folder; updating is safe because
 | VAL-10 | Quarterly review (manual) | Org owner: billing = 0 and Free plan, minutes, collaborators, Claude GitHub App scope, authors of tags and `stable` moves; logged in `docs/RELEASING.md` | Every quarter and after offboarding | AC-CST-1, REQ-ACC-06, P-19, 23, 25, 30, 35 |
 | VAL-11 | Language | `scripts/ci/check-language.mjs`: 4.9 first line in every `SKILL.md`; PT-BR `description`, `userConfig` texts, `plugin.json` `description` | Linux, every PR | REQ-LNG-01, P-24 |
 | VAL-12 | Non-interactive | `scripts/ci/check-non-interactive.mjs`: each script mode with stdin closed and 60 s timeout, `claude` and `gh` stubbed | Linux, every PR | AC-CMD-6, P-28 |
-| VAL-13 | Portable core | `scripts/ci/check-portable.mjs`: no `bin/`, `hooks/`, `agents/`, `.mcp.json`, `.lsp.json`, `output-styles/` in the plugin and no such keys in `plugin.json`; no `required: true` in `userConfig`; `${CLAUDE_PLUGIN_ROOT}` only in `configure`/`upgrade`; both have "Sem terminal" and "Com terminal" parts; size < 200 MB and < 5,000 files | Linux, every PR; release (f) | REQ-SRF-02, 03, 05, 06, AC-SRF-4 |
+| VAL-13 | Portable core | `scripts/ci/check-portable.mjs`: no `bin/`, `hooks/`, `agents/`, `.lsp.json`, `output-styles/` in the plugin and no such keys in `plugin.json`; `.mcp.json` only with remote `type: http` servers on a fixed `https://` URL, no headers/env/command/`${…}` (amended v0.7); no `required: true` in `userConfig`; `${CLAUDE_PLUGIN_ROOT}` only in `configure`/`upgrade`; both have "Sem terminal" and "Com terminal" parts; size < 200 MB and < 5,000 files | Linux, every PR; release (f) | REQ-SRF-02, 03, 05, 06, AC-SRF-4 |
 
 ### 6.2 Manual tests (UAT) — before `0.1.0`, and again for every MAJOR
 

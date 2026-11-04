@@ -16,6 +16,9 @@ English copy of `TROUBLESHOOTING.pt-BR.md`. First run `/isg-model-alignment:conf
 ## Two versions / both `@synced` and `@isg-plugins` listed
 Installed through both routes. Keep one: `claude plugin disable isg-model-alignment@synced`.
 
+## "Without shared memory" / Notion does not connect
+Authenticate Notion (`/mcp` → `plugin:isg-model-alignment:notion` → Authenticate, or the plugin's Connectors tab on claude.ai), pick the **Instituto Sonho Grande** workspace, and make sure you are a **member** (guests cannot connect).
+
 ## "node: command not found"
 Install Node.js LTS (20+). Only `configure` and `upgrade` need Node.
 
