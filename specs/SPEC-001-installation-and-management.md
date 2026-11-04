@@ -7,7 +7,7 @@
 | **Organization** | Instituto Sonho Grande |
 | **Plugin** | `isg-model-alignment` *(decided)* |
 | **Marketplace / repository name** | `isg-plugins` *(decided; fallback `instituto-sonho-grande-plugins`, see Q1)* |
-| **GitHub owner** | `<org>` *(placeholder until Q2 is answered; every `<org>` in this spec is the same value)* |
+| **GitHub owner** | `<org>` in this spec = the final owner, the **Instituto's GitHub account**. **Interim host (2026-11-04):** `Lecabe-Tech-Company/isg-plugins` (private), to be **transferred** to the Instituto's account later (Q2, P-44) |
 | **Code host** | GitHub, **Free plan**, private repository *(decided)* |
 | **Release owners** | GitHub collaborators with write access *(decided)* |
 | **Supported surfaces** | Claude Code (terminal, IDE, **Desktop Code tab**, **Claude Code on the web**), **claude.ai web chat**, **Desktop chat**, **Cowork** *(decided, see 1.6)* |
@@ -32,6 +32,7 @@
 | v0.4 | 2026-11-04 | Instituto approved the v0.3 design choices (D5, D6, D8, REQ-LNG-04, REQ-ACC-07). Approved to start T0. |
 | v0.5 | 2026-11-04 | **Support for every surface** (Desktop Code tab and chat, Claude Code on the web, claude.ai chat, Cowork). New: section 1.6 (surfaces, plans, install routes R1–R4); D11 `stable` is the repo **default branch**; D12 the **claude.ai account route (R1) is primary**; REQ-SRF group (portable core, no required `userConfig`, surface-aware commands); assumptions A10–A17; sections 4.11–4.12; new AC, VAL-13, UAT-14..20, P-32..P-41. Changed: D3, D8, REQ-INS-01/08, REQ-CMD-03, C-09, 4.3, 4.4, 4.7, 4.10. **Approved by the Instituto on 2026-11-04.** |
 | v0.5.1 | 2026-11-04 | Answers to open questions: marketplace/repo renamed to `isg-plugins` (Q1); GitHub org to be created in T2 (Q2); Q9 and Q10 decided; Q3 and Q11 still open. |
+| v0.8 | 2026-11-04 | Repository pushed to the **interim host** `Lecabe-Tech-Company/isg-plugins` (private); ownership to be transferred to the Instituto's account later (Q2, P-44, transfer checklist in `docs/RELEASING.md`). |
 | v0.7 | 2026-11-04 | For SPEC-002: REQ-SRF-03 and VAL-13 amended to allow a **remote** MCP server with a fixed URL (the bundled Notion connection); new check C-13; out-of-scope line now points to SPEC-002 / SPEC-003+. |
 | v0.6 | 2026-11-04 | **Implementation.** Repo created at `C:\dev\isg-plugins` (outside OneDrive, P-26): scaffold, `configure`/`upgrade` skills and scripts, CI check scripts, 31 tests, `validate.yml`, `release.yml`, docs. New spec text: 7.1 status; file list in 4.1; test-only hooks and `redact()` in 4.8; REQ-CST-02 (no path filters); VAL-03 method verified. The repo copy of `specs/` is canonical from now on. |
 | v0.5.2 | 2026-11-04 | **T0 Part 1** (this machine): results in `SPEC-001-T0-results.md`; 1.5 status table; CLI resolution via `CLAUDE_CODE_EXECPATH` and script-file quoting rule (4.8); C-03; P-42, P-43; `MIN_CLAUDE_VERSION` = 2.1.317 provisional. Part 2 (GitHub, claude.ai, cloud) pending. |
@@ -772,6 +773,7 @@ The running script lives in the **old** version folder; updating is safe because
 | P-41 | **Cloud GitHub proxy is scoped to attached repos;** a setup script may not clone the private marketplace. | R4 fails | Verify A12; prefer R1 (A11). | AC-SRF-3 |
 | P-42 | **`claude` is not on `PATH`** in Desktop-app sessions (found in T0). A script calling `claude …` by name fails. | `configure`/`upgrade` "command not found" | Resolve the CLI with `CLAUDE_CODE_EXECPATH` first (4.8); `CLAUDE_CLI_NOT_FOUND` message in PT-BR; VAL-12 stubs both cases. | VAL-12, UAT-17 |
 | P-43 | **PowerShell 5.1 strips quotes** from native-command arguments, so `node -e "…"` and arguments with quotes break (found in T0). | Garbled commands on Windows | Skills run script **files** with simple flags only (4.8); paths always double-quoted. | VAL-12, UAT-01 |
+| P-44 | **Repository transfer** from the interim host (`Lecabe-Tech-Company`) to the Instituto's account changes the URL. GitHub redirects the old URL, but the redirect **breaks** if a new repo with the old name is ever created there; installed marketplaces, the Claude GitHub App grant and the claude.ai marketplace entry all point to the old URL; Actions minutes and settings (default branch) belong to whoever hosts the repo. | Users silently lose updates | **Do not onboard users (R1, R2) before the transfer.** Until then, only maintainers test. Run the transfer checklist in `docs/RELEASING.md` ("Transfer to the Instituto's account"). Never create a new `isg-plugins` repo under `Lecabe-Tech-Company` after the transfer. | Transfer checklist |
 
 ---
 
@@ -973,7 +975,7 @@ These are easy to forget. They are rules, not suggestions.
 
 | # | Question | Needed by |
 |---|---|---|
-| Q2 | **No GitHub organization exists yet.** It is created in T2 (free plan, 2 owners). Still open: its name (`<org>`); check that the name is free on github.com when creating it. Until then T0 uses a throwaway private repo in a personal account. | T2 |
+| Q2 | **Interim decision (2026-11-04):** the repository lives temporarily at `Lecabe-Tech-Company/isg-plugins` (private). The Instituto will **transfer the ownership** to its own GitHub account later. Still open: the Instituto account's name and the transfer date. Until the transfer, follow P-44 (no user onboarding). | Before onboarding users |
 | Q3 | Named list of **maintainers** (≥ 2, Write) and **org owners** (2) — **to be defined later by the Instituto**, before T2. | T2 |
 | Q4 | Does Instituto IT use managed settings / MDM? Only for the optional T9 guide. | T9 |
 | Q7 | `MIN_CLAUDE_VERSION` — **provisional `2.1.317`** (the only version tested in T0). Lower it only after testing an older version. | T1 |

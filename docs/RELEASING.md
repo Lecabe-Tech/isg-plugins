@@ -34,6 +34,18 @@ Source of truth: `specs/SPEC-001-installation-and-management.md`. This page is t
 
 After this, the default branch is `stable` forever and PRs target `main`.
 
+## Transfer to the Instituto's account (SPEC-001 P-44)
+
+The repository lives temporarily at `Lecabe-Tech-Company/isg-plugins`. **Do not onboard users before the transfer.** When the Instituto's GitHub account exists:
+
+1. In `Lecabe-Tech-Company/isg-plugins`: Settings > General > Danger zone > **Transfer ownership** → the Instituto's account (an owner of both accounts does it; the name stays `isg-plugins`).
+2. In the new location, check: visibility **Private**; collaborators and access levels (re-invite if needed); default branch `stable` (if it already exists); Actions enabled; the **Claude** GitHub App installed on the new account with access to this repository only.
+3. In a release PR, set the new owner in `plugins/isg-model-alignment/scripts/lib/constants.mjs` (`GITHUB_ORG`) and in `plugin.json` (`repository`); replace the owner in `docs/INSTALL*.md`; run `npm run check:release`.
+4. Locally: `git remote set-url origin https://github.com/<new owner>/isg-plugins.git`.
+5. Maintainers who already added the marketplace: remove and add it again with the new URL (this also reinstalls the plugin).
+6. **Never** create a new repository named `isg-plugins` under `Lecabe-Tech-Company` (it would break GitHub's redirect).
+7. Record the transfer in the quarterly log below.
+
 ## Rollback
 
 Revert the bad change on `main` through a normal PR and release a **new PATCH**. Do not move `stable` backwards, do not delete tags or releases. (REQ-REL-06)
