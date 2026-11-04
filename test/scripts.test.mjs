@@ -249,6 +249,32 @@ test('configure --apply creates settings.json when it does not exist', () => {
   assert.equal(after.env.CLAUDE_CODE_PLUGIN_PREFER_HTTPS, '1');
 });
 
+test('configure C-14: Python and bundled pypdf (SPEC-003)', () => {
+  const ok = runScript('configure.mjs', ['--check', '--json'], { cfg: HEALTHY_CFG(), settings: HEALTHY_SETTINGS });
+  assert.equal(byId(ok.json, 'C-14').status, 'ok');
+  assert.match(byId(ok.json, 'C-14').message, /pypdf 6\.21\.4/);
+
+  // Python missing: only a warning (it is needed just to process PDFs), exit stays 0
+  const none = runScript('configure.mjs', ['--check', '--json'], { cfg: HEALTHY_CFG(), settings: HEALTHY_SETTINGS, withPython: false });
+  assert.equal(byId(none.json, 'C-14').status, 'warn');
+  assert.match(byId(none.json, 'C-14').fix, /python\.org/);
+  assert.equal(none.status, 0);
+
+  // too old
+  const old = HEALTHY_CFG();
+  old.python = { '--version': { code: 0, stdout: 'Python 3.9.2\n' } };
+  const r = runScript('configure.mjs', ['--check', '--json'], { cfg: old, settings: HEALTHY_SETTINGS });
+  assert.equal(byId(r.json, 'C-14').status, 'warn');
+  assert.match(byId(r.json, 'C-14').message, /antigo/);
+
+  // bundled library does not load
+  const bad = HEALTHY_CFG();
+  bad.python = { '--version': { code: 0, stdout: 'Python 3.12.0\n' }, '-c': { code: 1, stderr: 'ModuleNotFoundError: pypdf' } };
+  const f = runScript('configure.mjs', ['--check', '--json'], { cfg: bad, settings: HEALTHY_SETTINGS });
+  assert.equal(byId(f.json, 'C-14').status, 'fail');
+  assert.equal(f.status, 1);
+});
+
 test('configure: unknown flag is a usage error (exit 2)', () => {
   const r = runScript('configure.mjs', ['--nope', '--json'], {});
   assert.equal(r.status, 2);

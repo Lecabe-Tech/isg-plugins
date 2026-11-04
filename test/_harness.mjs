@@ -61,6 +61,7 @@ export function runScript(script, args, opts = {}) {
     ...(opts.withClaude === false ? {} : { ISG_TEST_CLAUDE_STUB: path.join(STUBS, 'claude.mjs') }),
     ...(opts.withGh === false ? {} : { ISG_TEST_GH_STUB: path.join(STUBS, 'gh.mjs') }),
     ...(opts.withGit === false ? {} : { ISG_TEST_GIT_STUB: path.join(STUBS, 'git.mjs') }),
+    ...(opts.withPython === false ? {} : { ISG_TEST_PYTHON_STUB: path.join(STUBS, 'python.mjs') }),
     ...(opts.env ?? {}),
   };
   const t0 = Date.now();

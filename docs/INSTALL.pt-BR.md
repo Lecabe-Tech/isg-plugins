@@ -67,6 +67,10 @@ Abra o Claude Code e rode `/isg-model-alignment:configure`.
 
 **Atualizar:** `/isg-model-alignment:upgrade` (mostra o que mudou e pede a sua confirmação). Depois reinicie o Claude Code ou rode `/reload-plugins`.
 
+## 3a. Python (só para processar PDFs)
+
+O comando `/isg-model-alignment:cfp` (processamento de PDFs grandes) usa um programa em **Python 3.11 ou mais novo** (gratuito, https://www.python.org/downloads/; no Windows, marque **"Add python.exe to PATH"**). A biblioteca de PDFs já vem dentro do plugin. Se você não vai processar PDFs, não precisa do Python. Confira com `/isg-model-alignment:configure` (item C-14). Guia de uso: `docs/CFP.pt-BR.md`.
+
 ## 3b. Conectar o Notion (todas as rotas, uma vez só)
 
 O plugin já traz a conexão com o Notion (onde fica a memória compartilhada do agente). Você só precisa **autenticar**:

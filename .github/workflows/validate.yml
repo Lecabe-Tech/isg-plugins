@@ -91,8 +91,16 @@ jobs:
       - name: VAL-M02..M04 memory protocol, copies, Notion schema (SPEC-002)
         run: node scripts/ci/check-memory.mjs
 
+      - name: VAL-C09/C10 CFP vendored library untouched, engine offline, no writes inside the plugin
+        run: node scripts/ci/check-cfp.mjs
+
       - name: Unit and script tests
         run: npm test
+
+      - name: CFP tests (Python, SPEC-003 VAL-C01..C08; ground truth from generated PDFs)
+        run: |
+          python3 --version
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test.cfp.test_cfp -v
 
       - name: VAL-12 scripts are non-interactive
         run: node scripts/ci/check-non-interactive.mjs

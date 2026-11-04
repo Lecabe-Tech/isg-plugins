@@ -11,6 +11,7 @@ import { checkRepoAccess, listMarketplaces, listPlugins, marketplaceRef } from '
 import { redact, resolveTool, runClaude, runGh, runGit } from './lib/run.mjs';
 import { compare, extract } from './lib/semver.mjs';
 import { detectRoute, detectSurface } from './lib/surface.mjs';
+import { checkPypdf, findPython } from './lib/python.mjs';
 import { editSettings, pluginsRoot, readJsonFile, readSettings, settingsPath } from './lib/settings.mjs';
 import path from 'node:path';
 
@@ -154,6 +155,27 @@ function runChecks() {
   } else if (r === 'R1' || r === 'R1+R2') {
     checks.push(check('C-11', 'Atualização automática', 'skip', 'Plugin vindo da conta do claude.ai: mantenha "Sync automatically" ligado em Customize > Plugins.'));
   } else checks.push(skipRoute('C-11', 'Atualização automática'));
+
+  // C-14 Python for CFP (SPEC-003). Only a warning: Python is needed just to process PDFs.
+  const py = findPython(env);
+  if (!py.found) {
+    checks.push(
+      check(
+        'C-14',
+        'Python (processamento de PDFs)',
+        'warn',
+        py.tooOld ? `Python ${py.oldVersion} é antigo demais; é preciso 3.11 ou mais para processar PDFs.` : 'Python não encontrado; ele é necessário só para processar PDFs (comando cfp).',
+        'Instale o Python 3.11 ou mais novo (gratuito) em https://www.python.org/downloads/ (no Windows, marque "Add python.exe to PATH") e abra uma nova sessão.',
+      ),
+    );
+  } else {
+    const lib = checkPypdf(py, env);
+    checks.push(
+      lib.ok
+        ? check('C-14', 'Python (processamento de PDFs)', 'ok', `Python ${py.version} e pypdf ${lib.version} incluído no plugin.`)
+        : check('C-14', 'Python (processamento de PDFs)', 'fail', `Python ${py.version} encontrado, mas a biblioteca pypdf incluída no plugin não carrega.`, 'Atualize ou reinstale o plugin (/isg-model-alignment:upgrade).'),
+    );
+  }
 
   // C-12 one route only
   if (r === 'R1+R2') checks.push(check('C-12', 'Uma rota só', 'fail', 'O plugin está instalado pela conta do claude.ai (@synced) e também por este computador (@isg-plugins); as versões podem divergir.', `Desative uma das cópias, por exemplo: "claude plugin disable ${PLUGIN_NAME}@synced".`));

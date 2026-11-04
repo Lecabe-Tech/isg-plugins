@@ -6,7 +6,7 @@
 |---|---|
 | **Organization** | Instituto Sonho Grande |
 | **Plugin** | `isg-model-alignment` (SPEC-001) |
-| **Status** | Draft v0.2 — for approval |
+| **Status** | v0.4 — **implementation written** (tasks C-T1 to C-T6, see 7.1); validated only on generated PDFs, **not yet on real state documents** (C-T0, C-T7) |
 | **Date** | 2026-11-04 |
 | **Scope** | **Only the processing of a PDF** that is already available as a local file: turning large PDFs (state departments of education's orientation documents, 150+ pages) into **faithful, page-traceable plain-text chunks (.md)** by **deterministic code (no AI)**, stored in the plugin's **application-data folder** organised **per state (UF) and year**, plus a code-only **search** so the agent later opens only the chunks it needs. |
 | **Out of scope** | **How the PDF is obtained** (file retrieval — a later spec, by the Instituto); images inside PDFs (detected and marked, not processed); OCR; formats other than PDF; the analysis itself (later spec, uses SPEC-002 memory). |
@@ -22,6 +22,7 @@
 |---|---|---|
 | v0.1 | 2026-11-04 | First draft |
 | v0.3 | 2026-11-04 | Q-2 decided: one application-data folder for all user-scope content (CFP results and SPEC-002 local memory); `userConfig.data_folder` added to the plugin. |
+| v0.4 | 2026-11-04 | **Implementation.** Engine `scripts/cfp/` (Python, pypdf 6.21.4 vendored and hash-checked), skill `cfp`, check C-14 in `configure`, checks VAL-C09/C10, 37 Python tests with generated PDFs. Spec adjusted to what was built: C-14 is a **warning**; image markers are placed by the position of the image in the page content; `REQ-COU-09` allows CFP to remove **only its own temporary folders**; `--pasta-de-dados` option; REQ-CCH-07 is carried by a `continuacao: true` front-matter field. The Node 22 amendment of v0.1 is **withdrawn** (no Node library is used). |
 | v0.2 | 2026-11-04 | Instituto corrections: plugin is for the **whole ecosystem** (no "Claude Code only"); **file retrieval is out of scope** (no assumption about where the PDF comes from); engine is a **Python script** with **pypdf bundled inside the plugin**; results in the plugin's **application-data folder** (survives updates), also used for user-scope content; **nothing is removed from the text** (headers, footers and page numbers are kept in the page markers); **all pages** always processed; organisation by **state** (UF) and year; copy of the original PDF kept. |
 
 ### 0.2 Glossary
@@ -94,7 +95,7 @@ Items marked ⚠ are assumptions to verify (1.5).
 | Item | Change |
 |---|---|
 | SPEC-001 4.8 "Only Node built-ins" | Scripts may also be **Python ≥ 3.11 using only the standard library plus libraries vendored inside the plugin** (today: pypdf). Vendored code keeps its license file. No `pip install` at runtime. |
-| SPEC-001 REQ-INS-08 / C-02 | Prerequisite **Python 3.11+** added where the CFP engine runs; `configure` gets check **C-14** (Python found, version, bundled pypdf importable). |
+| SPEC-001 REQ-INS-08 / C-02 | Prerequisite **Python 3.11+** added where the CFP engine runs; `configure` gets check **C-14** (Python found, version, bundled pypdf importable) — reported as a **warning** when Python is missing, because only PDF processing needs it. **Applied in SPEC-001 v0.9.** |
 | SPEC-001 VAL-13 (portable core) | The `cfp` skill is allowed to run a script; its behaviour per surface is fixed in the file-retrieval spec (Q-1). |
 | SPEC-002 4.10 (local memory in `${CLAUDE_PLUGIN_DATA}`) | **Decided (Q-2):** the local memory and outbox move to `<appdata>/memoria/`; all user-scope content lives in one folder and survives updates and uninstall. Done in SPEC-002 v0.6. |
 
@@ -170,7 +171,7 @@ Items marked ⚠ are assumptions to verify (1.5).
 | REQ-COU-06 | M | **Cache:** same SHA-256 **and** same CFP version → `JA_PROCESSADO`, nothing changes, unless `--force`; with `--force` the previous folder is renamed `…-substituido-<data>` and kept. |
 | REQ-COU-07 | M | A **new version** (different SHA-256, same UF, year and title) gets a new folder; the catalog marks the older one **superseded** (never deleted). |
 | REQ-COU-08 | M | UTF-8 without BOM, LF; `.md` in PT-BR; no spaces or accents in names; paths under 200 characters (Windows). |
-| REQ-COU-09 | M | CFP **never deletes** anything in `<appdata>`. |
+| REQ-COU-09 | M | CFP **never deletes** anything in `<appdata>`. The only exception: it may remove its **own temporary folder** (`<pasta>.tmp-<pid>`) left by an interrupted run. VAL-C10 enforces this. |
 | REQ-COU-10 | M | Writing is **atomic per document**: into `<pasta>.tmp`, then rename; an interrupted run leaves no half document. |
 
 ### 2.6 Fidelity and quality (REQ-CQL)
@@ -442,6 +443,31 @@ C-A1..A6 verified; every M requirement traced; VAL-C01..C11 green; UAT-C01..C05 
 | C-T6 | Performance fixture, CI wiring (Python on Linux runner, Windows in release) | VAL-C08 |
 | C-T7 | UAT with real documents | 6.3 |
 
+### 7.1 Implementation status (v0.4, 2026-11-04)
+
+Code: `plugins/isg-model-alignment/scripts/cfp/` (`cfp.py`, `isg_cfp/`, `vendor/pypdf` 6.21.4 with its license and a SHA-256 manifest), skill `skills/cfp/SKILL.md`, tests `test/cfp/`.
+
+| Task | Status | Proven | Open |
+|---|---|---|---|
+| C-T0 | **Partly** | pypdf 6.21.4 imports from the vendored folder on Python 3.13 (Windows); the wheel hash matches PyPI; extraction gives positions, fonts and image positions on generated PDFs (C-A1..A3 on **generated** PDFs) | Run on **two or three real state documents** (columns, tables, odd fonts, widths); macOS and Linux; Python 3.11 and 3.12; C-A4..A6 on real files |
+| C-T1 | **Done** | `appdata.py` (paths per OS, refuses a folder inside the plugin), C-14 in `configure` (4 stub tests + a real run), amendments in SPEC-001 v0.9 | — |
+| C-T2 | **Done** | Extraction, cleaning with removal log, character conservation checked on the **written files** (dropped, invented and missing-page cases are detected) | Real-document tuning |
+| C-T3 | **Done** | Structure and chunking (cap, merge, long-paragraph split), quality status, atomic writer, catalog, cache, `--force`, superseded versions | Thresholds Q-3 |
+| C-T4 | **Done** | `buscar`, `listar`, `pagina`, `status`; 300 pages in about 2 s | — |
+| C-T5 | **Done** | Skill `cfp` (PT-BR, three parts, analysis rules REQ-CAG-01..07) | In-session behaviour (UAT) |
+| C-T6 | **Done locally** | CI steps added (Linux PRs; Windows in the release workflow) | Not run on GitHub yet |
+| C-T7 | **Not started** | — | UAT-C01..C05 with real documents and analysts |
+
+Automated results at v0.4: 37 Python tests (ground truth from generated PDFs, including an independent character-conservation check and tests that the guard detects tampering), VAL-C09/C10 (negative tests verified), SPEC-001 checks still green.
+
+**Known limitations (not hidden):**
+- Heuristics for columns, tables, headings, headers/footers and hyphens were tuned on **generated** PDFs only. Real documents will need tuning; every doubtful page is flagged, and the character-conservation check protects against silent loss regardless of layout.
+- Text width is exact only for fonts that declare `/Widths`; otherwise it is estimated (0.5 em per character) and the page is marked `larguras_estimadas` in `qualidade.json`. Estimation can glue or split words in unusual PDFs (C-A1).
+- Images inside nested form objects may not be located (marker missing); inline images are counted by position of the operator. Image **content** is never read.
+- Two-column detection needs ≥ 6 lines and aligned right columns; pages with three columns are treated as tables or flagged `ordem de leitura incerta`.
+- A paragraph that continues across a page break is kept as two paragraphs (one per page) so every page stays traceable.
+- Not implemented: the optional hook (Q-4); non-PDF formats; OCR; image content; table structure.
+
 ---
 
 ## 8. Implementer notes — saying the obvious
@@ -464,6 +490,6 @@ C-A1..A6 verified; every M requirement traced; VAL-C01..C11 green; UAT-C01..C05 
 |---|---|---|
 | Q-1 | **Where CFP runs on each surface** (claude.ai chat, Cowork, Claude Code) depends on how the file is obtained → decided in the **file-retrieval spec**. | File-retrieval spec |
 | ~~Q-2~~ | **Decided:** one folder — SPEC-002's local memory and outbox live in `<appdata>/memoria/`. | — |
-| Q-3 | Defaults OK? Chunk cap **12,000** characters, merge under **1,500**, `Reprovado` above **10 %** pages without text or **2 %** garbled characters (status only — content is never dropped). | C-T3 |
-| Q-4 | Hooks: is a hook still wanted for CFP (for example to prevent a PDF from being read directly by the agent)? Processing itself is started by the skill. | C-T5 |
+| Q-3 | *(implemented with these defaults; confirm or change)* Defaults OK? Chunk cap **12,000** characters, merge under **1,500**, `Reprovado` above **10 %** pages without text or **2 %** garbled characters (status only — content is never dropped). | C-T3 |
+| Q-4 | *(not implemented)* Hooks: is a hook still wanted for CFP (for example to prevent a PDF from being read directly by the agent)? Processing itself is started by the skill. | C-T5 |
 | ~~Q-5~~ | Municipal networks — **decided:** state level (UF) only. | — |

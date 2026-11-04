@@ -54,8 +54,11 @@ jobs:
           node scripts/ci/check-portable.mjs
           node scripts/ci/check-no-root-writes.mjs
           node scripts/ci/check-memory.mjs
+          node scripts/ci/check-cfp.mjs
       - name: (f) tests
-        run: npm test
+        run: |
+          npm test
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test.cfp.test_cfp
 
   smoke-windows:
     name: (g) Windows smoke test
@@ -83,11 +86,13 @@ jobs:
               const p=JSON.parse(s).find(x=>x.id==='isg-model-alignment@isg-plugins');
               if(!p||p.enabled!==true){console.error('plugin not installed/enabled',s);process.exit(1)}
               console.log('installed',p.version)})"
-      - name: Scripts and tests on Windows
+      - name: Scripts and tests on Windows (including CFP with Python)
         shell: bash
         run: |
           npm test
           node scripts/ci/check-non-interactive.mjs
+          python --version
+          PYTHONDONTWRITEBYTECODE=1 python -m unittest test.cfp.test_cfp
 
   publish:
     name: (h-j) tag, GitHub Release, move stable

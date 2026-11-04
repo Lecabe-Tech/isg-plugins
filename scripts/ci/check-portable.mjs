@@ -44,7 +44,11 @@ for (const [key, cfg] of Object.entries(plugin.userConfig ?? {})) {
 }
 
 const ROOT_TOKEN = '${CLAUDE_PLUGIN_ROOT}';
-const SHELL_SKILLS = new Set(['configure', 'upgrade']);
+// Skills that run a script (SPEC-001 REQ-SRF-02 exceptions). `cfp` is the declared exception of SPEC-003 (C1).
+const SHELL_SKILLS = new Set(['configure', 'upgrade', 'cfp']);
+// Only the commands that must never run on their own need disable-model-invocation (REQ-CMD-14). `cfp` is
+// meant to be used when the analyst mentions a PDF, so it stays invocable.
+const MANUAL_ONLY = new Set(['configure', 'upgrade']);
 for (const file of walk(SKILLS_DIR)) {
   const skill = path.basename(path.dirname(file));
   const text = readText(file);
@@ -57,7 +61,7 @@ for (const file of walk(SKILLS_DIR)) {
     for (const heading of ['## 1. Descobrir o ambiente', '## 2. Com terminal', '## 3. Sem terminal']) {
       if (!text.includes(heading)) problems.push(`${rel(file)}: missing part "${heading}" (4.9)`);
     }
-    if (frontmatter['disable-model-invocation'] !== 'true') problems.push(`${rel(file)}: needs disable-model-invocation: true (REQ-CMD-14)`);
+    if (MANUAL_ONLY.has(skill) && frontmatter['disable-model-invocation'] !== 'true') problems.push(`${rel(file)}: needs disable-model-invocation: true (REQ-CMD-14)`);
     if (!/não diga que (executou|verificou|executou ou verificou)/i.test(text) && !/Não diga que/i.test(text)) problems.push(`${rel(file)}: missing the "não diga que executou/verificou" rule (P-39)`);
   } else if (/\bnode\b.*\.mjs|\bbash\b|\bpowershell\b/i.test(text)) {
     problems.push(`${rel(file)}: domain skills must not depend on scripts/shell (REQ-SRF-02)`);

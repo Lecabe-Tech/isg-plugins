@@ -12,6 +12,7 @@ const steps = [
   ['VAL-11 language', [path.join(here, 'check-language.mjs')]],
   ['VAL-13 portable core', [path.join(here, 'check-portable.mjs')]],
   ['VAL-M02..M04 memory protocol', [path.join(here, 'check-memory.mjs')]],
+  ['VAL-C09/C10 CFP vendored library and writes', [path.join(here, 'check-cfp.mjs')]],
   ['unit and script tests', ['--test', path.join(root, 'test', 'lib.test.mjs'), path.join(root, 'test', 'scripts.test.mjs')]],
   ['VAL-12 non-interactive', [path.join(here, 'check-non-interactive.mjs')]],
 ];
@@ -22,6 +23,25 @@ for (const [name, args] of steps) {
     failed++;
     console.error(`>>> FAILED: ${name}`);
   }
+}
+
+// CFP tests (Python, SPEC-003). Needs Python 3.11+ (python3, python or py -3).
+const pythons = [['python3', []], ['python', []], ['py', ['-3']]];
+let ran = false;
+for (const [cmd, pre] of pythons) {
+  const probe = spawnSync(cmd, [...pre, '-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'], { encoding: 'utf8' });
+  if (probe.status !== 0) continue;
+  ran = true;
+  const r = spawnSync(cmd, [...pre, '-m', 'unittest', 'test.cfp.test_cfp'], { stdio: 'inherit', cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
+  if (r.status !== 0) {
+    failed++;
+    console.error('>>> FAILED: CFP tests (Python)');
+  }
+  break;
+}
+if (!ran) {
+  failed++;
+  console.error('>>> FAILED: no Python 3.11+ found to run the CFP tests (install Python 3.11 or newer)');
 }
 console.log(failed ? `\n${failed} check(s) failed.` : '\nAll local checks passed.');
 process.exitCode = failed ? 1 : 0;

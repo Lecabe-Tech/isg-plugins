@@ -7,7 +7,8 @@ import fs from 'node:fs';
 
 export function main(tool) {
   const args = process.argv.slice(2);
-  const key = args.join(' ');
+  // `python -c <code>` carries a machine-specific path, so it is addressed simply as "-c"
+  const key = tool === 'python' && args.includes('-c') ? '-c' : args.join(' ');
   const cfg = JSON.parse(process.env.STUB_CFG || '{}');
   if (process.env.STUB_LOG) fs.appendFileSync(process.env.STUB_LOG, `${tool} ${key}\n`);
 
@@ -22,6 +23,8 @@ export function main(tool) {
   if (!reply) {
     if (tool === 'claude' && key === '--version') reply = { code: 0, stdout: '2.1.317 (Claude Code)\n' };
     else if (tool === 'claude' && key.startsWith('plugin marketplace update')) reply = { code: 0, stdout: 'ok\n' };
+    else if (tool === 'python' && key === '--version') reply = { code: 0, stdout: 'Python 3.13.1\n' };
+    else if (tool === 'python' && key === '-c') reply = { code: 0, stdout: '6.21.4\n' };
     else reply = { code: 1, stderr: `stub: no reply configured for "${tool} ${key}"\n` };
   }
   if (reply.sleepMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, reply.sleepMs);

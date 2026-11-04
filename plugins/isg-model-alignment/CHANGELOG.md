@@ -9,4 +9,6 @@ Todas as mudanças relevantes deste plugin são registradas aqui.
 - Comando `/isg-model-alignment:upgrade`: mostra a versão instalada, a mais recente e as mudanças entre elas, e atualiza com confirmação.
 - Funciona no Claude Code (terminal, aba Código do app Desktop e Claude Code na web), no chat do claude.ai e do app Desktop e no Cowork.
 - Conexão com o Notion já incluída no plugin: basta autenticar a sua conta do Notion uma vez.
+- Processamento de PDFs grandes (`/isg-model-alignment:cfp`): um programa em Python (com a biblioteca pypdf já incluída) extrai o texto, divide em chunks com as páginas de cada trecho, gera índice e relatório de qualidade e permite buscar sem gastar tokens da IA. Nenhum texto é removido; tudo é guardado por UF e ano na pasta de dados do plugin, que continua no computador depois de atualizações. Exige Python 3.11 ou mais novo.
+- `/isg-model-alignment:configure` agora também confere o Python e a biblioteca de PDFs (item C-14).
 - Memória compartilhada do agente no Notion: `/isg-model-alignment:feedback` (registrar correções), `/isg-model-alignment:memory` (consultar), `/isg-model-alignment:memory-sync` (sincronizar a cópia local), `/isg-model-alignment:memory-setup` (montar a estrutura no Notion) e `/isg-model-alignment:memory-audit` (auditar).

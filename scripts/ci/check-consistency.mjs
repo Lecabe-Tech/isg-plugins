@@ -38,7 +38,7 @@ for (const e of validateChangelog(changelog)) problems.push(`CHANGELOG.md: ${e}`
 // Every text file must be UTF-8 without BOM and use LF (REQ-REP-06).
 for (const file of walk(ROOT)) {
   const r = rel(file);
-  if (r.startsWith('.git/') || r.includes('node_modules/') || !/\.(md|json|mjs|js|yml|yaml|sh|ps1|txt)$/.test(r) && r !== '.gitattributes' && r !== '.gitignore') continue;
+  if (r.startsWith('.git/') || r.includes('node_modules/') || !/\.(md|json|mjs|js|yml|yaml|sh|ps1|txt|py)$/.test(r) && r !== '.gitattributes' && r !== '.gitignore') continue;
   const buf = readText(file);
   if (buf.charCodeAt(0) === 0xfeff) problems.push(`${r}: has a BOM (REQ-REP-06)`);
   if (buf.includes('\r\n')) problems.push(`${r}: has CRLF line endings (REQ-REP-06)`);

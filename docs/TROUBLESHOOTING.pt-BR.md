@@ -27,6 +27,14 @@ O plugin está instalado pelas duas rotas. Mantenha uma só: `claude plugin disa
 - Escolha o espaço de trabalho do **Instituto Sonho Grande**, não um espaço pessoal.
 - Você precisa ser **membro** do espaço de trabalho (convidados não conseguem conectar). Peça aos responsáveis.
 
+## Processamento de PDFs (cfp)
+
+- **"Python não encontrado" (PYTHON_AUSENTE):** instale o Python 3.11 ou mais novo (https://www.python.org/downloads/, marcando "Add python.exe to PATH") e abra uma nova sessão. No Windows, o atalho da Microsoft Store chamado "python" não serve: instale o de python.org.
+- **"PDF protegido por senha":** peça uma versão sem proteção.
+- **Situação "Reprovado":** o texto foi gerado, mas há problema de fidelidade ou muitas páginas sem texto (PDF escaneado?). Abra o `qualidade.md` do documento e compare as páginas indicadas com o PDF.
+- **"Caminho longo demais":** escolha uma pasta de dados mais curta (Configure options → Pasta de dados).
+- **"A pasta de dados não pode ficar dentro da pasta instalada do plugin":** escolha uma pasta fora dela.
+
 ## "node: comando não encontrado"
 
 Instale o **Node.js LTS** (versão 20 ou mais) em https://nodejs.org e abra uma nova sessão. Só `/isg-model-alignment:configure` e `/isg-model-alignment:upgrade` precisam do Node.

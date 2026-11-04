@@ -15,7 +15,7 @@
 | **Cost constraint** | **Zero additional cost.** Only free tools and free-plan limits; users use the Claude plan they already have *(decided, see 1.3)* |
 | **Risk acceptance** | Free-plan risks accepted by the Instituto and managed by process, not pricing *(decided, see 1.4)* |
 | **Language** | Everything Claude reads or writes for the user is **PT-BR** (skill text, messages, generated content, CHANGELOG, user guides). Spec, code, code comments, identifiers, maintainer docs and commit messages are **English** *(decided, see REQ-LNG)* |
-| **Status** | v0.6 — design approved; **implementation T1, T3–T7 done in the repo `C:\dev\isg-plugins` (not yet committed or published)**; T2, T8 and T0 Part 2 need people and accounts (see 7.1). R1 must not be offered to users until A15 is confirmed. |
+| **Status** | v0.9 — design approved; **implementation T1, T3–T7 done in the repo `C:\dev\isg-plugins` (not yet committed or published)**; T2, T8 and T0 Part 2 need people and accounts (see 7.1). R1 must not be offered to users until A15 is confirmed. |
 | **Date** | 2026-11-04 |
 | **Scope of this spec** | Distribution, access control, install, upgrade, release process, `configure` and `upgrade` commands, support on every surface |
 | **Out of scope (next spec)** | Agent improvement system (SPEC-002) and domain skills of the quality process (SPEC-003+). Both must follow REQ-SRF-02 (portable core) and REQ-LNG. |
@@ -32,6 +32,7 @@
 | v0.4 | 2026-11-04 | Instituto approved the v0.3 design choices (D5, D6, D8, REQ-LNG-04, REQ-ACC-07). Approved to start T0. |
 | v0.5 | 2026-11-04 | **Support for every surface** (Desktop Code tab and chat, Claude Code on the web, claude.ai chat, Cowork). New: section 1.6 (surfaces, plans, install routes R1–R4); D11 `stable` is the repo **default branch**; D12 the **claude.ai account route (R1) is primary**; REQ-SRF group (portable core, no required `userConfig`, surface-aware commands); assumptions A10–A17; sections 4.11–4.12; new AC, VAL-13, UAT-14..20, P-32..P-41. Changed: D3, D8, REQ-INS-01/08, REQ-CMD-03, C-09, 4.3, 4.4, 4.7, 4.10. **Approved by the Instituto on 2026-11-04.** |
 | v0.5.1 | 2026-11-04 | Answers to open questions: marketplace/repo renamed to `isg-plugins` (Q1); GitHub org to be created in T2 (Q2); Q9 and Q10 decided; Q3 and Q11 still open. |
+| v0.9 | 2026-11-04 | For SPEC-003: scripts may be **Python ≥ 3.11 with vendored libraries** (4.8); prerequisite Python 3.11+ for `cfp` only (REQ-INS-08); new check **C-14**; skill `cfp` is the declared exception to the portable core (it runs a script and is not `disable-model-invocation`); `scripts/cfp/` and checks VAL-C09/C10 added; `.py` files covered by the LF/BOM rule. |
 | v0.8 | 2026-11-04 | Repository pushed to the **interim host** `Lecabe-Tech-Company/isg-plugins` (private); ownership to be transferred to the Instituto's account later (Q2, P-44, transfer checklist in `docs/RELEASING.md`). |
 | v0.7 | 2026-11-04 | For SPEC-002: REQ-SRF-03 and VAL-13 amended to allow a **remote** MCP server with a fixed URL (the bundled Notion connection); new check C-13; out-of-scope line now points to SPEC-002 / SPEC-003+. |
 | v0.6 | 2026-11-04 | **Implementation.** Repo created at `C:\dev\isg-plugins` (outside OneDrive, P-26): scaffold, `configure`/`upgrade` skills and scripts, CI check scripts, 31 tests, `validate.yml`, `release.yml`, docs. New spec text: 7.1 status; file list in 4.1; test-only hooks and `redact()` in 4.8; REQ-CST-02 (no path filters); VAL-03 method verified. The repo copy of `specs/` is canonical from now on. |
@@ -240,7 +241,7 @@ Priority: **M** = must, **S** = should, **C** = could. IDs are stable. Every com
 | REQ-INS-05 | S | R2 install scope defaults to **user**. The guide also explains **project** scope. |
 | REQ-INS-06 | S | An optional **bootstrap script** (`install.ps1`, `install.sh`) at the repo root does the R2 setup and install. Users get it from the private repo, never from a public URL. |
 | REQ-INS-07 | C | IT guide for fleet install through **managed settings** (Claude Code). Documentation only. |
-| REQ-INS-08 | M | **Prerequisites**, all free. **Every route:** a personal GitHub account invited as collaborator (Q9) and a supported Claude plan. **R1:** claude.ai account; in Claude Code, signed in with that claude.ai account (not an API key). **R2:** Claude Code ≥ `MIN_CLAUDE_VERSION` (Q7), `git`, `gh`, Node.js LTS ≥ 20; one-time `gh auth login` (GitHub.com, HTTPS) → `gh auth setup-git` → `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`. **Scripts (S1, S2):** Node.js LTS ≥ 20. |
+| REQ-INS-08 | M | **Prerequisites**, all free. **Every route:** a personal GitHub account invited as collaborator (Q9) and a supported Claude plan. **R1:** claude.ai account; in Claude Code, signed in with that claude.ai account (not an API key). **R2:** Claude Code ≥ `MIN_CLAUDE_VERSION` (Q7), `git`, `gh`, Node.js LTS ≥ 20; one-time `gh auth login` (GitHub.com, HTTPS) → `gh auth setup-git` → `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`. **Scripts (S1, S2):** Node.js LTS ≥ 20. **PDF processing (`cfp`, SPEC-003):** Python 3.11 or newer (free); only needed for that skill. |
 | REQ-INS-09 | M | `configure` runs **after** install (it is part of the plugin). Everything needed **before** install is covered by the guide or the bootstrap script. |
 | REQ-INS-10 | M | **R1 (account route)** is the primary route. The guide gives the exact steps of 1.6 with the UI labels confirmed in A17. Once per GitHub org, an org owner installs the **Claude GitHub App** on the organization with access to `isg-plugins` only. |
 | REQ-INS-11 | C | **R3 (organization sync)** is documented for Team/Enterprise Claude org Owners, including the warning that it grants access to every member of that Claude organization. |
@@ -479,7 +480,8 @@ isg-plugins/                      # private repo <org>/isg-plugins (marketplace 
 │       │   └── plugin.json                # name, version (single source of truth), optional userConfig
 │       ├── skills/
 │       │   ├── configure/SKILL.md         # /isg-model-alignment:configure   (PT-BR, surface-aware)
-│       │   └── upgrade/SKILL.md           # /isg-model-alignment:upgrade     (PT-BR, surface-aware)
+│       │   ├── upgrade/SKILL.md           # /isg-model-alignment:upgrade     (PT-BR, surface-aware)
+│       │   └── cfp/SKILL.md               # /isg-model-alignment:cfp         (PT-BR; SPEC-003 PDF processing)
 │       ├── scripts/                       # used only where a shell and node exist (S1–S3)
 │       │   ├── configure.mjs
 │       │   ├── upgrade.mjs
@@ -652,6 +654,7 @@ Each check has an ID, a result (`ok`, `fail`, `warn`, `skip`), a PT-BR message a
 | C-10 | HTTPS preference | R2 | `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` | offer change (b) of REQ-CMD-05 |
 | C-11 | Auto-update | R2 | on for `isg-plugins` (`warn` if off) | offer change (a) of REQ-CMD-05 |
 | C-12 | One route only | S1, S2 | not both `@synced` and `@isg-plugins` enabled | disable one (P-33) |
+| C-14 | Python for PDF processing (SPEC-003 REQ-CDP-02) | S1–S3 | `python3`, `python` or `py -3` reports ≥ 3.11 **and** the vendored pypdf imports. Missing or old Python → **warn** (only `cfp` needs it); pypdf not loading → **fail** | install Python 3.11+ (python.org); reinstall/upgrade the plugin |
 | C-13 | Notion connection (SPEC-002 REQ-MCP-03) | S1–S3 | reported by the skill (not the script): Claude checks whether Notion tools are available and the "ISG — Agente" teamspace is reachable | `/mcp` → notion → Authenticate; choose the Instituto workspace |
 
 Exit code of `configure --check`: `0` if no `fail`, `1` if at least one `fail`.
@@ -680,7 +683,7 @@ Applies to `configure.mjs`, `upgrade.mjs` and every future script.
 - **Quoting (T0, A9):** the skill text always runs a script **file** with simple flags. Never inline code (`node -e "…"`): PowerShell 5.1 strips quotes in arguments.
 - **Never print** tokens, credential helper output, `gh auth token`, or sensitive values.
 - **Never write** under `${CLAUDE_PLUGIN_ROOT}` or under the plugins root. Reading is allowed. Own persistent state goes in the plugin's application-data folder `<appdata>` (SPEC-003 REQ-COU-01), which survives updates and uninstall.
-- **Only Node built-ins.** No npm dependencies.
+- **Only Node built-ins.** No npm dependencies. **Amended v0.9 (SPEC-003):** scripts may also be written in **Python ≥ 3.11 using only the standard library plus libraries vendored inside the plugin** (today: pypdf, unmodified, with its license and a SHA-256 manifest checked by VAL-C09). No `pip install` at runtime, no network. Python scripts follow the same contract (non-interactive, `--json`, exit codes, PT-BR messages) and never write inside the plugin folder (VAL-C10).
 - **Test-only hooks** (documented so nobody mistakes them for features): `ISG_TEST_CLAUDE_STUB`, `ISG_TEST_GH_STUB`, `ISG_TEST_GIT_STUB` (a `.mjs` file run with Node instead of the real tool) and `ISG_TEST_TIMEOUT_MS` (caps every timeout). They exist only so `test/` and VAL-12 can run without the real tools. Users never set them.
 - **Secrets in output:** every text taken from another program's stderr/stdout passes through `redact()` before it is shown.
 
