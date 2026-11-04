@@ -5,6 +5,7 @@ Currently one plugin: **`isg-model-alignment`** (support for a quality process).
 
 - Users: start at [`docs/INSTALL.pt-BR.md`](docs/INSTALL.pt-BR.md) ([English](docs/INSTALL.md)).
 - Maintainers: [`docs/RELEASING.md`](docs/RELEASING.md). The rules there are mandatory.
+- How the plugin works (skills, glossary of CFP, SIP, EQV, IMG…, data folder, specs index; **kept up to date with every spec**): [`docs/PLUGIN.md`](docs/PLUGIN.md).
 - Design and requirements (source of truth): [`specs/SPEC-001-installation-and-management.md`](specs/SPEC-001-installation-and-management.md). T0 results: [`specs/SPEC-001-T0-results.md`](specs/SPEC-001-T0-results.md).
 
 ## Branches
