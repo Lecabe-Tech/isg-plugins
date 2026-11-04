@@ -46,7 +46,7 @@ def counter_from_chunk_text(text: str) -> Counter:
         if s.startswith("<!-- página "):
             total.update(non_space_counter(MARKER_TEMPLATE.sub("", s)))
             continue
-        if s.startswith("[Imagem não processada — página ") or s.startswith("[Início de tabela — página ") or s == "[Fim de tabela]" or s.startswith("[Página sem texto extraível"):
+        if s.startswith("[Imagem ") or s.startswith("[Início de tabela — página ") or s == "[Fim de tabela]" or s.startswith("[Página sem texto extraível"):
             continue
         total.update(non_space_counter(s))
     return total
@@ -95,7 +95,7 @@ def evaluate(results: list, written_problems: list, determinism_ok: bool = True)
         {"id": "Q4", "nome": "Texto corrompido", "ok": (garbled / total_chars if total_chars else 0.0) <= GARBLED_LIMIT, "detalhe": f"{garbled} de {total_chars} caracteres suspeitos"},
         {"id": "Q5", "nome": "Ordem de leitura", "ok": True, "detalhe": f"{sum(1 for pr in results if 'ordem de leitura incerta' in pr.flags or 'duas colunas — ordem de leitura inferida' in pr.flags)} página(s) com ordem inferida ou incerta"},
         {"id": "Q6", "nome": "Tabelas", "ok": True, "detalhe": f"{sum(1 for pr in results if 'tabela' in pr.flags)} página(s) com tabela"},
-        {"id": "Q7", "nome": "Imagens", "ok": True, "detalhe": f"{sum(pr.images for pr in results)} imagem(ns) não processada(s)"},
+        {"id": "Q7", "nome": "Imagens", "ok": True, "detalhe": f"{sum(pr.images - pr.images_small for pr in results)} imagem(ns) não processada(s) (mais {sum(pr.images_small for pr in results)} pequena(s) e {sum(pr.images_decorative for pr in results)} repetida(s) como decoração, sem aviso)"},
         {"id": "Q8", "nome": "Determinismo", "ok": determinism_ok, "detalhe": "duas execuções produzem a mesma saída" if determinism_ok else "saídas diferentes entre execuções"},
         {"id": "Q9", "nome": "Codificação", "ok": True, "detalhe": "UTF-8 sem BOM, LF, NFC"},
     ]

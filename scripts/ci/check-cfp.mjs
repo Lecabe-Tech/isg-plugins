@@ -53,7 +53,7 @@ for (const file of engineFiles) {
 
 // ---- VAL-C10 writes
 const WRITE = /(\.write_text\(|\.write_bytes\(|\.mkdir\(|os\.replace\(|os\.rename\(|shutil\.copyfile\(|shutil\.copy\(|shutil\.rmtree\(|open\([^)]*['"][wa]\+?b?['"])/;
-const ALLOWED_WRITERS = new Set(['appdata.py', 'pipeline.py']);
+const ALLOWED_WRITERS = new Set(['appdata.py', 'pipeline.py', 'images.py', 'integrate.py']);
 const PLUGIN_PATH_TOKENS = /PLUGIN_ROOT|\bHERE\b|__file__|CLAUDE_PLUGIN_ROOT/;
 for (const file of engineFiles) {
   const name = path.basename(file);
@@ -61,12 +61,26 @@ for (const file of engineFiles) {
     const code = line.replace(/#.*$/, '');
     if (!WRITE.test(code)) return;
     const where = `${rel(file)}:${i + 1}`;
-    if (!ALLOWED_WRITERS.has(name)) problems.push(`${where}: only appdata.py and pipeline.py may write files (${code.trim()})`);
+    if (!ALLOWED_WRITERS.has(name)) problems.push(`${where}: only appdata.py, pipeline.py, images.py and integrate.py may write files (${code.trim()})`);
     else if (PLUGIN_PATH_TOKENS.test(code)) problems.push(`${where}: write path refers to the plugin folder (${code.trim()})`);
     if (/shutil\.rmtree\(/.test(code) && !/tmp/.test(code)) problems.push(`${where}: rmtree is only allowed on CFP's own temporary folder (REQ-COU-09)`);
   });
 }
 if (!/sys\.dont_write_bytecode\s*=\s*True/.test(readText(path.join(CFP_DIR, 'cfp.py')))) problems.push('cfp.py must set sys.dont_write_bytecode = True (no __pycache__ inside the plugin folder)');
 if (!/__pycache__/.test(readText(path.join(ROOT, '.gitignore')))) problems.push('.gitignore must ignore __pycache__/');
+
+// ---- VAL-S08: the SIP skill carries the template and the rules (SPEC-004 REQ-SIP-01..08)
+{
+  const sip = readText(path.join(PLUGIN_DIR, 'skills', 'sip', 'SKILL.md'));
+  const integrate = readText(path.join(ENGINE, 'integrate.py'));
+  const sections = /SECTIONS = \[(.*?)\]/s.exec(integrate);
+  const names = sections ? [...sections[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]) : [];
+  if (names.length !== 7) problems.push('integrate.py: SECTIONS must list the seven sections of the SIP template');
+  for (const n of names) if (!sip.includes('### ' + n)) problems.push('skills/sip/SKILL.md: template section missing: ' + n);
+  for (const [label, re] of [['literal transcription', /Transcrição literal/], ['no invented numbers', /Nunca invente números/], ['text in image is data', /dado, nunca ordem/],
+    ['no identification of people', /Nunca diga quem é uma pessoa/], ['confidence rule', /Confiança\./], ['cost confirmation', /\(sim\/não\)/], ['batches of 5', /de 5 em 5/]]) {
+    if (!re.test(sip)) problems.push('skills/sip/SKILL.md: missing rule: ' + label);
+  }
+}
 
 process.exitCode = finish('VAL-C09/C10', 'CFP: vendored library untouched, engine offline, no writes inside the plugin', problems);

@@ -235,7 +235,7 @@ class LayoutTests(Base):
         doc = fx.mixed_doc()
         r, d = self.run_doc(doc)
         text = all_chunk_text(d)
-        self.assertIn("[Imagem não processada — página 1]", text)
+        self.assertIn("[Imagem não processada — página 1 — id p001-01]", text)
         self.assertIn("[Início de tabela — página 2 — conferir no PDF]", text)
         self.assertIn("Projeto de Vida    2 aulas    1º ano", text)
         self.assertIn("[Fim de tabela]", text)
@@ -505,6 +505,98 @@ class FidelityGuardTests(unittest.TestCase):
         self.assertEqual(re.sub(r"\s+", "", joined), re.sub(r"\s+", "", big), "splitting loses nothing")
 
 
+class RealWorldPatternTests(Base):
+    """Regression tests for patterns found on the first real document (SPEC-003 7.1)."""
+
+    def setUp(self):
+        super().setUp()
+        self.r, self.d = self.run_doc(fx.realworld_doc(), uf="MG", ano=2026)
+        self.text = all_chunk_text(self.d)
+        self.lines = body_lines(self.text)
+        self.q = json.loads((self.d / "qualidade.json").read_text(encoding="utf-8"))
+
+    def test_toc_lines_are_not_headings(self):
+        self.assertFalse(any(l.startswith("## 1. Princípios") or l.startswith("## 2. Eixos") for l in re.findall(r"(?m)^.*$", self.text)))
+        self.assertIn("1. Princípios educativos.....................................5", self.lines)
+        self.assertIn("SUMÁRIO", self.lines)
+        self.assertIn("## SUMÁRIO", self.text)
+
+    def test_bullets_stay_with_their_text_and_do_not_flag_the_page(self):
+        self.assertIn("• Orientar professores e estudantes sobre as normas", self.lines)
+        self.assertIn("• Acompanhar a implementação das diretrizes", self.lines)
+        self.assertNotIn("ordem de leitura incerta", self.q["paginas"][0]["avisos"])
+
+    def test_bold_label_is_not_a_heading(self):
+        self.assertIn("Equipe escolar:", self.lines)
+        self.assertNotIn("## Equipe escolar:", self.text)
+
+    def test_detached_line_end_hyphen_is_joined_and_logged(self):
+        joined = " ".join(self.lines)
+        self.assertIn("organização do curso", joined)
+        self.assertIn("mobilizar saberes", joined)
+        results = {j["resultado"] for j in self.q["hifenizacoes_unidas"]}
+        self.assertEqual(results, {"organização", "mobilizar"})
+        self.assertEqual(self.q["conservacao"]["faltando"], 0)
+        self.assertEqual(self.q["conservacao"]["a_mais"], 0)
+
+
+class ImageHandlingTests(Base):
+    """Found on the CE 2026 document: every page had the same header/footer banner images, so every page was flagged."""
+
+    def test_repeated_banners_are_decoration_and_small_icons_do_not_flag(self):
+        r, d = self.run_doc(fx.banner_doc(6))
+        q = json.loads((d / "qualidade.json").read_text(encoding="utf-8"))
+        pages = {p["pagina"]: p for p in q["paginas"]}
+        for n in (1, 2, 4, 5, 6):
+            self.assertEqual(pages[n]["avisos"], [], f"page {n}: only decoration (and maybe a small icon), no warning")
+            self.assertEqual(pages[n]["imagens"], 0)
+            self.assertEqual(pages[n]["imagens_decorativas"], 2)
+        self.assertEqual(pages[1]["imagens_pequenas"], 1)
+        self.assertEqual(pages[4]["imagens_pequenas"], 0)
+        self.assertIn("imagem não processada", pages[3]["avisos"], "a real figure still flags its page")
+        self.assertEqual(pages[3]["imagens"], 1)
+        text = all_chunk_text(d)
+        self.assertEqual(text.count("[Imagem não processada — página 3 — id p003-01]"), 1)
+        self.assertNotIn("[Imagem não processada — página 1]", text)
+        self.assertIn("[Imagem pequena não processada — página 1 — id p001-01]", text)
+        self.assertEqual(r["status"], "Aprovado com avisos")
+        self.assertEqual(q["conservacao"]["faltando"], 0)
+        self.assertTrue(q["imagens_decorativas_repetidas"], "the decoration is listed in the report")
+        self.assertIn("decoração", (d / "qualidade.md").read_text(encoding="utf-8"))
+
+    def test_document_with_only_decoration_is_approved(self):
+        from . import fixtures as f2
+
+        doc = f2.banner_doc(6)
+        # same document without the real figure on page 3
+        doc.pages[2] = (doc.pages[2][0][:-1],) + doc.pages[2][1:]
+        r, d = self.run_doc(doc)
+        self.assertEqual(r["status"], "Aprovado")
+
+
+class NarrowColumnTests(Base):
+    def test_columns_with_a_narrow_gutter_are_not_mixed(self):
+        doc, truth = fx.narrow_columns_doc()
+        r, d = self.run_doc(doc)
+        lines = body_lines(all_chunk_text(d))
+        joined = " ".join(lines)
+        self.assertIn(truth["left"], joined)
+        self.assertIn(truth["right"], joined)
+        self.assertLess(joined.index(truth["left"]), joined.index(truth["right"]))
+        self.assertIn("3.2. A comunidade de aprendizagem como modelo de escola", lines, "a heading that crosses the gutter stays in one piece")
+        q = json.loads((d / "qualidade.json").read_text(encoding="utf-8"))
+        flags = q["paginas"][0]["avisos"]
+        self.assertIn("duas colunas — ordem de leitura inferida", flags)
+        self.assertNotIn("tabela", flags)
+        self.assertEqual(q["conservacao"]["faltando"], 0)
+
+    def test_a_table_with_short_cells_is_still_a_table(self):
+        r, d = self.run_doc(fx.mixed_doc())
+        q = json.loads((d / "qualidade.json").read_text(encoding="utf-8"))
+        self.assertIn("tabela", q["paginas"][1]["avisos"])
+        self.assertNotIn("duas colunas — ordem de leitura inferida", q["paginas"][1]["avisos"])
+
+
 class PerformanceTests(Base):
     def test_300_pages_within_budget(self):
         doc = fx.big_doc(300)
@@ -516,6 +608,195 @@ class PerformanceTests(Base):
         self.assertEqual(r["conservacao"]["faltando"], 0)
         self.assertLess(elapsed, 120, f"300 pages took {elapsed:.1f}s (budget 120 s)")
         print(f"\n  300 pages processed in {elapsed:.1f}s, {r['chunks']} chunks, status {r['status']}")
+
+
+# ---------------------------------------------------------------- SPEC-004: image extraction, SIP registration, enriched copy
+
+from isg_cfp import integrate as sip  # noqa: E402
+from isg_cfp import pngwriter  # noqa: E402
+from . import pdfgen  # noqa: E402
+
+
+def sample_interpretation(iid: str, sha: str, extra: str = "", confidence: str = "média") -> str:
+    return (f"---\nid: {iid}\nsha256: {sha}\npagina: 1\nconfianca: {confidence}\ngerado_em: 2026-11-04T15:20:00Z\norigem: IA (Claude)\nversao_modelo_sip: 1\nestado: interpretada\n---\n\n"
+            "### Tipo\ngráfico (barras)\n\n### Texto na imagem (transcrição literal)\nTítulo: \"Matrículas por rede\"\n\n"
+            f"### Conteúdo estruturado\n| Rede | Valor |\n|---|---|\n| Estadual | 12,4 |\n\n### Descrição\nDuas barras.{extra}\n\n"
+            "### Significado no contexto\nMostra a distribuição.\n\n### Confiança\nmédia — um valor ilegível.\n\n### Dúvidas e partes ilegíveis\n- nenhuma\n")
+
+
+def load_index(doc: Path) -> dict:
+    return {e["id"]: e for e in json.loads((doc / "imagens" / "index.json").read_text(encoding="utf-8"))["imagens"]}
+
+
+class ImageExtractionTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.r, self.d = self.run_doc(fx.images_doc())
+        self.idx = load_index(self.d)
+
+    def test_files_are_valid_and_faithful(self):
+        self.assertEqual(sorted(self.idx), ["p001-01", "p002-01", "p002-02", "p003-01", "p004-01", "p006-01"])
+        self.assertEqual((self.d / "imagens" / "p002-01.jpg").read_bytes(), pdfgen.IM5_JPEG, "JPEG is copied byte for byte")
+        w, h, ct, samples = pngwriter.decode_png_samples((self.d / "imagens" / "p001-01.png").read_bytes())
+        self.assertEqual((w, h, ct), (240, 240, 2))
+        self.assertEqual(samples, pdfgen.IM4_PIXELS, "raw RGB pixels survive the PNG encoding")
+        w, h, ct, samples = pngwriter.decode_png_samples((self.d / "imagens" / "p004-01.png").read_bytes())
+        self.assertEqual((ct, samples), (3, pdfgen.IM7_INDEXES), "indexed image keeps its indexes (and a palette)")
+
+    def test_unsupported_duplicates_cover_and_legend(self):
+        e = self.idx["p003-01"]
+        self.assertEqual(e["estado"], "não extraível")
+        self.assertIn("CCITTFaxDecode", e["motivo"])
+        self.assertFalse((self.d / "imagens" / "p003-01.png").exists())
+        self.assertEqual(self.idx["p002-02"]["igual_a"], "p001-01")
+        self.assertIsNone(self.idx["p002-02"]["arquivo"], "a duplicate is not written twice")
+        self.assertTrue(self.idx["p006-01"]["pagina_inteira"], "a page that is only an image is marked")
+        self.assertEqual(self.idx["p001-01"]["sha256"], self.idx["p006-01"]["sha256"])
+        self.assertTrue(self.idx["p001-01"]["legenda"].startswith("Figura 1"))
+        self.assertEqual(self.idx["p001-01"]["chunk"], 1)
+        for k in ("pagina", "x", "y", "largura", "altura", "pixels", "formato", "sha256", "area_pagina", "texto_antes", "texto_depois", "estado"):
+            self.assertIn(k, self.idx["p001-01"])
+
+    def test_markers_carry_ids_and_match_the_index(self):
+        text = all_chunk_text(self.d)
+        ids = set(re.findall(r"\[Imagem (?:pequena )?não processada — página \d+ — id (p\d+-\d+)\]", text))
+        self.assertEqual(ids, set(self.idx), "Q13: every marker has an index entry and the other way around")
+
+    def test_vector_page_is_flagged_and_text_pages_are_not(self):
+        q = json.loads((self.d / "qualidade.json").read_text(encoding="utf-8"))
+        flagged = {p["pagina"] for p in q["paginas"] if any("gráfico vetorial" in a for a in p["avisos"])}
+        self.assertEqual(flagged, {5})
+
+    def test_skipping_images_and_idempotent_reextraction(self):
+        r, d = self.run_doc(fx.images_doc(), force=True, extract_images=False)
+        self.assertFalse((d / "imagens").exists())
+        r = subprocess.run([sys.executable, str(CFP_DIR / "cfp.py"), "imagens", str(d), "--json", "--pasta-de-dados", str(self.appdata)], capture_output=True, text=True, encoding="utf-8", stdin=subprocess.DEVNULL)
+        self.assertEqual(json.loads(r.stdout)["code"], "IMAGENS_EXTRAIDAS", r.stdout)
+        self.assertEqual((d / "imagens" / "p002-01.jpg").read_bytes(), pdfgen.IM5_JPEG)
+
+    def test_png_writer_round_trip(self):
+        g = bytes(range(12))
+        self.assertEqual(pngwriter.decode_png_samples(pngwriter.encode_png(4, 3, g, "L"))[3], g)
+        self.assertEqual(pngwriter.cmyk_to_rgb(bytes([0, 0, 0, 0, 255, 0, 0, 0])), bytes([255, 255, 255, 0, 255, 255]))
+        with self.assertRaises(ValueError):
+            pngwriter.encode_png(4, 3, g[:5], "L")
+
+
+class SipIntegrationTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.r, self.d = self.run_doc(fx.images_doc())
+        self.idx = load_index(self.d)
+
+    def register(self, iid="p001-01", estado="interpretada", extra=""):
+        md = self.dir / f"{iid}.md"
+        md.write_text(sample_interpretation(iid, self.idx[iid]["sha256"], extra), encoding="utf-8", newline="\n")
+        return sip.register(self.d, self.appdata, iid, md, estado)
+
+    def test_template_lint_and_registration(self):
+        bad = self.dir / "bad.md"
+        bad.write_text("---\nid: p001-01\n---\n\n### Tipo\nx\n", encoding="utf-8")
+        with self.assertRaises(sip.SipError) as cm:
+            sip.register(self.d, self.appdata, "p001-01", bad)
+        self.assertEqual(cm.exception.code, "MODELO_INVALIDO")
+        with self.assertRaises(sip.SipError) as cm:
+            sip.register(self.d, self.appdata, "p999-01", bad)
+        self.assertEqual(cm.exception.code, "IMAGEM_INEXISTENTE")
+        r = self.register()
+        self.assertEqual(r["estado"], "interpretada")
+        idx = load_index(self.d)
+        self.assertEqual(idx["p001-01"]["estado"], "interpretada")
+        self.assertEqual(idx["p002-02"]["estado"], "interpretada", "the duplicate shares the interpretation")
+        self.assertEqual(idx["p006-01"]["estado"], "interpretada")
+        self.assertTrue((self.appdata / "sip" / "cache" / f"{self.idx['p001-01']['sha256']}.md").exists())
+        text = (self.d / "imagens" / "p001-01.md").read_text(encoding="utf-8")
+        self.assertIn("origem: IA (Claude)", text)
+        self.assertEqual(sip.validate_interpretation(text), [])
+
+    def test_correction_keeps_the_previous_version(self):
+        self.register()
+        self.register(estado="corrigida", extra=" Corrigido pelo analista.")
+        self.assertTrue((self.d / "imagens" / "p001-01.v1.md").exists())
+        self.assertIn("Corrigido pelo analista", (self.d / "imagens" / "p001-01.md").read_text(encoding="utf-8"))
+        self.assertEqual(sip.effective_state(self.d, load_index(self.d)["p001-01"]), "corrigida")
+
+    def test_pending_report_estimate_and_global_cache(self):
+        rep = sip.pending_report(self.d, self.appdata)
+        self.assertEqual(sorted(p["id"] for p in rep["pendentes"]), ["p001-01", "p002-01", "p004-01"], "duplicates and non-extractable images are not counted")
+        lo, hi = sip.estimate_tokens(self.idx["p004-01"])
+        self.assertEqual(lo, 9 * 9 + 1000, "240 px -> ceil(240/28)^2 = 81 visual tokens plus the answer")
+        self.assertGreaterEqual(rep["tokens_max"], rep["tokens_min"])
+        self.register()
+        self.assertEqual(sip.pending_report(self.d, self.appdata)["quantidade"], 2)
+        # another document with the same picture: filled from the global cache, no AI
+        doc2 = fx.images_doc()
+        doc2.title = "Outro documento com a mesma figura"
+        r2, d2 = self.run_doc(doc2, uf="MG", ano=2025)
+        rep2 = sip.pending_report(d2, self.appdata)
+        self.assertIn("p001-01", rep2["preenchidas_do_cache"])
+        self.assertEqual(rep2["quantidade"], 2)
+
+    def test_enriched_copy_keeps_originals_and_round_trips(self):
+        before = {p.name: p.read_bytes() for p in chunk_files(self.d)}
+        self.register()
+        cov = sip.build_enriched(self.d)
+        after = {p.name: p.read_bytes() for p in chunk_files(self.d)}
+        self.assertEqual(before, after, "original chunks are byte-identical")
+        enriched = {p.name: p.read_text(encoding="utf-8") for p in sorted((self.d / "chunks_com_imagens").glob("*.md"))}
+        self.assertEqual(sorted(enriched), sorted(before))
+        joined = "\n".join(enriched.values())
+        self.assertIn("interpretação por IA, conferir no PDF", joined)
+        self.assertIn("> | Estadual | 12,4 |", joined)
+        self.assertIn("ainda não interpretada", joined)
+        self.assertIn("não foi possível extrair", joined)
+        for name, text in enriched.items():
+            self.assertEqual(sip.strip_blocks(text).encode("utf-8"), before[name], f"round trip of {name}")
+        self.assertFalse(cov["completo"])
+        self.assertIn("não extraível", " ".join(cov["motivos"]))
+        self.assertEqual(cov["paginas_vetoriais"], [5])
+        cob = (self.d / "cobertura.md").read_text(encoding="utf-8")
+        self.assertIn("Conteúdo completo: não", cob)
+        self.assertTrue((self.d / "index_com_imagens.md").exists())
+
+    def test_complete_only_when_nothing_is_missing(self):
+        doc = pdfgen.PdfDoc(title="Uma figura")
+        doc.add_page([pdfgen.PdfDoc.text(60, 700, "Texto do documento com uma figura logo abaixo para conferir."), pdfgen.PdfDoc.image(60, 300, 300, 300, name="Im4")])
+        r, d = self.run_doc(doc, uf="BA", ano=2024)
+        entries = json.loads((d / "imagens" / "index.json").read_text(encoding="utf-8"))["imagens"]
+        self.assertFalse(sip.build_enriched(d)["completo"], "pending image")
+        md = self.dir / "x.md"
+        md.write_text(sample_interpretation(entries[0]["id"], entries[0]["sha256"]), encoding="utf-8", newline="\n")
+        sip.register(d, self.appdata, entries[0]["id"], md)
+        cov = sip.build_enriched(d)
+        self.assertTrue(cov["completo"], cov["motivos"])
+        self.assertIn("Conteúdo completo: sim", (d / "cobertura.md").read_text(encoding="utf-8"))
+
+    def test_search_with_images_labels_hits(self):
+        self.register()
+        sip.build_enriched(self.d)
+        hits = search(self.appdata / "cfp", "Estadual", doc=str(self.d), with_images=True)
+        self.assertGreaterEqual(hits["total"], 1)
+        self.assertEqual(hits["hits"][0].get("origem"), "interpretação de imagem")
+        plain = search(self.appdata / "cfp", "Estadual", doc=str(self.d))
+        self.assertEqual(plain["total"], 0, "the original chunks do not contain AI text")
+
+    def test_cli_commands(self):
+        env = dict(os.environ, ISG_DATA_FOLDER=str(self.appdata), PYTHONUTF8="1")
+
+        def cli(*a):
+            r = subprocess.run([sys.executable, str(CFP_DIR / "cfp.py"), *a, "--json"], capture_output=True, text=True, encoding="utf-8", env=env, stdin=subprocess.DEVNULL, timeout=120)
+            return json.loads(r.stdout)
+
+        j = cli("imagens-pendentes", str(self.d))
+        self.assertEqual((j["code"], j["data"]["quantidade"]), ("PENDENTES", 3))
+        self.assertIn("tokens", j["message"])
+        md = self.dir / "c.md"
+        md.write_text(sample_interpretation("p001-01", self.idx["p001-01"]["sha256"]), encoding="utf-8", newline="\n")
+        self.assertEqual(cli("imagem-registrar", str(self.d), "p001-01", str(md))["code"], "REGISTRADA")
+        j = cli("integrar", str(self.d))
+        self.assertEqual(j["code"], "INTEGRADO")
+        self.assertIn("Conteúdo completo: não", j["message"])
+        self.assertEqual(cli("integrar", str(self.d / "nada"))["code"], "DOCUMENTO_NAO_ENCONTRADO")
 
 
 if __name__ == "__main__":

@@ -79,13 +79,14 @@ def iter_documents(cfp_root: Path, uf=None, ano=None, doc=None):
                     yield d
 
 
-def search(cfp_root: Path, query: str, uf=None, ano=None, doc=None, limit: int = 50) -> dict:
+def search(cfp_root: Path, query: str, uf=None, ano=None, doc=None, limit: int = 50, with_images: bool = False) -> dict:
     terms = parse_query(query)
     if not terms:
         return {"hits": [], "total": 0, "termos": []}
     hits = []
     for d in iter_documents(cfp_root, uf, ano, doc):
-        for chunk_file in sorted((d / "chunks").glob("*.md")):
+        folder = d / "chunks_com_imagens" if with_images and (d / "chunks_com_imagens").is_dir() else d / "chunks"
+        for chunk_file in sorted(folder.glob("*.md")):
             for page, text in split_pages(chunk_file.read_text(encoding="utf-8")):
                 folded, idx = fold(text)
                 folded_flat = re.sub(r"\s+", " ", folded)
@@ -99,9 +100,24 @@ def search(cfp_root: Path, query: str, uf=None, ano=None, doc=None, limit: int =
                         pos = 0
                     start = max(0, sidx[pos] - EXCERPT // 3) if sidx else 0
                     excerpt = re.sub(r"\s+", " ", source[start:start + EXCERPT]).strip()
-                    hits.append({"documento": d.name, "pasta": f"{d.parent.parent.name}/{d.parent.name}/{d.name}", "chunk": chunk_file.stem, "pagina": page, "trecho": excerpt})
+                    hit = {"documento": d.name, "pasta": f"{d.parent.parent.name}/{d.parent.name}/{d.name}", "chunk": chunk_file.stem, "pagina": page, "trecho": excerpt}
+                    if with_images and _only_in_image_blocks(text, terms):
+                        hit["origem"] = "interpretação de imagem"
+                    hits.append(hit)
     total = len(hits)
     return {"hits": hits[:limit], "total": total, "termos": terms}
+
+
+def _only_in_image_blocks(text: str, terms: list) -> bool:
+    """True when the terms are found in the SIP blocks of the page but not in the page's own (original) text."""
+    blocks = " ".join(m.group(0) for m in re.finditer(r"<!-- SIP início.*?<!-- SIP fim[^\n]*-->", text, re.S))
+    if not blocks:
+        return False
+    rest = text.replace(blocks, "")
+    for m in re.finditer(r"<!-- SIP início.*?<!-- SIP fim[^\n]*-->", text, re.S):
+        rest = rest.replace(m.group(0), " ")
+    folded_rest = re.sub(r"\s+", " ", fold(rest)[0])
+    return not all(t in folded_rest for t in terms)
 
 
 def list_documents(cfp_root: Path, uf=None, ano=None) -> list:

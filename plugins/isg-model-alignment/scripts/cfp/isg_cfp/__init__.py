@@ -4,4 +4,4 @@ Deterministic engine: PDF -> faithful, page-traceable plain-text chunks. No AI, 
 Only the Python standard library and the vendored pypdf (scripts/cfp/vendor) are used.
 """
 
-CFP_VERSION = "0.1.0"
+CFP_VERSION = "0.2.0"

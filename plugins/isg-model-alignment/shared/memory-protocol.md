@@ -186,7 +186,15 @@ Memórias usadas:
 ## 9. Referência de campos (nomes exatos no Notion)
 
 - **Assuntos:** Nome, Código, Descrição, Campos-chave, Revisores, Prazo de revisão (dias úteis), Casos para ativar regra, Erros para retirar regra, Confiança mínima para decidir, Ativo, Base de memória, Base de registro, Última alteração da memória, Versão da memória.
-- **Memória — CÓDIGO:** Título, ID, Assunto, Tipo, Status, UF / Órgão, Documento, Ano, Escopo geral, Termo externo, Componente ISG, Enunciado, Evidência, Justificativa, Confiança, Casos de suporte, Relacionado, Substitui, Erros, Revisores, Prazo de revisão, Decidido por, Decisão em, Motivo da decisão, Criado por, Criado em.
+- **Memória — CÓDIGO:** Título, ID, Assunto, Tipo, Status, UF / Órgão, Documento, Ano, Escopo geral, Termo externo, Componente ISG, Hash da imagem, Markdown corrigido, Enunciado, Evidência, Justificativa, Confiança, Casos de suporte, Relacionado, Substitui, Erros, Revisores, Prazo de revisão, Decidido por, Decisão em, Motivo da decisão, Criado por, Criado em.
 - **Registro — CÓDIGO:** Título, Tipo de evento, Assunto, Analista, Superfície, Pergunta / trecho da resposta, Veredito, Motivo, Memórias usadas, Entradas criadas ou alteradas, De / Para (status).
 - **Status:** Rascunho, Pendente, Ativo, Aprovado, Auto-aprovado, Em observação, Em conflito, Rejeitado, Retirado, Substituído.
 - Os campos **Decidido por**, **Decisão em** e **Motivo da decisão** são preenchidos pelos revisores ou pelas automações do Notion, nunca por você.
+
+## 10. Assunto IMG (correções de interpretações de imagens, skill `sip`)
+
+- O assunto de código **`IMG`** guarda a versão **corrigida** que um analista fez da interpretação de uma imagem. Cada entrada é do **Tipo** `Interpretação` e traz o **Hash da imagem** (SHA-256 do arquivo da imagem) e o **Markdown corrigido** (a interpretação completa, no modelo do SIP).
+- **Ao ler:** antes de olhar uma imagem, procure nas entradas **legíveis** do assunto `IMG` o **Hash da imagem**. Se achar, use o **Markdown corrigido**, sem chamar a IA, e diga que é uma interpretação corrigida por analista.
+- **Ao registrar:** crie a entrada como um **Fato** de caso (efeito imediato, seção 5), com **Hash da imagem**, **Markdown corrigido**, **Documento**, **Ano**, **Enunciado** (uma frase dizendo o que foi corrigido) e **Justificativa** (o motivo do analista). Se já houver entrada legível com o mesmo hash e conteúdo diferente, marque **Em conflito** (seção 5).
+- Não se propõem **Regras** neste assunto (a seção 6 não se aplica): cada imagem é um caso só.
+- Sem conexão com o Notion, a correção fica salva no documento (`imagens/<id>.md`) e no cache local, e o cartão entra na fila de envio (seção 7).

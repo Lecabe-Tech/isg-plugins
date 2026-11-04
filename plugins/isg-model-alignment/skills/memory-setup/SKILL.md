@@ -21,7 +21,7 @@ Siga o arquivo **`memory-protocol.md`** desta pasta (seções 0, 2 e 9) e use **
 3. **Criar o que falta** (só com confirmação):
    - Mostre exatamente o que será criado (banco, propriedades, visões, linha em Assuntos) e pergunte **"Criar agora? (sim/não)"**.
    - Com "sim", crie apenas o que falta. **Nunca** altere, renomeie ou apague bancos, propriedades ou entradas que já existem; se algo existe com nome ou tipo diferente, só **relate**.
-   - Para o primeiro assunto use os valores de `firstSubject` do esquema (Código `EQV`). Deixe **Revisores** vazio e peça ao administrador para preencher no Notion.
+   - Para o primeiro assunto use os valores de `firstSubject` do esquema (Código `EQV`). Para o assunto de correções de imagens (SIP) use os valores de `imageSubject` (Código `IMG`); nele as entradas são do tipo `Interpretação` e usam **Hash da imagem** e **Markdown corrigido**. Deixe **Revisores** vazio e peça ao administrador para preencher no Notion.
    - Leia de volta o que foi criado e confirme.
 4. **O que só pode ser feito à mão no Notion** (diga isso no final, em uma lista curta):
    - preencher **Revisores** do assunto;

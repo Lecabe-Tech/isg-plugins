@@ -16,7 +16,8 @@ from pathlib import Path
 from . import CFP_VERSION
 from .chunk import DEFAULT_MAX_CHARS, DEFAULT_MIN_CHARS, make_chunks
 from .extract import extract_page, open_reader, pdf_metadata
-from .organize import organize_document
+from .images import extract_document_images, write_index
+from .organize import _recurring_images, organize_document
 from .quality import evaluate, spot_check_pages, verify_written
 from .render import render_chunk, render_index, render_quality
 
@@ -116,7 +117,7 @@ def _output_hash(texts: list, index_md: str, qual_md: str) -> str:
 
 
 def process_pdf(pdf, uf, ano, appdata: Path, titulo=None, force=False, max_chars=DEFAULT_MAX_CHARS, min_chars=DEFAULT_MIN_CHARS,
-                confirm_large=False, progress=None) -> dict:
+                confirm_large=False, progress=None, extract_images=True, include_small=False) -> dict:
     pdf = Path(pdf)
     uf, year = validate_inputs(pdf, uf, ano)
     size = pdf.stat().st_size
@@ -189,10 +190,10 @@ def process_pdf(pdf, uf, ano, appdata: Path, titulo=None, force=False, max_chars
         "paginas_com_avisos": {str(pr.number): pr.flags for pr in results if pr.flags},
     }
     quality_json = {"situacao": quality["status"], "verificacoes": quality["verificacoes"], "conservacao": conservation,
-                    "paginas": [{"pagina": pr.number, "caracteres": pr.chars, "linhas": pr.lines, "imagens": pr.images, "avisos": pr.flags,
+                    "paginas": [{"pagina": pr.number, "caracteres": pr.chars, "linhas": pr.lines, "imagens": pr.images - pr.images_small, "imagens_pequenas": pr.images_small, "imagens_decorativas": pr.images_decorative, "avisos": pr.flags,
                                  "cabecalho": pr.header, "rodape": pr.footer, "numero_impresso": pr.printed_number,
                                  "larguras_estimadas": pr.widths_estimated} for pr in results],
-                    "cabecalhos_repetidos": info["header_patterns"], "rodapes_repetidos": info["footer_patterns"],
+                    "imagens_decorativas_repetidas": info.get("decorative_images", {}), "cabecalhos_repetidos": info["header_patterns"], "rodapes_repetidos": info["footer_patterns"],
                     "hifenizacoes_unidas": [j for pr in results for j in pr.hyphen_joins],
                     "ligaduras_expandidas": dict(ligatures), "conferencia_por_amostra": spot}
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -213,6 +214,14 @@ def process_pdf(pdf, uf, ano, appdata: Path, titulo=None, force=False, max_chars
     _atomic_write_json(tmp / "qualidade.json", quality_json)
     _atomic_write_json(tmp / "log.json", log)
     shutil.copyfile(pdf, tmp / "original.pdf")
+    image_entries = []
+    if extract_images:  # SPEC-004: deterministic, no AI; the original chunks above are never touched by this step
+        chunk_of_page = {}
+        for c in chunks:
+            for p in c.pages:
+                chunk_of_page.setdefault(p, c.number)
+        image_entries = extract_document_images(raw_pages, _recurring_images(raw_pages), tmp / "imagens", chunk_of_page, include_small)
+        write_index(tmp / "imagens", image_entries)
 
     if target.exists():  # --force: keep the previous folder, never delete (REQ-COU-06)
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -232,7 +241,8 @@ def process_pdf(pdf, uf, ano, appdata: Path, titulo=None, force=False, max_chars
     write_catalog(cfp_root, catalog)
 
     return {"codigo": "PROCESSADO", "pasta": rel, "caminho": str(target), "status": quality["status"], "paginas": n_pages, "chunks": len(chunks),
-            "avisos": len([pr for pr in results if pr.flags]), "conservacao": conservation, "saida_sha256": out_hash}
+            "avisos": len([pr for pr in results if pr.flags]), "conservacao": conservation, "saida_sha256": out_hash,
+            "imagens": _image_counts(image_entries)}
 
 
 def _pypdf_version() -> str:
@@ -242,3 +252,11 @@ def _pypdf_version() -> str:
         return pypdf.__version__
     except Exception:
         return "?"
+
+
+def _image_counts(entries: list) -> dict:
+    out: dict = {}
+    for e in entries:
+        out[e["estado"]] = out.get(e["estado"], 0) + 1
+    out["total"] = len(entries)
+    return out

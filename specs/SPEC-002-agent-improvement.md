@@ -22,6 +22,7 @@
 | Version | Date | Change |
 |---|---|---|
 | v0.1 | 2026-11-04 | First draft from the decisions of 2026-11-04 (section 1.3) |
+| v0.7 | 2026-11-04 | **Amendment from SPEC-004 (SIP), applied:** new subject `IMG` (*Interpretação de imagens*); memory type value `Interpretação`; properties `Hash da imagem` and `Markdown corrigido` in "Memória — IMG"; corrected image interpretations follow the normal approval flow. Applied (SPEC-004 S-T3): schema, protocol section 10, memory-setup. |
 | v0.6 | 2026-11-04 | Local memory and outbox moved to the plugin's **application-data folder** `<appdata>/memoria/` (one folder for all user-scope content, survives updates and uninstall; SPEC-003 Q-2): glossary, 1.6, REQ-SYN-01/04/05/08, 4.10, N14; protocol and skills updated; new `userConfig.data_folder`. |
 | v0.5 | 2026-11-04 | **Implementation started** (7.1 status): Notion schema as single source, memory protocol (PT-BR) with explicit offline instructions (REQ-DEG-04, AC-DEG-2, UAT-M21), skills `feedback`, `memory`, `memory-sync`, `memory-setup`, `memory-audit`, copy script and checks VAL-M02..M04, Notion setup and automation guides. |
 | v0.4 | 2026-11-04 | Q-1 (reviewers set by the Instituto in Notion), Q-5 (memory IDs visible), Q-7 (7 days; offline work never blocked, REQ-SYN-04) decided. **All open questions closed.** |

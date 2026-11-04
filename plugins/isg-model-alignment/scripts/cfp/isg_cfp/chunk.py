@@ -67,6 +67,11 @@ def _split_long(block: Block, cap: int) -> list:
     return [Block("para_split", p, block.page) for p in pieces]
 
 
+def _related(c: Chunk, nxt: Chunk) -> bool:
+    """Same parent heading, or the next chunk is a descendant section of this one (reads on naturally)."""
+    return c.path[:-1] == nxt.path[:-1] or nxt.path[: len(c.path)] == c.path
+
+
 def make_chunks(results: list, cap: int = DEFAULT_MAX_CHARS, minimum: int = DEFAULT_MIN_CHARS) -> list:
     stream = stream_blocks(results)
 
@@ -114,7 +119,7 @@ def make_chunks(results: list, cap: int = DEFAULT_MAX_CHARS, minimum: int = DEFA
     while i < len(chunks):
         c = chunks[i]
         nxt = chunks[i + 1] if i + 1 < len(chunks) else None
-        if nxt is not None and (c.text_size == 0 or (c.text_size < minimum and c.path[:-1] == nxt.path[:-1] and c.text_size + nxt.text_size <= cap * 1.25)):
+        if nxt is not None and (c.text_size == 0 or (c.text_size < minimum and c.text_size + nxt.text_size <= cap * 1.25 and (_related(c, nxt) or c.text_size < minimum / 3))):
             nxt.blocks = c.blocks + nxt.blocks
             if c.sections:
                 nxt.sections = c.sections + [s for s in nxt.sections if s not in c.sections]

@@ -78,7 +78,10 @@ def render_chunk(chunk: Chunk, doc_key: str, uf: str, ano: int, pages: dict, tot
             out.append(b.text)
             out.append("")
         elif b.type == "image":
-            out.append(f"[Imagem não processada — página {b.page}]")
+            out.append(f"[Imagem não processada — página {b.page} — id {b.ref}]")
+            out.append("")
+        elif b.type == "image_small":
+            out.append(f"[Imagem pequena não processada — página {b.page} — id {b.ref}]")
             out.append("")
         elif b.type == "notext":
             out.append("[Página sem texto extraível — conferir no PDF]")
@@ -172,8 +175,12 @@ def render_quality(meta: dict, results: list, quality: dict, info: dict, spot: l
     l += ["", "## Ligaduras expandidas", ""]
     l.append(", ".join(f"`{k}` → {v}×" for k, v in sorted(ligatures.items())) or "Nenhuma.")
     l += ["", "## Imagens por página (não processadas)", ""]
-    imgs = [(pr.number, pr.images) for pr in results if pr.images]
-    l.append(", ".join(f"p. {n}: {k}" for n, k in imgs) if imgs else "Nenhuma imagem detectada.")
+    imgs = [(pr.number, pr.images - pr.images_small, pr.images_small) for pr in results if pr.images]
+    l.append(", ".join(f"p. {n}: {k} imagem(ns)" + (f" + {s} pequena(s)" if s else "") for n, k, s in imgs) if imgs else "Nenhuma imagem relevante detectada.")
+    deco = info.get("decorative_images") or {}
+    if deco:
+        l.append("")
+        l.append("Imagens que se repetem em muitas páginas (faixas, logotipos: decoração) **não geram aviso nem marcador**: " + ", ".join(f"imagem {k} em {n} página(s)" for k, n in deco.items()) + ".")
     l += ["", "## Conferência por amostra", "", "Compare estas páginas do PDF com os chunks (avisos primeiro; use `cfp pagina`):", ""]
     l.append(", ".join(f"p. {p}" for p in spot))
     return "\n".join(l) + "\n"

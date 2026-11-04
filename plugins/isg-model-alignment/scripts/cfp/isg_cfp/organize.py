@@ -11,10 +11,11 @@ import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 
-from .extract import RawPage, is_garbled_char
+from .extract import Fragment, RawPage, is_garbled_char
 
 BAND = 0.08  # top/bottom 8 % of the page height
 RUNNING_SHARE = 0.5
+SMALL_IMAGE_SHARE = 0.02
 
 NUMBER_LINE = re.compile(r"^(?:p[áa]gina|p[áa]g\.?|p\.)?\s*\d{1,4}(?:\s*(?:/|de)\s*\d{1,4})?$", re.IGNORECASE)
 LIST_START = re.compile(r"^(?:[•·▪●○◦■□–—\-*]\s|\d{1,3}[.)]\s|[a-zA-Z][.)]\s|\([a-zA-Z0-9]{1,3}\)\s)")
@@ -23,6 +24,10 @@ HEADING_NUMBERING = re.compile(
     r"UNIDADE\b|Unidade\b|[ÁA]REA\b|[Áá]rea de conhecimento\b)"
 )
 
+TOC_LEADER = re.compile(r"(\.{4,}|…{2,}|(?:\. ){4,})")  # table-of-contents lines: "Capítulo 1 ........ 5"
+BULLET_ONLY = re.compile(r"^(?:[•·▪●○◦■□–—\-*]|\d{1,3}[.)]|[a-zA-Z][.)])$")
+BULLET_START = re.compile(r"^[•·▪●○◦■□–—\-*]\s")
+LINE_END_HYPHENS = {"-", "‐", "­"}
 FLAG_COLUMNS = "duas colunas — ordem de leitura inferida"
 FLAG_TABLE = "tabela"
 FLAG_IMAGE = "imagem não processada"
@@ -30,6 +35,8 @@ FLAG_NOTEXT = "página sem texto extraível"
 FLAG_IMAGE_ONLY = "página quase só imagem"
 FLAG_GARBLED = "texto possivelmente corrompido"
 FLAG_ROTATED = "página rotacionada"
+FLAG_VECTOR = "possível gráfico vetorial — conferir no PDF"
+VECTOR_OPS_THRESHOLD = 200
 FLAG_UNCERTAIN = "ordem de leitura incerta"
 
 
@@ -47,6 +54,9 @@ class Line:
     y: float
     segs: list
     kind: str = "text"  # text | image
+    small: bool = False  # image: less than 2 % of the page area (icon, bullet, logo)
+    frags: list = field(default_factory=list)  # the text fragments of this line (used for column detection)
+    ref: str = ""  # image id, for image lines
 
     @property
     def text(self) -> str:
@@ -75,6 +85,7 @@ class Block:
     text: str = ""
     page: int = 0
     level: int = 0
+    ref: str = ""  # image id (SPEC-004), e.g. p047-02
 
 
 @dataclass
@@ -85,7 +96,10 @@ class PageResult:
     printed_number: list = field(default_factory=list)
     blocks: list = field(default_factory=list)
     flags: list = field(default_factory=list)
-    images: int = 0
+    images: int = 0  # images that are not recurring decoration
+    images_small: int = 0
+    vector_ops: int = 0
+    images_decorative: int = 0  # the same picture on many pages (header/footer bands, logos): counted, not flagged
     chars: int = 0
     lines: int = 0
     garbled: int = 0
@@ -107,9 +121,52 @@ def _median(values, default=0.0):
 
 # ---------------------------------------------------------------- lines
 
-def build_lines(raw: RawPage) -> list:
+def _is_small(im, raw: RawPage) -> bool:
+    return raw.width * raw.height > 0 and (im.w * im.h) / (raw.width * raw.height) < SMALL_IMAGE_SHARE
+
+
+def _line_from_fragments(texts: list, y: float) -> Line:
+    """One text line from the fragments of one y-group (sorted by x): joins words, splits far-apart segments."""
+    size = _median([f.size for f in texts], 10.0)
+    seg_gap = max(1.6 * size, 14.0)
+    segs: list = []
+    cur_text, cur_x0, cur_x1, cur_size, cur_bold, prev = "", 0.0, 0.0, [], [], None
+    for f in texts:
+        if prev is None:
+            cur_text, cur_x0, cur_x1, cur_size, cur_bold = f.text, f.x, f.x + f.width, [f.size], [f.bold]
+        else:
+            gap = f.x - (prev.x + prev.width)
+            if gap > seg_gap:
+                segs.append(Seg(cur_x0, cur_x1, cur_text, max(cur_size), all(cur_bold)))
+                cur_text, cur_x0, cur_size, cur_bold = f.text, f.x, [f.size], [f.bold]
+            else:
+                need_space = (gap > 0.12 * size) if prev.exact_width and f.exact_width else (gap > -0.35 * size)
+                if need_space and not cur_text.endswith(" ") and not f.text.startswith(" "):
+                    cur_text += " "
+                cur_text += f.text
+                cur_size.append(f.size)
+                cur_bold.append(f.bold)
+            cur_x1 = f.x + f.width
+        prev = f
+    segs.append(Seg(cur_x0, cur_x1, cur_text, max(cur_size), all(cur_bold)))
+    for s in segs:
+        s.text = s.text.strip()
+    segs = [s for s in segs if s.text]
+    while len(segs) >= 2 and BULLET_ONLY.match(segs[0].text):  # "•" drawn apart from its text: one segment
+        a, b = segs[0], segs[1]
+        segs[0:2] = [Seg(a.x0, b.x1, f"{a.text} {b.text}", max(a.size, b.size), a.bold and b.bold)]
+    return Line(y, segs, frags=list(texts))
+
+
+def image_id(page: int, k: int) -> str:
+    return f"p{page:03d}-{k:02d}"
+
+
+def build_lines(raw: RawPage, decorative: frozenset = frozenset()) -> list:
     frags = [f for f in raw.fragments if f.text.strip()]
-    items = [("t", f.y, f) for f in frags] + [("i", im.y, im) for im in raw.images]
+    visible = [im for im in raw.images if im.sig not in decorative]
+    ids = {id(im): image_id(raw.number, k) for k, im in enumerate(visible, 1)}
+    items = [("t", f.y, f) for f in frags] + [("i", im.y, im) for im in visible]
     items.sort(key=lambda it: (-it[1], getattr(it[2], "x", 0.0)))
     tol = 0.45 * _median([f.size for f in frags], 10.0)
     groups, ref = [], None
@@ -122,37 +179,19 @@ def build_lines(raw: RawPage) -> list:
     lines = []
     for g in groups:
         texts = sorted((it[2] for it in g if it[0] == "t"), key=lambda f: f.x)
+        # Justified text often draws the line-end hyphen as its own fragment at the right margin (found on a real
+        # document): attach it to the last word so the hyphenation join can recognise it.
+        if len(texts) >= 2 and texts[-1].text.strip() in LINE_END_HYPHENS and texts[-2].text.strip():
+            last = texts.pop()
+            prev = texts[-1]
+            texts[-1] = Fragment(prev.text.rstrip() + last.text.strip(), prev.x, prev.y, prev.size, prev.bold, prev.width + last.width, prev.exact_width and last.exact_width)
         y = statistics.mean(it[1] for it in g)
-        n_images = sum(1 for it in g if it[0] == "i")
+        marks = [it[2] for it in g if it[0] == "i"]
         if not texts:
-            lines.extend(Line(y, [], "image") for _ in range(n_images))
+            lines.extend(Line(y, [], "image", small=_is_small(m, raw), ref=ids[id(m)]) for m in marks)
             continue
-        extra_images = [Line(y - 0.01, [], "image") for _ in range(n_images)]
-        size = _median([f.size for f in texts], 10.0)
-        seg_gap = max(1.6 * size, 14.0)
-        segs: list = []
-        cur_text, cur_x0, cur_x1, cur_size, cur_bold, prev = "", 0.0, 0.0, [], [], None
-        for f in texts:
-            if prev is None:
-                cur_text, cur_x0, cur_x1, cur_size, cur_bold = f.text, f.x, f.x + f.width, [f.size], [f.bold]
-            else:
-                gap = f.x - (prev.x + prev.width)
-                if gap > seg_gap:
-                    segs.append(Seg(cur_x0, cur_x1, cur_text, max(cur_size), all(cur_bold)))
-                    cur_text, cur_x0, cur_size, cur_bold = f.text, f.x, [f.size], [f.bold]
-                else:
-                    need_space = (gap > 0.12 * size) if prev.exact_width and f.exact_width else (gap > -0.35 * size)
-                    if need_space and not cur_text.endswith(" ") and not f.text.startswith(" "):
-                        cur_text += " "
-                    cur_text += f.text
-                    cur_size.append(f.size)
-                    cur_bold.append(f.bold)
-                cur_x1 = f.x + f.width
-            prev = f
-        segs.append(Seg(cur_x0, cur_x1, cur_text, max(cur_size), all(cur_bold)))
-        for s in segs:
-            s.text = s.text.strip()
-        lines.append(Line(y, [s for s in segs if s.text]))
+        extra_images = [Line(y - 0.01, [], "image", small=_is_small(m, raw), ref=ids[id(m)]) for m in marks]
+        lines.append(_line_from_fragments(texts, y))
         lines.extend(extra_images)
     return [ln for ln in lines if ln.kind == "image" or ln.segs]
 
@@ -199,32 +238,50 @@ def split_running(lines: list, height: float, header_keys: set, footer_keys: set
 
 # ---------------------------------------------------------------- layout: columns and tables
 
-def _detect_two_columns(lines: list):
-    text_lines = [ln for ln in lines if ln.kind == "text"]
-    if len(text_lines) < 6:
+def _detect_columns(lines: list, width: float):
+    """x position where the right column starts, or None. Uses where fragments START after a gap (works with narrow
+    gutters, where the two columns' text would otherwise be glued into one line), and refuses tables (several start
+    positions, or short cells)."""
+    text_lines = [ln for ln in lines if ln.kind == "text" and ln.frags]
+    if len(text_lines) < 8 or width <= 0:
         return None
-    if any(len(ln.segs) >= 3 for ln in text_lines):
+    lo, hi = 0.28 * width, 0.72 * width
+    bins: Counter = Counter()
+    for ln in text_lines:
+        fr = ln.frags
+        size = ln.size or 10.0
+        for i in range(1, len(fr)):
+            gap = fr[i].x - (fr[i - 1].x + fr[i - 1].width)
+            if gap >= max(0.6 * size, 7.0) and lo <= fr[i].x <= hi:
+                bins[round(fr[i].x / 4.0)] += 1
+    if not bins:
         return None
-    multi = [ln for ln in text_lines if len(ln.segs) == 2]
-    if len(multi) < 0.5 * len(text_lines):
+    scored = {b: bins[b - 1] + bins[b] + bins[b + 1] for b in bins}
+    best = max(scored, key=scored.get)
+    if scored[best] < 0.25 * len(text_lines):
         return None
-    k, _ = Counter(round(ln.segs[1].x0 / 6.0) for ln in multi).most_common(1)[0]
-    xr = k * 6.0
-    aligned = [ln for ln in multi if abs(ln.segs[1].x0 - xr) <= 8]
-    if len(aligned) < 0.7 * len(multi):
+    for b, s in scored.items():  # a second strong start position in the middle band: a table with 3+ columns
+        if abs(b - best) > 3 and s >= 0.2 * len(text_lines):
+            return None
+    xr = best * 4.0
+    left_len, right_len = [], []
+    for ln in text_lines:
+        l = [f for f in ln.frags if f.x < xr - 3]
+        r = [f for f in ln.frags if f.x >= xr - 3]
+        if l and r:
+            left_len.append(sum(len(f.text) for f in l))
+            right_len.append(sum(len(f.text) for f in r))
+    if len(left_len) < 0.25 * len(text_lines):
         return None
-    avg = statistics.mean(len(s.text) for ln in aligned for s in ln.segs)
-    return xr if avg >= 25 else None
-
-
-def _merge(segs: list, y: float) -> Line:
-    text = " ".join(s.text for s in segs)
-    return Line(y, [Seg(min(s.x0 for s in segs), max(s.x1 for s in segs), text, max(s.size for s in segs), all(s.bold for s in segs))])
+    if statistics.mean(left_len) < 22 or statistics.mean(right_len) < 22:
+        return None  # short cells: a table, not columns of text
+    return xr
 
 
 def _split_columns(lines: list, xr: float) -> list:
     """Reading order for a two-column page: blocks between full-width lines are read left column, then right."""
     out, left, right = [], [], []
+    body = _median([ln.size for ln in lines if ln.kind == "text" and ln.size], 10.0)
 
     def flush():
         out.extend(left)
@@ -237,18 +294,20 @@ def _split_columns(lines: list, xr: float) -> list:
             flush()
             out.append(ln)
             continue
-        if len(ln.segs) >= 2:
-            ls = [s for s in ln.segs if s.x0 < xr - 8]
-            rs = [s for s in ln.segs if s.x0 >= xr - 8]
-            if ls:
-                left.append(_merge(ls, ln.y))
-            if rs:
-                right.append(_merge(rs, ln.y))
+        l = [f for f in ln.frags if f.x < xr - 3]
+        r = [f for f in ln.frags if f.x >= xr - 3]
+        gaps = [ln.frags[i].x - (ln.frags[i - 1].x + ln.frags[i - 1].width) for i in range(1, len(ln.frags))]
+        if l and r and ((gaps and max(gaps) < max(8.0, 0.9 * (ln.size or 10.0))) or ln.size >= 1.2 * body):  # a heading over both columns: text that runs on across the gutter, or larger than the body
+            flush()
+            out.append(ln)
+        elif l and r:
+            left.append(_line_from_fragments(l, ln.y))
+            right.append(_line_from_fragments(r, ln.y))
+        elif r:
+            right.append(ln)
         else:
-            s = ln.segs[0]
-            if s.x0 >= xr - 8:
-                right.append(ln)
-            elif s.x1 > xr + 8:
+            last = l[-1]
+            if last.x + last.width > xr + 20:  # runs across the gutter: a heading over both columns
                 flush()
                 out.append(ln)
             else:
@@ -272,6 +331,9 @@ class Context:
             return False
         t = ln.text.strip()
         if not t or len(t) > 150 or len(ln.segs) > 1:
+            return False
+        # not headings: table-of-contents entries, bullet items and "Label:" lines (found on a real document)
+        if TOC_LEADER.search(t) or BULLET_START.match(t) or t.endswith(":"):
             return False
         big = ln.size >= 1.2 * self.body_size
         if big and not (t.endswith(".") and len(t) > 80):
@@ -336,7 +398,7 @@ def _paragraphs(lines: list, ctx: Context, page: int, pr: PageResult) -> list:
     for ln in lines:
         if ln.kind == "image":
             flush()
-            blocks.append(Block("image", "", page))
+            blocks.append(Block("image_small" if ln.small else "image", "", page, ref=ln.ref))
             prev = None
             continue
         text = ln.text.strip()
@@ -391,14 +453,18 @@ def _table_regions(lines: list) -> list:
 
 # ---------------------------------------------------------------- page / document
 
-def organize_page(raw: RawPage, lines: list, header_keys: set, footer_keys: set, ctx: Context) -> PageResult:
+def organize_page(raw: RawPage, lines: list, header_keys: set, footer_keys: set, ctx: Context, decorative: frozenset = frozenset()) -> PageResult:
     pr = PageResult(number=raw.number)
     for f in raw.fragments:
         pr.raw_chars.update(non_space_counter(f.text))
         pr.garbled += sum(1 for ch in f.text if is_garbled_char(ch))
     pr.chars = sum(pr.raw_chars.values())
-    pr.images = len(raw.images)
+    visible = [im for im in raw.images if im.sig not in decorative]
+    pr.images = len(visible)
+    pr.images_small = sum(1 for im in visible if _is_small(im, raw))
+    pr.images_decorative = len(raw.images) - len(visible)
     pr.ligatures = dict(raw.ligatures)
+    pr.vector_ops = raw.paint_ops
     pr.widths_estimated = any(not f.exact_width for f in raw.fragments)
     if raw.rotate:
         pr.flags.append(FLAG_ROTATED)
@@ -407,7 +473,7 @@ def organize_page(raw: RawPage, lines: list, header_keys: set, footer_keys: set,
     pr.header, pr.footer, pr.printed_number = header, footer, number
     pr.lines = len(body)
 
-    if not raw.fragments and not raw.images:
+    if not raw.fragments and not visible:
         pr.flags.append(FLAG_NOTEXT)
         pr.blocks.append(Block("notext", "", raw.number))
         return pr
@@ -415,7 +481,7 @@ def organize_page(raw: RawPage, lines: list, header_keys: set, footer_keys: set,
         pr.flags.append(FLAG_NOTEXT)
 
     text_body = [ln for ln in body if ln.kind == "text"]
-    xr = _detect_two_columns(body)
+    xr = _detect_columns(body, raw.width)
     if xr is not None:
         pr.flags.append(FLAG_COLUMNS)
         ordered = _split_columns(body, xr)
@@ -438,13 +504,27 @@ def organize_page(raw: RawPage, lines: list, header_keys: set, footer_keys: set,
         if pos < len(body):
             pr.blocks.extend(_paragraphs(body[pos:], ctx, raw.number, pr))
 
-    if pr.images:
+    large = pr.images - pr.images_small
+    if large:  # small icons and repeated decoration are marked/counted but do not flag the page
         pr.flags.append(FLAG_IMAGE)
         if pr.chars < 200:
             pr.flags.append(FLAG_IMAGE_ONLY)
     if pr.chars and pr.garbled / pr.chars > 0.05:
         pr.flags.append(FLAG_GARBLED)
+    if raw.paint_ops >= VECTOR_OPS_THRESHOLD:
+        pr.flags.append(FLAG_VECTOR)
     return pr
+
+
+def _recurring_images(raw_pages: list) -> frozenset:
+    """The same picture on >= 50 % of the pages (min 3) is decoration (header/footer bands, logos): not flagged."""
+    n = len(raw_pages)
+    if n < 3:
+        return frozenset()
+    pages_with = Counter()
+    for rp in raw_pages:
+        pages_with.update({im.sig for im in rp.images if im.sig})
+    return frozenset(sig for sig, c in pages_with.items() if c >= max(3, RUNNING_SHARE * n))
 
 
 def body_font_size(raw_pages: list) -> float:
@@ -457,16 +537,18 @@ def body_font_size(raw_pages: list) -> float:
 
 def organize_document(raw_pages: list) -> tuple:
     """Returns (page_results, doc_info). doc_info holds the running-header/footer patterns."""
-    all_lines = [build_lines(rp) for rp in raw_pages]
+    decorative = _recurring_images(raw_pages)
+    all_lines = [build_lines(rp, decorative) for rp in raw_pages]
     header_keys, footer_keys = find_running(all_lines, [rp.height for rp in raw_pages])
     ctx = Context(body_font_size(raw_pages))
     # heading sizes: distinct sizes of lines that look like headings by size alone
     big = [ln.size for lines in all_lines for ln in lines if ln.kind == "text" and ln.size >= 1.2 * ctx.body_size and len(ln.text) <= 150]
     ctx.set_heading_sizes(big)
-    results = [organize_page(rp, lines, header_keys, footer_keys, ctx) for rp, lines in zip(raw_pages, all_lines)]
+    results = [organize_page(rp, lines, header_keys, footer_keys, ctx, decorative) for rp, lines in zip(raw_pages, all_lines)]
     info = {
         "body_size": ctx.body_size,
         "header_patterns": sorted(header_keys),
         "footer_patterns": sorted(footer_keys),
+        "decorative_images": {f"{s[0]}x{s[1]}" if s and s[0] != "inline" else "inline": sum(1 for rp in raw_pages if any(im.sig == s for im in rp.images)) for s in sorted(decorative, key=str)},
     }
     return results, info

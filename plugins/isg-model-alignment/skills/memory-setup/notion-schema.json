@@ -42,7 +42,7 @@
       { "name": "Título", "type": "title" },
       { "name": "ID", "type": "unique_id", "prefix": "{CODE}" },
       { "name": "Assunto", "type": "relation", "target": "Assuntos" },
-      { "name": "Tipo", "type": "select", "options": ["Fato", "Rejeição", "Regra"] },
+      { "name": "Tipo", "type": "select", "options": ["Fato", "Rejeição", "Regra", "Interpretação"] },
       { "name": "Status", "type": "status", "options": "statuses.all" },
       { "name": "UF / Órgão", "type": "rich_text" },
       { "name": "Documento", "type": "rich_text" },
@@ -50,6 +50,8 @@
       { "name": "Escopo geral", "type": "checkbox" },
       { "name": "Termo externo", "type": "rich_text" },
       { "name": "Componente ISG", "type": "rich_text" },
+      { "name": "Hash da imagem", "type": "rich_text" },
+      { "name": "Markdown corrigido", "type": "rich_text" },
       { "name": "Enunciado", "type": "rich_text" },
       { "name": "Evidência", "type": "rich_text" },
       { "name": "Justificativa", "type": "rich_text" },
@@ -89,5 +91,11 @@
     "Código": "EQV",
     "Descrição": "Decide se um componente descrito em um documento externo (por exemplo, uma orientação de secretaria estadual de educação) corresponde a um componente do Instituto, mesmo com outro nome.",
     "Campos-chave": "UF / Órgão, Documento, Ano, Termo externo, Componente ISG"
+  },
+  "imageSubject": {
+    "Nome": "Interpretação de imagens",
+    "Código": "IMG",
+    "Descrição": "Guarda as correções que os analistas fazem nas interpretações de imagens feitas pelo SIP, por hash da imagem, para que todos reaproveitem a versão corrigida sem gastar IA.",
+    "Campos-chave": "Hash da imagem, Documento, Ano, Markdown corrigido"
   }
 }

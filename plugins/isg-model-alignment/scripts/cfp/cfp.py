@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CFP command line (SPEC-003 4.3): processar | buscar | listar | pagina | status.
+"""CFP command line (SPEC-003 4.3, SPEC-004): processar | buscar | listar | pagina | status | imagens | imagens-pendentes | imagem-registrar | integrar.
 
 Contract (SPEC-001 4.8): non-interactive, --json prints ONE JSON object, exit codes 0 ok / 1 expected failure /
 2 wrong usage / 3 unexpected error, messages for people in PT-BR, codes in English-ish identifiers.
@@ -78,6 +78,8 @@ def build_parser():
     sp.add_argument("--max-chars", type=int, default=12000)
     sp.add_argument("--min-chars", type=int, default=1500)
     sp.add_argument("--confirmar-grande", action="store_true")
+    sp.add_argument("--sem-imagens", action="store_true", help="não extrai as imagens")
+    sp.add_argument("--incluir-pequenas", action="store_true", help="extrai também os ícones pequenos")
     common(sp)
 
     sp = sub.add_parser("buscar", add_help=False)
@@ -86,6 +88,7 @@ def build_parser():
     sp.add_argument("--ano", default="")
     sp.add_argument("--doc", default="")
     sp.add_argument("--max", type=int, default=50)
+    sp.add_argument("--com-imagens", action="store_true", help="busca nos trechos com interpretações de imagens")
     common(sp)
 
     sp = sub.add_parser("listar", add_help=False)
@@ -99,6 +102,27 @@ def build_parser():
     common(sp)
 
     sp = sub.add_parser("status", add_help=False)
+    sp.add_argument("documento")
+    common(sp)
+
+    sp = sub.add_parser("imagens", add_help=False)
+    sp.add_argument("documento")
+    sp.add_argument("--incluir-pequenas", action="store_true")
+    common(sp)
+
+    sp = sub.add_parser("imagens-pendentes", add_help=False)
+    sp.add_argument("documento")
+    sp.add_argument("--chunks", default="", help="só as imagens destes trechos (números separados por vírgula)")
+    common(sp)
+
+    sp = sub.add_parser("imagem-registrar", add_help=False)
+    sp.add_argument("documento")
+    sp.add_argument("id")
+    sp.add_argument("arquivo", help="Markdown da interpretação (modelo do SIP)")
+    sp.add_argument("--estado", default="interpretada", choices=["interpretada", "corrigida"])
+    common(sp)
+
+    sp = sub.add_parser("integrar", add_help=False)
     sp.add_argument("documento")
     common(sp)
     return p
@@ -125,7 +149,8 @@ def cmd_processar(args, appdata):
 
     try:
         r = process_pdf(args.pdf, args.uf, args.ano, appdata, titulo=args.titulo, force=args.force, max_chars=args.max_chars,
-                        min_chars=args.min_chars, confirm_large=args.confirmar_grande, progress=progress)
+                        min_chars=args.min_chars, confirm_large=args.confirmar_grande, progress=progress,
+                        extract_images=not args.sem_imagens, include_small=args.incluir_pequenas)
     except CfpError as e:
         return emit(args, False, "processar", e.code, e.message)
     if r["codigo"] == "JA_PROCESSADO":
@@ -139,12 +164,12 @@ def cmd_processar(args, appdata):
 def cmd_buscar(args, appdata):
     from isg_cfp.search import search
 
-    r = search(appdata / "cfp", args.termos, args.uf or None, args.ano or None, args.doc or None, args.max)
+    r = search(appdata / "cfp", args.termos, args.uf or None, args.ano or None, args.doc or None, args.max, with_images=args.com_imagens)
     if not r["termos"]:
         return emit(args, False, "buscar", "ENTRADA_INVALIDA", "Informe pelo menos um termo para buscar.")
     if r["total"] == 0:
         return emit(args, True, "buscar", "NADA_ENCONTRADO", "Nada encontrado para: %s." % args.termos, r)
-    lines = ["%s | chunk %s | p. %d | %s" % (h["pasta"], h["chunk"], h["pagina"], h["trecho"]) for h in r["hits"]]
+    lines = ["%s | chunk %s | p. %d | %s%s" % (h["pasta"], h["chunk"], h["pagina"], h["trecho"], (" (" + h["origem"] + ")") if h.get("origem") else "") for h in r["hits"]]
     more = "" if r["total"] <= len(r["hits"]) else "\n… e mais %d resultado(s)." % (r["total"] - len(r["hits"]))
     return emit(args, True, "buscar", "RESULTADOS", "%d resultado(s) para: %s." % (r["total"], args.termos), r, extra_text="\n".join(lines) + more)
 
@@ -190,11 +215,83 @@ def cmd_status(args, appdata):
     return emit(args, True, "status", "STATUS", msg, {"situacao": q["situacao"], "verificacoes": q["verificacoes"], "paginas_com_avisos": flagged})
 
 
+def _doc_or_fail(args, appdata, command):
+    d = resolve_doc(appdata / "cfp", args.documento)
+    if d is None:
+        return None, emit(args, False, command, "DOCUMENTO_NAO_ENCONTRADO", "Documento não encontrado: %s. Use `cfp listar`." % args.documento)
+    return d, None
+
+
+def cmd_imagens(args, appdata):
+    from isg_cfp.images import reextract
+
+    d, fail = _doc_or_fail(args, appdata, "imagens")
+    if fail is not None:
+        return fail
+    try:
+        entries = reextract(d, args.incluir_pequenas)
+    except ValueError as e:
+        return emit(args, False, "imagens", "PDF_INVALIDO", str(e))
+    counts = {}
+    for e in entries:
+        counts[e["estado"]] = counts.get(e["estado"], 0) + 1
+    return emit(args, True, "imagens", "IMAGENS_EXTRAIDAS", "%d imagem(ns) no índice de %s: %s." % (len(entries), d.name, ", ".join("%s %d" % (k, v) for k, v in sorted(counts.items())) or "nenhuma"),
+                {"contagem": counts, "pasta": str(d / "imagens")})
+
+
+def cmd_imagens_pendentes(args, appdata):
+    from isg_cfp.integrate import SipError, pending_report
+
+    d, fail = _doc_or_fail(args, appdata, "imagens-pendentes")
+    if fail is not None:
+        return fail
+    only = [int(x) for x in re.split(r"[,\s]+", args.chunks.strip()) if x.isdigit()] if args.chunks.strip() else None
+    try:
+        r = pending_report(d, appdata, only)
+    except SipError as e:
+        return emit(args, False, "imagens-pendentes", e.code, e.message)
+    msg = "%d imagem(ns) por interpretar (estimativa aproximada: %d mil a %d mil tokens do seu plano)." % (r["quantidade"], round(r["tokens_min"] / 1000), round(r["tokens_max"] / 1000))
+    if r["preenchidas_do_cache"]:
+        msg += " %d já estavam no cache e foram aproveitadas sem usar IA." % len(r["preenchidas_do_cache"])
+    return emit(args, True, "imagens-pendentes", "PENDENTES", msg, r)
+
+
+def cmd_imagem_registrar(args, appdata):
+    from isg_cfp.integrate import SipError, register
+
+    d, fail = _doc_or_fail(args, appdata, "imagem-registrar")
+    if fail is not None:
+        return fail
+    try:
+        r = register(d, appdata, args.id, Path(args.arquivo), args.estado)
+    except SipError as e:
+        return emit(args, False, "imagem-registrar", e.code, e.message)
+    except OSError as e:
+        return emit(args, False, "imagem-registrar", "ARQUIVO_ILEGIVEL", "Não consegui ler o arquivo da interpretação (%s)." % e.strerror)
+    return emit(args, True, "imagem-registrar", "REGISTRADA", "Interpretação da imagem %s registrada (%s)." % (r["id"], r["estado"]), r)
+
+
+def cmd_integrar(args, appdata):
+    from isg_cfp.integrate import SipError, build_enriched
+
+    d, fail = _doc_or_fail(args, appdata, "integrar")
+    if fail is not None:
+        return fail
+    try:
+        cov = build_enriched(d)
+    except SipError as e:
+        return emit(args, False, "integrar", e.code, e.message)
+    msg = "Trechos com imagens gerados em %s. Conteúdo completo: %s." % (d / "chunks_com_imagens", "sim" if cov["completo"] else "não")
+    if cov["motivos"]:
+        msg += " Falta: " + "; ".join(cov["motivos"]) + "."
+    return emit(args, True, "integrar", "INTEGRADO", msg, cov)
+
+
 def main(argv):
     parser = build_parser()
     args = parser.parse_args(argv)
     if not args.comando:
-        sys.stdout.write("Informe um comando: processar, buscar, listar, pagina ou status. Veja: cfp.py --ajuda\n")
+        sys.stdout.write("Informe um comando: processar, buscar, listar, pagina, status, imagens, imagens-pendentes, imagem-registrar ou integrar. Veja: cfp.py --ajuda\n")
         return EXIT_USAGE
     try:
         import isg_cfp  # noqa: F401
@@ -210,7 +307,8 @@ def main(argv):
             return emit(args, False, args.comando, "PASTA_INVALIDA", str(e))
         except OSError as e:
             return emit(args, False, args.comando, "PASTA_INVALIDA", "Não consegui criar a pasta de dados (%s). Escolha outra pasta." % e.strerror)
-        handler = {"processar": cmd_processar, "buscar": cmd_buscar, "listar": cmd_listar, "pagina": cmd_pagina, "status": cmd_status}[args.comando]
+        handler = {"processar": cmd_processar, "buscar": cmd_buscar, "listar": cmd_listar, "pagina": cmd_pagina, "status": cmd_status,
+                   "imagens": cmd_imagens, "imagens-pendentes": cmd_imagens_pendentes, "imagem-registrar": cmd_imagem_registrar, "integrar": cmd_integrar}[args.comando]
         return handler(args, appdata)
     except SystemExit:
         raise

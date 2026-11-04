@@ -6,12 +6,14 @@ from __future__ import annotations
 
 import math
 import unicodedata
+import zlib
 from collections import Counter
 from dataclasses import dataclass, field
 
 LIGATURES = {
     "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl", "ﬅ": "st", "ﬆ": "st",
 }
+PAINT_OPS = frozenset((b"S", b"s", b"f", b"F", b"f*", b"B", b"B*", b"b", b"b*"))
 GARBLED_RANGES = ((0xE000, 0xF8FF), (0xFFF0, 0xFFFF))
 
 
@@ -30,6 +32,10 @@ class Fragment:
 class ImageMark:
     x: float
     y: float
+    w: float = 0.0  # size on the page, in points
+    h: float = 0.0
+    sig: tuple = ()  # identity of the image (same picture repeated on many pages = decoration)
+    obj: object = None  # the pypdf image object (None for inline images), used by the extractor (SPEC-004)
 
 
 @dataclass
@@ -41,6 +47,7 @@ class RawPage:
     images: list = field(default_factory=list)
     rotate: int = 0
     ligatures: Counter = field(default_factory=Counter)  # expanded ligatures (logged, REQ-CEX-03)
+    paint_ops: int = 0  # path-painting operators (stroke/fill): many of them = a drawn chart, not a picture (SPEC-004 REQ-SEX-07)
 
 
 def normalize_text(text: str, ligatures: Counter | None = None) -> str:
@@ -146,19 +153,23 @@ def extract_page(reader, index: int) -> RawPage:
         raw.fragments.append(Fragment(norm, x - left, y - bottom, size if size > 0 else float(font_size or 10), bold, w, exact))
 
     def visitor_operand(operator, operand_args, cm, tm):
+        if operator in PAINT_OPS:
+            raw.paint_ops += 1
         if operator == b"Do" and xobjects is not None and operand_args:
             try:
                 xo = xobjects.get(operand_args[0])
                 xo = xo.get_object() if xo is not None else None
                 if xo is not None and xo.get("/Subtype") == "/Image":
                     a, b, c, d, e, f = (float(v) for v in cm)
-                    raw.images.append(ImageMark(e - left, (f + d) - bottom))
+                    data = getattr(xo, "_data", b"") or b""
+                    sig = (int(xo.get("/Width", 0) or 0), int(xo.get("/Height", 0) or 0), len(data), zlib.crc32(data))  # same bytes = same picture
+                    raw.images.append(ImageMark(e - left, (f + d) - bottom, math.hypot(a, b), math.hypot(c, d), sig, xo))
             except Exception:
                 pass
         elif operator == b"INLINE IMAGE":
             try:
                 a, b, c, d, e, f = (float(v) for v in cm)
-                raw.images.append(ImageMark(e - left, (f + d) - bottom))
+                raw.images.append(ImageMark(e - left, (f + d) - bottom, math.hypot(a, b), math.hypot(c, d), ("inline", round(a), round(d))))
             except Exception:
                 pass
 
