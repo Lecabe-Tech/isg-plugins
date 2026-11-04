@@ -10,6 +10,11 @@
       "type": "string",
       "title": "Seu nome",
       "description": "Nome usado nos documentos de qualidade gerados pelo plugin (opcional)"
+    },
+    "data_folder": {
+      "type": "directory",
+      "title": "Pasta de dados",
+      "description": "Pasta onde o plugin guarda a memória local e os documentos processados (opcional; se vazio, usa a pasta de dados do aplicativo no sistema)"
     }
   }
 }

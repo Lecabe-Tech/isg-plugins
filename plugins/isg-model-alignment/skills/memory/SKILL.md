@@ -8,6 +8,7 @@ Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em
 
 Execute estas instruções somente porque o usuário digitou `/isg-model-alignment:memory`. Esta skill **só lê**: nunca grava nada.
 Argumentos informados: $ARGUMENTS
+Pasta de dados configurada: `${user_config.data_folder}` (se estiver vazia ou aparecer literalmente assim, use a pasta padrão do protocolo, seção 3).
 
 Siga o arquivo **`memory-protocol.md`** desta pasta (seções 0 a 4, 7 e 9). **Sem conexão com o Notion:** seção 7 (mostre a cópia local, se houver, com a data; senão diga que não há memória disponível agora).
 

@@ -679,7 +679,7 @@ Applies to `configure.mjs`, `upgrade.mjs` and every future script.
 - **Finding the Claude CLI (T0, F1):** never assume `claude` is on `PATH`. In a Desktop-app session it is not. `lib/run.mjs` resolves it once: (1) `process.env.CLAUDE_CODE_EXECPATH` if set and the file exists; (2) else `claude` from `PATH`; (3) else fail with code `CLAUDE_CLI_NOT_FOUND` and a PT-BR message. All scripts call it through `run.mjs`. The same applies to `gh` and `git` (resolve from `PATH`; if missing, report with a PT-BR fix hint, do not crash).
 - **Quoting (T0, A9):** the skill text always runs a script **file** with simple flags. Never inline code (`node -e "…"`): PowerShell 5.1 strips quotes in arguments.
 - **Never print** tokens, credential helper output, `gh auth token`, or sensitive values.
-- **Never write** under `${CLAUDE_PLUGIN_ROOT}` or under the plugins root. Reading is allowed. Own persistent state goes in `${CLAUDE_PLUGIN_DATA}`.
+- **Never write** under `${CLAUDE_PLUGIN_ROOT}` or under the plugins root. Reading is allowed. Own persistent state goes in the plugin's application-data folder `<appdata>` (SPEC-003 REQ-COU-01), which survives updates and uninstall.
 - **Only Node built-ins.** No npm dependencies.
 - **Test-only hooks** (documented so nobody mistakes them for features): `ISG_TEST_CLAUDE_STUB`, `ISG_TEST_GH_STUB`, `ISG_TEST_GIT_STUB` (a `.mjs` file run with Node instead of the real tool) and `ISG_TEST_TIMEOUT_MS` (caps every timeout). They exist only so `test/` and VAL-12 can run without the real tools. Users never set them.
 - **Secrets in output:** every text taken from another program's stderr/stdout passes through `redact()` before it is shown.
@@ -737,7 +737,7 @@ The running script lives in the **old** version folder; updating is safe because
 | P-05 | **No SSH key** (R2): in-session installs/updates do not fall back to HTTPS. | Works in shell, fails in session | `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`; C-10. | AC-INS-2 |
 | P-06 | **Offboarding gap:** installed copies and claude.ai account copies keep working. | Residual access | Accepted; no secrets in the plugin; ask removal (4.12). | AC-ACC-2, 3 |
 | P-07 | **Windows vs Unix** paths and shells. Team works on Windows. | One OS only | Forward slashes; Node only; quoted paths; Windows smoke test per release; manual macOS check before `0.1.0`. | VAL-05, UAT-01/02 |
-| P-08 | **State under `${CLAUDE_PLUGIN_ROOT}`** lost on update. | Lost data | `${CLAUDE_PLUGIN_DATA}`; VAL-07. | VAL-07 |
+| P-08 | **State under `${CLAUDE_PLUGIN_ROOT}`** lost on update. | Lost data | `<appdata>` (SPEC-003 REQ-COU-01); VAL-07. | VAL-07 |
 | P-09 | **Reserved or duplicate names.** | Install fails | `isg-` prefix; unique marketplace name; `validate`. | VAL-01, 02 |
 | P-10 | **Entry name ≠ manifest name.** | "Not found" | REQ-REP-02; VAL-04. | VAL-04 |
 | P-11 | **Renaming breaks installs.** | Broken installs | `displayName` only; else `renames`. | Review |

@@ -8,6 +8,7 @@ Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em
 
 Execute estas instruções somente porque o usuário digitou `/isg-model-alignment:memory-setup`. Esta skill é para quem **administra** a memória (revisores ou responsáveis pelo Notion).
 Argumentos informados: $ARGUMENTS (um código de assunto para criar ou conferir, por exemplo `EQV`; vazio = conferir tudo)
+Pasta de dados configurada: `${user_config.data_folder}` (se estiver vazia ou aparecer literalmente assim, use a pasta padrão do protocolo, seção 3).
 
 Siga o arquivo **`memory-protocol.md`** desta pasta (seções 0, 2 e 9) e use **`notion-schema.json`** desta pasta como a estrutura esperada.
 

@@ -32,14 +32,19 @@ Responda sempre em português do Brasil (PT-BR). Os nomes de bancos, propriedade
 
 ## 3. Obter a memória
 
-**Se você pode ler e gravar arquivos neste computador (Claude Code):** use a **memória local** em `${CLAUDE_PLUGIN_DATA}/memory/`.
+**Pasta de dados do plugin** (a mesma para todo conteúdo do usuário: memória local, documentos processados, configurações). Ela fica **fora** da pasta instalada do plugin e **continua no computador** quando o plugin é atualizado ou desinstalado:
+- se a skill informar uma **pasta de dados configurada** (não vazia), use-a;
+- senão: Windows `%LOCALAPPDATA%\InstitutoSonhoGrande\isg-model-alignment\`; macOS `~/Library/Application Support/InstitutoSonhoGrande/isg-model-alignment/`; Linux `~/.local/share/InstitutoSonhoGrande/isg-model-alignment/`.
+- Nunca grave nada dentro da pasta instalada do plugin.
+
+**Se você pode ler e gravar arquivos neste computador (Claude Code):** use a **memória local** em `<pasta de dados>/memoria/` (crie a pasta se não existir).
 
 1. Leia `index.json` (se existir). Ele guarda, por código: `syncedAt` (data e hora da última sincronização), `marker` (marcador de mudança) e `entries` (quantidade).
 2. Leia no Notion só a linha do assunto em **Assuntos** (seção 1). Compare o marcador com o `marker` do índice.
    - **Igual:** use os arquivos locais `<CÓDIGO>/assunto.md` e `<CÓDIGO>/memoria.md`.
    - **Diferente, ou não há cópia local:** leia no Notion as visões salvas **"Legível — CÓDIGO"** e **"Em conflito — CÓDIGO"** do banco "Memória — CÓDIGO", **reescreva por completo** `assunto.md` e `memoria.md` (um bloco por entrada: **ID**, **Tipo**, **Status**, **UF / Órgão**, **Documento**, **Ano**, **Escopo geral**, **Termo externo**, **Componente ISG**, **Enunciado**, **Evidência** resumida, **Erros**, **Prazo de revisão**, **Casos de suporte**, **Relacionado**) e atualize `index.json`.
    - **Notion inacessível:** use a cópia local, diga quando foi a última sincronização e limite sua confiança a `média`. Se a cópia tiver mais de **7 dias**, avise que pode estar **possivelmente desatualizada**. **Nunca bloqueie o trabalho por estar sem conexão.**
-3. Se existirem cartões em `${CLAUDE_PLUGIN_DATA}/memory/outbox/` e o Notion estiver acessível, pergunte: *"Há N feedbacks guardados. Enviar ao Notion agora? (sim/não)"*. Com "sim", envie cada um pela seção 5 (com as verificações de contradição) e mova o cartão para `outbox/sent/`.
+3. Se existirem cartões em `<pasta de dados>/memoria/outbox/` e o Notion estiver acessível, pergunte: *"Há N feedbacks guardados. Enviar ao Notion agora? (sim/não)"*. Com "sim", envie cada um pela seção 5 (com as verificações de contradição) e mova o cartão para `outbox/sent/`.
 4. Se a pasta de dados não existir ou não puder ser gravada, trabalhe como na próxima opção.
 
 **Se você não grava arquivos aqui (chat do claude.ai, chat do app Desktop, Cowork):** leia as visões **"Legível — CÓDIGO"** e **"Em conflito — CÓDIGO"** direto no Notion, a cada pedido. Não há cópia local.
@@ -144,7 +149,7 @@ Componente ISG:
 Memórias usadas: 
 ```
 
-3. **Claude Code:** salve o cartão em `${CLAUDE_PLUGIN_DATA}/memory/outbox/<data-hora>-<CÓDIGO>.md` e diga: *"Feedback guardado neste computador; será enviado ao Notion quando a conexão voltar."* Se não conseguir gravar o arquivo, faça como nas outras superfícies.
+3. **Claude Code:** salve o cartão em `<pasta de dados>/memoria/outbox/<data-hora>-<CÓDIGO>.md` e diga: *"Feedback guardado neste computador; será enviado ao Notion quando a conexão voltar."* Se não conseguir gravar o arquivo, faça como nas outras superfícies.
 4. **Chat, Cowork e Claude Code na web:** peça ao analista para **copiar o cartão** e, quando o Notion voltar, colar no formulário **"Enviar feedback — CÓDIGO"** ou colar aqui com o pedido *"registre este cartão"*.
 5. Diga sempre que o feedback **ainda não está na memória compartilhada** e, portanto, ainda não vale para os outros analistas.
 

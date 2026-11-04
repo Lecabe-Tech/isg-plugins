@@ -8,6 +8,7 @@ Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em
 
 Execute estas instruções somente porque o usuário digitou `/isg-model-alignment:memory-audit`.
 Argumentos informados: $ARGUMENTS (código do assunto; opcional `amostra N` para reverificar N casos)
+Pasta de dados configurada: `${user_config.data_folder}` (se estiver vazia ou aparecer literalmente assim, use a pasta padrão do protocolo, seção 3).
 
 Siga o arquivo **`memory-protocol.md`** desta pasta e use **`notion-schema.json`** desta pasta.
 

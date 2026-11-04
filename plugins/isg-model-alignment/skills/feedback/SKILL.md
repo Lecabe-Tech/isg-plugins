@@ -7,6 +7,7 @@ Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em
 
 Use esta skill quando o analista disser que uma resposta sua está certa, errada ou parcialmente certa (por exemplo "o item 3 está errado porque…"), quando digitar `/isg-model-alignment:feedback`, ou quando pedir para registrar um **cartão de feedback**.
 Argumentos informados: $ARGUMENTS
+Pasta de dados configurada: `${user_config.data_folder}` (se estiver vazia ou aparecer literalmente assim, use a pasta padrão do protocolo, seção 3).
 
 Siga o arquivo **`memory-protocol.md`** desta pasta. Ele é obrigatório; leia-o antes de agir.
 

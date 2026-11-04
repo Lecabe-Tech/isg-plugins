@@ -22,6 +22,7 @@
 | Version | Date | Change |
 |---|---|---|
 | v0.1 | 2026-11-04 | First draft from the decisions of 2026-11-04 (section 1.3) |
+| v0.6 | 2026-11-04 | Local memory and outbox moved to the plugin's **application-data folder** `<appdata>/memoria/` (one folder for all user-scope content, survives updates and uninstall; SPEC-003 Q-2): glossary, 1.6, REQ-SYN-01/04/05/08, 4.10, N14; protocol and skills updated; new `userConfig.data_folder`. |
 | v0.5 | 2026-11-04 | **Implementation started** (7.1 status): Notion schema as single source, memory protocol (PT-BR) with explicit offline instructions (REQ-DEG-04, AC-DEG-2, UAT-M21), skills `feedback`, `memory`, `memory-sync`, `memory-setup`, `memory-audit`, copy script and checks VAL-M02..M04, Notion setup and automation guides. |
 | v0.4 | 2026-11-04 | Q-1 (reviewers set by the Instituto in Notion), Q-5 (memory IDs visible), Q-7 (7 days; offline work never blocked, REQ-SYN-04) decided. **All open questions closed.** |
 | v0.3 | 2026-11-04 | Instituto answers: analysts and reviewers are Notion members (Q-6); notifications by email sent from Notion (Q-3); subjects can have different people with access (Q-2) → **one pair of databases per subject** with its own permissions (E2, REQ-SUB-02/06, REQ-ACX-01, 4.1, 4.3, AC-SUB-1, N17); risk acceptance confirmed (1.4). |
@@ -42,7 +43,7 @@
 | **Feedback** | An analyst's verdict on an agent answer (correct / incorrect / partly) **with a reason**. Always logged. |
 | **Readable entry** | An entry the agent may use when analysing: status `Ativo`, `Aprovado`, `Auto-aprovado` or `Em observação` (the last one only with lowered confidence). |
 | **Curator** | The automatic set of checks (section 4.5) that decides what enters memory. It replaces a mandatory human curator. |
-| **Local memory** | A per-machine copy of the **readable** entries and the subject configuration, kept in the plugin's persistent data folder (`${CLAUDE_PLUGIN_DATA}/memory/`) on Claude Code. Read-only copy: Notion stays the source of truth. |
+| **Local memory** | A per-machine copy of the **readable** entries and the subject configuration, kept in the plugin's **application-data folder** `<appdata>/memoria/` on Claude Code (SPEC-003 REQ-COU-01; same folder as all user-scope content; survives updates and uninstall). Read-only copy: Notion stays the source of truth. |
 | **Sync** | Bringing the local memory up to date from Notion (pull), and sending queued feedback to Notion (push of the outbox). |
 | **Outbox** | Feedback cards saved locally while Notion was unreachable, waiting to be sent. |
 
@@ -74,7 +75,7 @@ Facts from documentation (2026-11-04). Items marked ⚠ are in 1.5 to be verifie
 - **Notion hosted MCP:** `https://mcp.notion.com/mcp` (Streamable HTTP; SSE fallback `/sse`), **OAuth** sign-in, acts as the signed-in member on the content that member can access. **Workspace guests cannot connect; only members.** Database tools include `notion-query-data-sources` (reads a **saved view** or finds entries matching a question), `notion-create-database`, `notion-update-data-source`, `notion-create-view`, plus page tools for creating and updating entries ⚠ (exact parameters to verify).
 - **Plan limits relevant to us (Plus):** SQL-style queries are **limited** (unlimited only on Business/Enterprise with Notion AI) and some search filters (for example last-edited date) are dropped. Therefore the design reads **saved, pre-filtered views** and uses a **change marker** instead of "edited since" queries (4.10).
 - A plugin can ship a **remote MCP server with a fixed URL**: it loads in Claude Code, Cowork and chat (in chat/Cowork it appears on the plugin's **Connectors** tab and works once connected). A **local** MCP server would not work in chat (SPEC-001 1.1).
-- Claude Code exposes a **persistent data folder** per plugin, `${CLAUDE_PLUGIN_DATA}` (`~/.claude/plugins/data/<id>/`), kept across plugin updates and deleted on uninstall. Chat and Cowork have no such folder.
+- Claude Code exposes a **persistent data folder** per plugin, `${CLAUDE_PLUGIN_DATA}` (`~/.claude/plugins/data/<id>/`), kept across plugin updates and deleted on uninstall. Chat and Cowork have no such folder. **Not used by this plugin since v0.6:** user-scope content lives in the application-data folder `<appdata>` (SPEC-003 REQ-COU-01), which survives uninstall.
 
 ### 1.2 Design decisions
 
@@ -132,7 +133,7 @@ Without a mandatory human curator, a **wrong correction or a wrong rule can ente
 | N11 | The plugin's bundled remote MCP (`.mcp.json`, `https://mcp.notion.com/mcp`) **authenticates with OAuth** in Claude Code (`/mcp` → notion → Authenticate) and appears on the plugin's **Connectors** tab in claude.ai / Desktop / Cowork, where "Connect" completes OAuth. | Users add Notion's own connector from the directory; the skills use any Notion tools available. |
 | N12 | A **rollup** on "Assuntos" can show the **latest last-edited time** of the related "Memória" entries (the change marker), and it updates when an automation changes an entry. | AUT-6 increments a "Versão da memória" number on every status change, plus a daily safety re-sync. |
 | N13 | `notion-query-data-sources` can read a **saved view** completely (all rows, all properties we need), within Plus limits, for a few hundred rows. | Paginate; or one view per entry type. |
-| N14 | `${CLAUDE_PLUGIN_DATA}` is **substituted in skill text** like `${CLAUDE_PLUGIN_ROOT}`, and Claude can write files there with its normal file tools. | Skill tells Claude to use `~/.claude/plugins/data/isg-model-alignment-isg-plugins/` (and the synced id) explicitly. |
+| N14 | `${user_config.data_folder}` is substituted in skill text (empty or literal when unset), and Claude can write files in `<appdata>` with its normal file tools. *(v0.6: local memory moved from `${CLAUDE_PLUGIN_DATA}` to `<appdata>`.)* | Protocol section 3 gives the default `<appdata>` path per operating system explicitly. |
 | N15 | Two Notion connections at once (the plugin's and a Notion connector the user already has) do not conflict: tools are namespaced, and either works. | Skill text says "use the Notion tools available"; guide recommends keeping one. |
 | N16 | Notion **Plus seats**: all analysts and reviewers are already **members** of the Instituto's Notion workspace (guests cannot use the MCP). **Confirmed by the Instituto (Q-6).** | — |
 | N17 | Notion **Plus** can restrict a page (and the databases inside it) to specific members within a teamspace, so each subject has its own access (REQ-SUB-06). | Separate teamspace per subject. |
@@ -143,7 +144,7 @@ The Notion memory is the **single source of truth**. Where the surface has a loc
 
 | Surface (SPEC-001 1.6) | Local memory | How the agent reads | How feedback is written |
 |---|---|---|---|
-| S1/S2 Claude Code (terminal, Desktop Code tab) | **Yes**, `${CLAUDE_PLUGIN_DATA}/memory/` | Freshness check (change marker) → local copy, re-synced when stale | Notion first; then local copy refreshed; if Notion is unreachable → **outbox**, sent on the next connected request |
+| S1/S2 Claude Code (terminal, Desktop Code tab) | **Yes**, `<appdata>/memoria/` | Freshness check (change marker) → local copy, re-synced when stale | Notion first; then local copy refreshed; if Notion is unreachable → **outbox**, sent on the next connected request |
 | S3 Claude Code on the web | Yes, but **per session** (the cloud VM is fresh) | Full sync at the first memory use of the session | Notion first; no outbox (session ends) → feedback card |
 | S4/S5 chat, S6 Cowork | **No** | Notion directly (saved views), every request | Notion; if unreachable → feedback card (REQ-DEG-02) |
 
@@ -241,14 +242,14 @@ Priority: **M** must, **S** should, **C** could. IDs are stable.
 
 | ID | P | Requirement |
 |---|---|---|
-| REQ-SYN-01 | M | On Claude Code (S1, S2) the agent keeps a local memory per subject in `${CLAUDE_PLUGIN_DATA}/memory/` (layout 4.10): the subject configuration and every **readable** entry, with the time and the change marker of the last sync. |
+| REQ-SYN-01 | M | On Claude Code (S1, S2) the agent keeps a local memory per subject in `<appdata>/memoria/` (layout 4.10; `<appdata>` as defined in SPEC-003 REQ-COU-01, overridable by `userConfig.data_folder`): the subject configuration and every **readable** entry, with the time and the change marker of the last sync. |
 | REQ-SYN-02 | M | **Before each analysis** the agent performs the **freshness check**: read the subject row in Notion (one page) and compare its change marker with the local one. Equal → use the local copy. Different, or no local copy → **re-sync** the subject from its saved readable view, then answer. (Guarantees approved items take effect from the next request.) |
 | REQ-SYN-03 | M | **Writes go to Notion first.** After a successful write (confirmed by reading back the new ID), the local copy is updated from Notion's response. The local copy is never a source for Notion entries. |
-| REQ-SYN-04 | M | If Notion is unreachable: reads use the local copy, the agent says when it was last synced, caps confidence at `média`, and never claims the copy is current. Feedback is saved as a card in the **outbox** (`memory/outbox/`), shown to the analyst. **Offline work is never blocked**, however old the copy is (Q-7): after 7 days without a successful sync the agent only adds the "possivelmente desatualizada" warning and asks the analyst more often. |
-| REQ-SYN-05 | M | On the next request with Notion reachable, the agent offers to **send the outbox** ("Há N feedbacks guardados. Enviar ao Notion agora? (sim/não)"); each card goes through the normal feedback path (contradiction checks included), then is moved to `memory/outbox/sent/`. |
+| REQ-SYN-04 | M | If Notion is unreachable: reads use the local copy, the agent says when it was last synced, caps confidence at `média`, and never claims the copy is current. Feedback is saved as a card in the **outbox** (`<appdata>/memoria/outbox/`), shown to the analyst. **Offline work is never blocked**, however old the copy is (Q-7): after 7 days without a successful sync the agent only adds the "possivelmente desatualizada" warning and asks the analyst more often. |
+| REQ-SYN-05 | M | On the next request with Notion reachable, the agent offers to **send the outbox** ("Há N feedbacks guardados. Enviar ao Notion agora? (sim/não)"); each card goes through the normal feedback path (contradiction checks included), then is moved to `<appdata>/memoria/outbox/sent/`. |
 | REQ-SYN-06 | M | The local files are **readable PT-BR text** (Markdown with one block per entry plus a small JSON index), so an analyst can inspect them; they contain no tokens or secrets. |
 | REQ-SYN-07 | S | `/isg-model-alignment:memory-sync` forces a full re-sync of one or all subjects and reports what changed (added, changed, removed entries) in PT-BR. |
-| REQ-SYN-08 | M | Uninstalling the plugin deletes the local memory (Claude Code default for `${CLAUDE_PLUGIN_DATA}`); nothing is lost because Notion is the source. Outbox cards not yet sent are listed before the analyst uninstalls (documented in the guide). |
+| REQ-SYN-08 | M | The local memory lives in `<appdata>`, so **plugin updates and uninstalls do not remove it** (decided 2026-11-04, SPEC-003 Q-2). Removing it is a manual, documented step; unsent outbox cards are listed in `<appdata>/LEIA-ME.md` instructions before removal. |
 | REQ-SYN-09 | M | On surfaces without local disk (S4–S6) the agent reads Notion directly every request (no local memory); on S3 it syncs once per session. |
 
 ### 2.10 Bundled Notion connection (REQ-MCP)
@@ -517,7 +518,7 @@ All new skills follow SPEC-001: PT-BR first line, portable core (VAL-13), short 
 ### 4.10 Local memory layout and sync algorithm (Claude Code)
 
 ```text
-${CLAUDE_PLUGIN_DATA}/memory/
+<appdata>/memoria/
 ├── index.json                 { "<CODE>": { "syncedAt": ISO, "marker": "<change marker>", "entries": N } }
 ├── EQV/
 │   ├── assunto.md             subject configuration (reviewers, thresholds) as read from Notion
