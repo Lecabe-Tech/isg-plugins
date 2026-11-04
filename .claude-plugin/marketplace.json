@@ -1,0 +1,12 @@
+{
+  "name": "isg-plugins",
+  "description": "Plugins do Instituto Sonho Grande",
+  "owner": { "name": "Instituto Sonho Grande" },
+  "plugins": [
+    {
+      "name": "isg-model-alignment",
+      "source": "./plugins/isg-model-alignment",
+      "description": "Apoio ao processo de qualidade do Instituto Sonho Grande"
+    }
+  ]
+}

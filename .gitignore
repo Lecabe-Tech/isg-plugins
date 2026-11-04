@@ -1,0 +1,12 @@
+# Secrets (REQ-ACC-01, REQ-ACC-05): never commit these.
+.env
+.env.*
+*.pem
+*.key
+
+# Local tooling
+node_modules/
+.DS_Store
+Thumbs.db
+*.bak-*
+.tmp/

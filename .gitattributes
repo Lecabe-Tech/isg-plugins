@@ -1,0 +1,4 @@
+# REQ-REP-06: LF everywhere, UTF-8 without BOM (P-27).
+* text=auto eol=lf
+*.png binary
+*.zip binary

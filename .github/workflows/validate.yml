@@ -1,0 +1,95 @@
+# PR checks (SPEC-001 REQ-REP-03, T3). Linux only, to stay inside the free Actions minutes (REQ-CST-02).
+# No secrets, no Anthropic API key (REQ-CST-04). Third-party actions are pinned to a commit SHA.
+name: validate
+
+on:
+  pull_request:
+    branches: [main, stable]   # "stable" is included ONLY so that pr-must-target-main can fail loudly
+    # No paths filter on purpose: the secret scan (VAL-03) must run on every change, docs included.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  CLAUDE_CODE_VERSION: '2.1.317'   # must equal MIN_CLAUDE_VERSION in constants.mjs (VAL-04 checks this)
+  GITLEAKS_VERSION: '8.30.1'
+  GITLEAKS_SHA256: '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb'
+
+jobs:
+  pr-must-target-main:
+    name: pr-must-target-main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull requests must target main
+        run: |
+          if [ "${{ github.base_ref }}" != "main" ]; then
+            echo "::error::Este PR aponta para '${{ github.base_ref }}'. Mude a base do PR para 'main' (a branch 'stable' só é movida pelo workflow Release)."
+            exit 1
+          fi
+
+  checks:
+    name: checks (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0   # gitleaks scans the full history (VAL-03)
+
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: '22'
+
+      - name: Install gitleaks (pinned version and checksum, binary only; the licensed action is NOT used)
+        run: |
+          curl -sSL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum -c -
+          tar -xzf gitleaks.tgz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
+      - name: VAL-03 secret scan (full history)
+        run: gitleaks git --redact --no-banner --exit-code 1 .
+
+      - name: Install Claude Code CLI (pinned, no login and no API key needed - assumption A1)
+        run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+
+      - name: VAL-01 and VAL-02 claude plugin validate --strict
+        run: |
+          claude --version
+          claude plugin validate . --strict
+          claude plugin validate ./plugins/isg-model-alignment --strict
+
+      - name: VAL-04 names, versions, changelog, line endings
+        run: node scripts/ci/check-consistency.mjs
+
+      - name: VAL-05 install smoke test (empty plugins root)
+        run: |
+          export CLAUDE_CODE_PLUGIN_CACHE_DIR="$(mktemp -d)"
+          export CLAUDE_CONFIG_DIR="$(mktemp -d)"
+          claude plugin marketplace add "$PWD"
+          claude plugin install isg-model-alignment@isg-plugins
+          claude plugin list --json | node -e "
+            let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+              const l=JSON.parse(s);
+              const p=l.find(x=>x.id==='isg-model-alignment@isg-plugins');
+              if(!p||p.enabled!==true){console.error('plugin not installed/enabled',s);process.exit(1)}
+              console.log('installed',p.version)})"
+
+      - name: VAL-07 no writes under the plugin root
+        run: node scripts/ci/check-no-root-writes.mjs
+
+      - name: VAL-11 language (PT-BR)
+        run: node scripts/ci/check-language.mjs
+
+      - name: VAL-13 portable core
+        run: node scripts/ci/check-portable.mjs
+
+      - name: Unit and script tests
+        run: npm test
+
+      - name: VAL-12 scripts are non-interactive
+        run: node scripts/ci/check-non-interactive.mjs

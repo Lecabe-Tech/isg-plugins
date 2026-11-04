@@ -1,0 +1,15 @@
+{
+  "name": "isg-model-alignment",
+  "displayName": "ISG Model Alignment",
+  "version": "0.1.0",
+  "description": "Apoio ao processo de qualidade do Instituto Sonho Grande",
+  "author": { "name": "Instituto Sonho Grande" },
+  "repository": "https://github.com/<org>/isg-plugins",
+  "userConfig": {
+    "user_name": {
+      "type": "string",
+      "title": "Seu nome",
+      "description": "Nome usado nos documentos de qualidade gerados pelo plugin (opcional)"
+    }
+  }
+}
