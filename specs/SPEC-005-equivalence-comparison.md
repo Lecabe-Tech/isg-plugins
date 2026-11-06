@@ -398,7 +398,7 @@ E-A1..E-A7 verified; every M requirement traced; VAL-E01..E10 green; UAT passed.
 
 | Task | Status |
 |---|---|
-| E-T0 | **Partly done.** E-A1 verified, E-A2 measured (11.6). E-A3: the estimate for the CE document is 143 thousand characters (about 36 to 48 thousand tokens to read it all); the trial read only 4 of 46 chunks (about 16 thousand characters) for the ten Eletivas orientations. E-A4: measured only on those ten cells (11.7). E-A5, E-A6 (the `.xlsx` writer: valid in tests and re-read by the reader; **not yet opened in Excel**), E-A7 open. |
+| E-T0 | **Partly done.** E-A1 verified, E-A2 measured (11.6). E-A3: the estimate for the CE document is 143 thousand characters (about 36 to 48 thousand tokens to read it all); the trial read only 4 of 46 chunks (about 16 thousand characters) for the ten Eletivas orientations. E-A4: measured only on those ten cells (11.7). E-A5, E-A6 **verified 2026-11-06**: an exported `resultado_1.1.xlsx` of the CE trial opened in Microsoft Excel (sheet "Resultado", 71 rows, 12 columns, values and comments intact); E-A7 open. |
 | E-T1 | **Done:** `template.py`, `eqv modelo`, generated-workbook tests. |
 | E-T2 | **Done:** `evidence.py` (verifier, ±3 page tolerance reporting the real page, ellipsis for interleaved layouts), inventory registration, progress, cache. |
 | E-T3 | **Done:** `rules.py` (table 4.4) and `store.register_cell` (quote verification, comment convention, analyst decisions preserved). |
@@ -502,6 +502,7 @@ Run on the real template and the CE "Orientações 2026" document (temporary dat
 - **Result vs the analysts' answers:** **10 of 10 agree** (all ten are `Sim` in the key). **4 cells flagged `Revisar`** (EL2 75 %, EL4 78 %, EL7 72 %, EL9 82 %), all the "indirect" kind the analysts also describe with nuance; the other six were 87 to 96 %.
 - **Page offsets seen in practice:** the analysts cited printed page 80 for the Culminância; the PDF page is 83. This is the offset the ±3 tolerance was designed for (Q-8).
 - **EL2** was capped at 75 % because page 85 carries a CFP table warning: the unreliable-page rule worked as designed.
+- **Re-run in a clean data folder (2026-11-06):** the same inventory and cells registered in a brand-new folder gave the same result (10 of 10 agree, 4 flagged); the template's SHA-256 was identical before and after.
 - **Honest limits of this trial:** only 10 cells; all analysts' answers were `Sim`, so **false `Sim` is untested** and no `Não` was exercised; the inventory covered 4 of 46 chunks (a real run needs the whole document, so `Não` cells would be flagged); the quotes were chosen by the AI after a keyword search, which a full run must replace with the inventory pass; `Comparação completa` was correctly `não` (89 orientations not compared; 67 SIP images pending).
 
 ### 11.5 Verified on a real example
