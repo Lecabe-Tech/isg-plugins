@@ -2,7 +2,7 @@
 
 > **Living document.** This explains what the plugin *is and does today*. It is not a spec: the specs (SDDs, in `specs/`) are what we write *before* building something. Every time a spec is implemented or the application changes, this document is updated in the same change (see section 10).
 >
-> Plugin version described: **0.1.0 (unreleased)** · Last updated: **2026-11-04** (confidence standardized as a percentage) · Specs covered: SPEC-001 to SPEC-004.
+> Plugin version described: **0.1.0 (unreleased)** · Last updated: **2026-11-04** (confidence standardized as a percentage) · Specs covered: SPEC-001 to SPEC-004 (SPEC-005 is a draft, not built).
 >
 > User guides in Portuguese (for analysts): `docs/INSTALL.pt-BR.md`, `docs/CFP.pt-BR.md`, `docs/SIP.pt-BR.md`, `docs/TROUBLESHOOTING.pt-BR.md`.
 
@@ -256,6 +256,7 @@ Everything a user or Claude reads or writes (skills, messages, generated Markdow
 | SPEC-002 | Agent self-improvement: shared Notion memory, feedback, rules, offline mode, subject `IMG` | Implemented; Notion and UAT validation pending |
 | SPEC-003 | CFP: chunked PDF processing | Implemented (0.2.0 adds images); trialed on MG and CE documents |
 | SPEC-004 | SIP and image integration into CFP | Implemented; accuracy validation pending (needs evaluation set) |
+| SPEC-005 | EQV: comparing the Instituto's orientations (the analysts' template, tabs 1.1 and 1.2) with a state's documents, by meaning, with verified evidence | **On hold**: needs a rework after reading the real template (its section 11); not implemented |
 
 ---
 
@@ -286,6 +287,7 @@ Review check before closing a spec: *could a new team member understand the new 
 | SIP accuracy unmeasured | Needs the evaluation set of about 20 real images (SPEC-004 Q-2) |
 | Vector charts | Only detected and flagged; not read |
 | GitHub | Actions never run on the real repository; repository to be transferred to the Instituto; `stable` branch and the first release (0.1.0) not created |
+| EQV spec on hold | SPEC-005 must be reworked: the real template compares **70 pedagogical + 29 management orientations × state × year** (Sim/Não plus a comment with page and quote), not components × grades. Open questions and the resume plan are in SPEC-005 section 11 |
 | Subject skills | The EQV (equivalence) skill that uses CFP, SIP and the memory to decide is not built yet |
 | Optional | Installers, an IT guide and a hook for CFP (SPEC-003 Q-4) |
 
@@ -295,5 +297,6 @@ Review check before closing a spec: *could a new team member understand the new 
 
 | Date | Change |
 |---|---|
+| 2026-11-04 | SPEC-005 put on hold after reading the real template; known limitations updated. |
 | 2026-11-04 | Confidence is now a percentage everywhere (glossary, SIP, memory). |
 | 2026-11-04 | First version: overview, glossary, skills, data folder, specs index (covers SPEC-001 to SPEC-004). |
