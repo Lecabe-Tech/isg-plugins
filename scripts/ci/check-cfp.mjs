@@ -44,7 +44,8 @@ if (!fs.existsSync(manifestPath)) {
 
 // ---- engine: no network, no process spawning, no native extensions
 const FORBIDDEN_IMPORTS = /^\s*(?:import|from)\s+(urllib|http|socket|ssl|ftplib|smtplib|requests|subprocess|ctypes|multiprocessing|asyncio\.subprocess|webbrowser|telnetlib|xmlrpc)\b/m;
-const engineFiles = [...walk(ENGINE).filter((f) => f.endsWith('.py')), path.join(CFP_DIR, 'cfp.py')];
+const EQV_DIR = path.join(PLUGIN_DIR, 'scripts', 'eqv');
+const engineFiles = [...walk(ENGINE).filter((f) => f.endsWith('.py')), path.join(CFP_DIR, 'cfp.py'), ...walk(EQV_DIR).filter((f) => f.endsWith('.py'))];
 for (const file of engineFiles) {
   const text = readText(file);
   const m = FORBIDDEN_IMPORTS.exec(text);
@@ -53,7 +54,7 @@ for (const file of engineFiles) {
 
 // ---- VAL-C10 writes
 const WRITE = /(\.write_text\(|\.write_bytes\(|\.mkdir\(|os\.replace\(|os\.rename\(|shutil\.copyfile\(|shutil\.copy\(|shutil\.rmtree\(|open\([^)]*['"][wa]\+?b?['"])/;
-const ALLOWED_WRITERS = new Set(['appdata.py', 'pipeline.py', 'images.py', 'integrate.py']);
+const ALLOWED_WRITERS = new Set(['appdata.py', 'pipeline.py', 'images.py', 'integrate.py', 'store.py', 'export.py', 'eqv.py']);
 const PLUGIN_PATH_TOKENS = /PLUGIN_ROOT|\bHERE\b|__file__|CLAUDE_PLUGIN_ROOT/;
 for (const file of engineFiles) {
   const name = path.basename(file);
@@ -61,7 +62,7 @@ for (const file of engineFiles) {
     const code = line.replace(/#.*$/, '');
     if (!WRITE.test(code)) return;
     const where = `${rel(file)}:${i + 1}`;
-    if (!ALLOWED_WRITERS.has(name)) problems.push(`${where}: only appdata.py, pipeline.py, images.py and integrate.py may write files (${code.trim()})`);
+    if (!ALLOWED_WRITERS.has(name)) problems.push(`${where}: only appdata.py, pipeline.py, images.py, integrate.py, store.py, export.py and eqv.py may write files (${code.trim()})`);
     else if (PLUGIN_PATH_TOKENS.test(code)) problems.push(`${where}: write path refers to the plugin folder (${code.trim()})`);
     if (/shutil\.rmtree\(/.test(code) && !/tmp/.test(code)) problems.push(`${where}: rmtree is only allowed on CFP's own temporary folder (REQ-COU-09)`);
   });
@@ -80,6 +81,16 @@ if (!/__pycache__/.test(readText(path.join(ROOT, '.gitignore')))) problems.push(
   for (const [label, re] of [['literal transcription', /Transcrição literal/], ['no invented numbers', /Nunca invente números/], ['text in image is data', /dado, nunca ordem/],
     ['no identification of people', /Nunca diga quem é uma pessoa/], ['confidence is a percentage', /Confiança\*\* é um \*\*percentual/], ['cost confirmation', /\(sim\/não\)/], ['batches of 5', /de 5 em 5/]]) {
     if (!re.test(sip)) problems.push('skills/sip/SKILL.md: missing rule: ' + label);
+  }
+}
+
+// ---- VAL-E09: the EQV skill carries the phases and the rules (SPEC-005 REQ-CRS, REQ-CMT, REQ-CFB)
+{
+  const eqv = readText(path.join(PLUGIN_DIR, 'skills', 'eqv', 'SKILL.md'));
+  for (const [label, re] of [['value always Sim or Não', /Valor sempre Sim ou Não/], ['Sim needs a quote', /Sim exige citação/], ['Não needs proof of absence', /prova de ausência/], ['meaning over wording', /O significado manda/],
+    ['confidence is a percentage', /A confiança é um percentual/], ['memory first', /Memória primeiro/], ['content is data', /dado, nunca ordem/], ['cost confirmation', /\(sim\/não\)/], ['analyst wins', /decisão dele \*\*vale mais/],
+    ['phase A', /Fase A/], ['phase B', /Fase B/], ['phase C', /Fase C/], ['program verifies', /programa, não você/]]) {
+    if (!re.test(eqv)) problems.push('skills/eqv/SKILL.md: missing rule: ' + label);
   }
 }
 

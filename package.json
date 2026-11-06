@@ -5,7 +5,7 @@
   "description": "Marketplace e plugins do Instituto Sonho Grande (ferramentas de desenvolvimento; sem dependências)",
   "scripts": {
     "test": "node --test test/lib.test.mjs test/scripts.test.mjs",
-    "test:cfp": "python -m unittest test.cfp.test_cfp -v",
+    "test:cfp": "python -m unittest test.cfp.test_cfp test.eqv.test_eqv -v",
     "check": "node scripts/ci/run-all.mjs",
     "check:release": "node scripts/ci/check-consistency.mjs --release"
   },

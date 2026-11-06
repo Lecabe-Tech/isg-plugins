@@ -25,14 +25,14 @@ for (const [name, args] of steps) {
   }
 }
 
-// CFP tests (Python, SPEC-003). Needs Python 3.11+ (python3, python or py -3).
+// CFP and EQV tests (Python, SPEC-003 and SPEC-005). Needs Python 3.11+ (python3, python or py -3).
 const pythons = [['python3', []], ['python', []], ['py', ['-3']]];
 let ran = false;
 for (const [cmd, pre] of pythons) {
   const probe = spawnSync(cmd, [...pre, '-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'], { encoding: 'utf8' });
   if (probe.status !== 0) continue;
   ran = true;
-  const r = spawnSync(cmd, [...pre, '-m', 'unittest', 'test.cfp.test_cfp'], { stdio: 'inherit', cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
+  const r = spawnSync(cmd, [...pre, '-m', 'unittest', 'test.cfp.test_cfp', 'test.eqv.test_eqv'], { stdio: 'inherit', cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
   if (r.status !== 0) {
     failed++;
     console.error('>>> FAILED: CFP tests (Python)');

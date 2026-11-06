@@ -2,7 +2,7 @@
 
 > **Living document.** This explains what the plugin *is and does today*. It is not a spec: the specs (SDDs, in `specs/`) are what we write *before* building something. Every time a spec is implemented or the application changes, this document is updated in the same change (see section 10).
 >
-> Plugin version described: **0.1.0 (unreleased)** · Last updated: **2026-11-04** (confidence standardized as a percentage) · Specs covered: SPEC-001 to SPEC-004 (SPEC-005 is a draft, not built).
+> Plugin version described: **0.1.0 (unreleased)** · Last updated: **2026-11-06** · Specs covered: SPEC-001 to SPEC-005 (SPEC-005 is implemented but only partly validated).
 >
 > User guides in Portuguese (for analysts): `docs/INSTALL.pt-BR.md`, `docs/CFP.pt-BR.md`, `docs/SIP.pt-BR.md`, `docs/TROUBLESHOOTING.pt-BR.md`.
 
@@ -12,12 +12,13 @@
 
 **ISG Model Alignment** is a Claude plugin of the **Instituto Sonho Grande (ISG)**. It supports one of the Instituto's quality processes: helping analysts check how education documents from state secretariats (curriculum guidelines, PDFs) line up with the Instituto's own model, with the AI working from **trustworthy, traceable content** and **learning from the analysts' corrections**.
 
-It does three jobs:
+It does four jobs:
 
 | Job | Skills | In one sentence |
 |---|---|---|
 | **Run the plugin** | `configure`, `upgrade` | Check the environment and keep the plugin up to date |
 | **Prepare content for the AI** | `cfp`, `sip` | Turn big PDFs and their images into small, faithful, page-traceable Markdown, **without spending AI tokens** where code can do the work |
+| **Compare with the Instituto's model** | `eqv` | For one state and year, decide for each Instituto orientation (analysts' template, tabs `1.1` and `1.2`) whether the state's documents contain it: `Sim`/`Não` + page and quote + confidence %, with quotes verified by code |
 | **Make the AI learn** | `feedback`, `memory`, `memory-sync`, `memory-setup`, `memory-audit` | A shared memory (in Notion) with the analysts' corrections, used in every later answer |
 
 Design principles that run through everything:
@@ -44,6 +45,9 @@ Design principles that run through everything:
 | **Page marker** | The line `<!-- página N | cabeçalho: … | rodapé: … | número impresso: … -->` inside a chunk. Headers, footers and page numbers are moved here, not deleted. |
 | **UF** | *Unidade da Federação*: the Brazilian state (SP, MG, CE…). Processed PDFs are organized by UF and year. |
 | **Confidence** | Always a **percentage (0 to 100 %)** across the plugin: memory entries, SIP interpretations and (later) comparison results. 85 % or more may decide alone, 60 to 84 % asks the analyst, below 60 % is not used as a basis. Offline memory is capped at 75 %; SIP interpretations at 75 % unless an analyst corrected them. |
+| **Orientation** | A row of the analysts' template tab `1.1` or `1.2`, with a code (EL1, PT1…), text and classification (Imprescindível or Desejável). The thing the comparison looks for in a state's documents. |
+| **Inventory** | What a state document says about each practice, with page and verified quote; built once per document and cached (EQV). |
+| **Revisar flag** | The `Revisar = Sim` marker beside a `Sim`/`Não` value: the analyst must check this cell. Value is never empty. |
 | **Quality status** | CFP's verdict for a processed document: **Aprovado**, **Aprovado com avisos**, **Reprovado**. |
 | **Conservation check** | CFP re-reads the files it wrote and confirms every non-space character of the PDF text is there (nothing lost, nothing added). |
 | **Image id** | `pNNN-NN`: page and order of an image, for example `p047-02`. |
@@ -97,7 +101,7 @@ plugins/isg-model-alignment/
   .claude-plugin/plugin.json             plugin manifest (name, version, user settings)
   .mcp.json                              the Notion connection
   skills/<name>/SKILL.md                 one folder per skill (PT-BR)
-  scripts/                               configure.mjs, upgrade.mjs, lib/, cfp/ (Python engine)
+  scripts/                               configure.mjs, upgrade.mjs, lib/, cfp/ (Python engine), eqv/ (Python engine)
   shared/                                memory protocol and Notion schema (copied into skills)
   CHANGELOG.md  README.md
 specs/                                   the SDDs (SPEC-001 … 004)
@@ -114,6 +118,7 @@ test/ scripts/ci/ .github/workflows/     tests and quality gates
 | `cfp` (needs Python) | **yes** | explains it needs Claude Code | with terminal: yes |
 | `sip` — interpret **an attached image** | yes | **yes** | yes |
 | `sip` — extract, register, integrate, correct | **yes** | no (says so, never pretends) | with terminal: yes |
+| `eqv` (needs Python, the template and processed documents) | **yes** | explains it needs Claude Code (answers a pasted single question, labelled "avulsa") | with terminal: yes |
 | Notion memory (read/write) | yes, with local copy | yes (reads/writes via Notion; no local copy) | yes |
 
 The exact surface matrix, installation routes and plan requirements are in SPEC-001. "Validated on real surfaces" is still pending (see section 11).
@@ -130,6 +135,7 @@ All skills answer in PT-BR. Slash commands are `/isg-model-alignment:<skill>`.
 | `upgrade` | by the user only | Node, internet |
 | `cfp` | by the user **or by Claude** when a PDF is mentioned | Python 3.11+ |
 | `sip` | by the user **or by Claude** when an image must be read | Claude able to see images; Python for the document features |
+| `eqv` | by the user only (it spends tokens) | Python 3.11+, the template, documents processed by CFP |
 | `feedback` | by the user or Claude after a correction | Notion |
 | `memory` | by the user only | Notion |
 | `memory-sync` | by the user only | Claude Code, Notion |
@@ -195,7 +201,22 @@ Order of lookup before spending AI on an image: shared memory (IMG corrections) 
 
 **Cost:** each image costs roughly 1k to 6k tokens of the analyst's own plan. Measured estimates: MG document 11 images ≈ 20–22k tokens; CE document 59 images ≈ 118–151k tokens. Limits: vector charts are only flagged; some image encodings (CCITT, JBIG2, JPX) are not extractable; accuracy on real images is **not yet measured** (needs the evaluation set). Spec: SPEC-004. Guide: `docs/SIP.pt-BR.md`.
 
-### 4.5 The memory skills (self-improvement, SPEC-002)
+### 4.5 `eqv` — compare the Instituto's orientations with a state's documents
+
+**EQV = *Equivalência*** (also the memory subject code). For **one UF and one year** the skill does what the analyst does on the template: for each orientation of tab `1.1 Base orient. pedagógicas` (70 rows) and `1.2 Base orient. gestão` (29 rows) it decides whether the state's documents contain it **by meaning, not by wording**, and proposes `Sim` or `Não`.
+
+How it works (the AI proposes, **code decides**):
+
+1. `iniciar`: reads the template (never modified) and the run's documents (already processed by CFP, each with a label such as "Orientações 2026"); shows a token estimate and waits for "sim".
+2. **Phase A, inventory:** the AI reads each document once, in order, and lists what it says about each practice with page and a verbatim quote; code **verifies every quote** on the cited page (accepting a page 1 to 3 away and reporting the real one). Resumable and cached.
+3. **Phase B, matching:** per orientation, memory first (subject EQV), then comparison by meaning; relation `Equivalente`, `Parte de`, `Cobre`, `Indireta`, `Distinto`; several items may together support one orientation.
+4. **Phase C, decision by code:** value is **always `Sim` or `Não`**; `Sim` needs at least one verified quote (otherwise the value becomes `Não` and the cell is flagged); `Não` needs a proof of absence; confidence is a percentage and anything below 85 %, indirect, from flagged pages or from AI image interpretations is flagged **`Revisar`**.
+5. `exportar`: **separate** `.xlsx` and `.csv` per tab in the template's row order (Valor, Comentário `Pág. N (Documento): "quote" (pré-preenchido por IA)`, Confiança, Revisar, Explicação, Evidências), `resultado.md`, `resultado.json` and "Comparação completa: sim/não".
+6. `decidir`: the analyst changes a cell (always wins, never overwritten), then one confirmation records it in the EQV memory. `medir` compares with the analysts' own answers in the template.
+
+Files live in `<appdata>/eqv/<UF>/<year>/`. Limits: the result is a separate file (not the template itself); only the informed documents are used (about 13 % of the CE 2026 answers cite other documents); the `2.x Revisão Matriz` tabs are out of scope; accuracy is only partly measured (SPEC-005 7.1). Spec: SPEC-005. Guide: `docs/EQV.pt-BR.md`.
+
+### 4.6 The memory skills (self-improvement, SPEC-002)
 
 The agent learns from analysts. Corrections become entries in a **shared memory in Notion**, one pair of databases per **subject**, each with its own people and permissions.
 
@@ -224,6 +245,7 @@ Windows `%LOCALAPPDATA%\InstitutoSonhoGrande\isg-model-alignment\` · macOS `~/L
 | `cfp/` | Processed PDFs by UF and year, plus `catalogo.md/json` |
 | `memoria/` | Local copy of the Notion memory and the outbox of unsent feedback |
 | `sip/` | Interpretation cache by image hash (`cache/`) and standalone interpretations (`avulsas/`) |
+| `eqv/` | Comparison runs by UF and year: orientations, document inventories, cell results and the exported files |
 | `config/`, `logs/` | Settings and run records |
 
 Safe to back up. Not edited by hand. CFP never deletes processed documents; `--force` renames the old folder to `…-substituido-<date>`.
@@ -256,7 +278,7 @@ Everything a user or Claude reads or writes (skills, messages, generated Markdow
 | SPEC-002 | Agent self-improvement: shared Notion memory, feedback, rules, offline mode, subject `IMG` | Implemented; Notion and UAT validation pending |
 | SPEC-003 | CFP: chunked PDF processing | Implemented (0.2.0 adds images); trialed on MG and CE documents |
 | SPEC-004 | SIP and image integration into CFP | Implemented; accuracy validation pending (needs evaluation set) |
-| SPEC-005 | EQV: comparing the Instituto's orientations (the analysts' template, tabs 1.1 and 1.2) with a state's documents, by meaning, with verified evidence | **On hold**: needs a rework after reading the real template (its section 11); not implemented |
+| SPEC-005 | EQV: comparing the Instituto's orientations (the analysts' template, tabs 1.1 and 1.2) with a state's documents, by meaning, with verified evidence | **Approved v0.3; implemented** (engine, `eqv` skill, tests); trial on 10 CE 2026 cells; full validation pending |
 
 ---
 
@@ -287,7 +309,7 @@ Review check before closing a spec: *could a new team member understand the new 
 | SIP accuracy unmeasured | Needs the evaluation set of about 20 real images (SPEC-004 Q-2) |
 | Vector charts | Only detected and flagged; not read |
 | GitHub | Actions never run on the real repository; repository to be transferred to the Instituto; `stable` branch and the first release (0.1.0) not created |
-| EQV spec on hold | SPEC-005 must be reworked: the real template compares **70 pedagogical + 29 management orientations × state × year** (Sim/Não plus a comment with page and quote), not components × grades. Open questions and the resume plan are in SPEC-005 section 11 |
+| EQV accuracy not measured at scale | The first trial covered only 10 CE 2026 cells (all `Sim` in the analysts' key, so false `Sim` is untested). About 13 % of CE 2026 cells cite documents we do not have (Caderno EO and others). The result is a separate file, not the template itself. See SPEC-005 sections 7.1 and 11.6 |
 | Subject skills | The EQV (equivalence) skill that uses CFP, SIP and the memory to decide is not built yet |
 | Optional | Installers, an IT guide and a hook for CFP (SPEC-003 Q-4) |
 
@@ -297,6 +319,8 @@ Review check before closing a spec: *could a new team member understand the new 
 
 | Date | Change |
 |---|---|
+| 2026-11-06 | `eqv` skill and engine implemented (SPEC-005 v0.3): template reader, inventory, quote verification, decision rules, separate xlsx/csv export, analyst review, measurement. |
+| 2026-11-06 | SPEC-005 reworked to v0.2 on the real template; template reader and quote verifier started. |
 | 2026-11-04 | SPEC-005 put on hold after reading the real template; known limitations updated. |
 | 2026-11-04 | Confidence is now a percentage everywhere (glossary, SIP, memory). |
 | 2026-11-04 | First version: overview, glossary, skills, data folder, specs index (covers SPEC-001 to SPEC-004). |
