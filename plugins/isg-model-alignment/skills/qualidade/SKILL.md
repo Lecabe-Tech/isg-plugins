@@ -18,6 +18,7 @@ Configure três variáveis, preferencialmente antes de iniciar:
 - `ISG_QUALITY_ICE_REFERENCE`: pasta **local ou sincronizada** com arquivos de referência ICE e `manifesto_ice.json` versionado, declarando o documento e a aba específicos de matriz 7h ou 9h, orientações pedagógicas, orientações de gestão e critérios. Alternativa: `quality_ice_reference`.
 
 Variáveis de ambiente prevalecem sobre preferências. URL do SharePoint não funciona para as duas pastas de leitura no plugin atual; é preciso sincronização/cópia local ou integração remota autorizada posteriormente.
+Se a variável de ambiente estiver ausente, o Claude deve obter a opção correspondente de `userConfig` e passá-la explicitamente à CLI como `--docs "<quality_state_docs>"` ou `--referencial "<quality_ice_reference>"`; o programa Python não acessa as preferências do plugin sozinho. Nunca inserir valores padrão de caminhos fictícios.
 
 Antes da interpretação, executar com Python 3.11+:
 ```text
