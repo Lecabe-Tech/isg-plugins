@@ -96,12 +96,12 @@ Apenas a equipe de Qualidade aprova, por fluxo externo. Registros novos nunca ch
 
 Com Claude Code em execução não interativa:
 ```text
-# Em bash, schema inline e envelope JSON do Claude Code:
+# Em terminal, schema inline e envelope JSON do Claude Code:
 SCHEMA="$(python <raiz-do-plugin>/scripts/quality/quality_payload.py esquema --aba SG_Ciclos)"
 claude -p "Use a skill SG_Ciclos para o lote já analisado, respeite o referencial ICE e devolva apenas o objeto da aba." --output-format json --json-schema "$SCHEMA" > SG_Ciclos.json
 python <raiz-do-plugin>/scripts/quality/quality_payload.py validar-resposta SG_Ciclos.json --json
 ```
-O prompt deve especificar **onde o resultado da análise já registrada está disponível**; não permitir que o Claude preencha o schema apenas pelo exemplo. Repetir por `SG_Documentos`, `SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz` e `SG_Avaliacoes`. Quando usar PowerShell, adaptar a sintaxe das variáveis.
+O prompt deve especificar **onde o resultado da análise já registrada está disponível**; não permitir que o Claude preencha o schema apenas pelo exemplo. Repetir por `SG_Documentos`, `SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz` e `SG_Avaliacoes`. Quando usar terminal Windows, adaptar a sintaxe das variáveis.
 
 O CLI gera `structured_output` no envelope; se ausente (recusa/erro de modelo/limite), a validação **falha**. Não substituir por texto de `result` nem extrair com regex. Para empacotar:
 ```text
