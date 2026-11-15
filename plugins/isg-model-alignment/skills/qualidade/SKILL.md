@@ -4,6 +4,8 @@ description: Coordena CFP, SIP, EQV, classificação de matriz e geração de da
 disable-model-invocation: true
 ---
 
+Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em outro idioma.
+
 # Comando /isg-model-alignment:qualidade
 
 Responda sempre em português do Brasil. Só execute se o usuário solicitar este comando. Argumentos: $ARGUMENTS. Exemplos: `iniciar --uf CE --ano 2026 --modelo 9h --template "template.xlsx" --doc "diretrizes.pdf"`, `validar "lote.json"`, `status`.

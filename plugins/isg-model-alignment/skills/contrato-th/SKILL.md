@@ -4,6 +4,8 @@ description: Regras de extração, validação e preenchimento da aba CONTRATO_T
 disable-model-invocation: true
 ---
 
+Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em outro idioma.
+
 # Skill 11 — CONTRATO_TH
 
 **Modo:** somente_leitura. **Planilha destino:** `SG_Base_Qualidade_Excel_SharePoint.xlsx`, aba `CONTRATO_TH`.

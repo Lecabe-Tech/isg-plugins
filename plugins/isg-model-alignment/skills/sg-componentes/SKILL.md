@@ -4,6 +4,8 @@ description: Regras de extração, validação e preenchimento da aba SG_Compone
 disable-model-invocation: true
 ---
 
+Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em outro idioma.
+
 # Skill 02 — SG_Componentes
 
 **Modo:** proposta. **Planilha destino:** `SG_Base_Qualidade_Excel_SharePoint.xlsx`, aba `SG_Componentes`.

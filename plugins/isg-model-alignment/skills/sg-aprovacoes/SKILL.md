@@ -4,6 +4,8 @@ description: Regras de extração, validação e preenchimento da aba SG_Aprovac
 disable-model-invocation: true
 ---
 
+Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em outro idioma.
+
 # Skill 07 — SG_Aprovacoes
 
 **Modo:** fluxo_externo. **Planilha destino:** `SG_Base_Qualidade_Excel_SharePoint.xlsx`, aba `SG_Aprovacoes`.
