@@ -32,3 +32,7 @@ Você atua como **extrator/propositor**, nunca como aprovador nem escritor diret
 
 
 > Fonte normativa: Scripta [GUIA-022]. Esta skill produz propostas de dados, nunca aprova nem grava diretamente no SharePoint.
+
+## Origem do gabarito ICE — orquestração do PR #2
+
+A pasta definida em `ISG_QUALITY_ICE_REFERENCE` deve trazer gabaritos **versionados e aprovados**, com `manifesto_ice.json` apontando para matriz específica 7h/9h, textos pedagógicos/de gestão e aba `criterios_calculo`. A base do Thomaz pode fornecer cópias das abas para revisão, mas **não autentica por si mesma** a versão normativa ICE; `SG_Referenciais` tem versão provisória no MVP. Claude **não modifica** esse catálogo durante análise de um estado: alterações exigem aprovação de governança e versão nova. O preflight confirma existência e hash opcional, não a autenticidade do aprovador, a semântica ou a vigência do critério.
