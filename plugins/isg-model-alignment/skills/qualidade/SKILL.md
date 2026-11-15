@@ -10,10 +10,27 @@ Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em
 
 Responda sempre em português do Brasil. Só execute se o usuário solicitar este comando. Argumentos: $ARGUMENTS. Exemplos: `iniciar --uf CE --ano 2026 --modelo 9h --template "template.xlsx" --doc "diretrizes.pdf"`, `validar "lote.json"`, `status`.
 
-## 0 — Identificar o destino, sem presumir escrita
+## 0 — Fontes obrigatórias: documentos estaduais e referencial ICE
+
+Configure três variáveis, preferencialmente antes de iniciar:
+- `ISG_QUALITY_BASE`: caminho/URL do Excel central, destino dos resultados. Alternativa: `quality_base` do plugin.
+- `ISG_QUALITY_STATE_DOCS`: pasta **local ou sincronizada** com `UF/Ano/` (ex.: `MG/2026`) contendo documentos do estado. Alternativa: `quality_state_docs`.
+- `ISG_QUALITY_ICE_REFERENCE`: pasta **local ou sincronizada** com arquivos de referência ICE e `manifesto_ice.json` versionado, declarando o documento e a aba específicos de matriz 7h ou 9h, orientações pedagógicas, orientações de gestão e critérios. Alternativa: `quality_ice_reference`.
+
+Variáveis de ambiente prevalecem sobre preferências. URL do SharePoint não funciona para as duas pastas de leitura no plugin atual; é preciso sincronização/cópia local ou integração remota autorizada posteriormente.
+
+Antes da interpretação, executar com Python 3.11+:
+```text
+<py> "<raiz-do-plugin-instalado>/scripts/quality/quality_payload.py" fontes --uf MG --ano 2026 --modelo 9h --json
+```
+Troque UF, ano e modelo pelos valores **confirmados** da execução. O comando verifica subpasta estadual, existência das referências, abas, modelo, versão declarada, e SHA-256 se disponível. A declaração `aprovado` no manifesto precisa ser autenticada pela equipe de Qualidade: a ferramenta não comprova autoridade pedagógica. Não confunda a planilha histórica do Thomaz com referência ICE já validada.
+
+**Bloqueio:** se não houver gabarito ICE referente ao modelo efetivo ou o preflight falhar, o Claude pode apenas inventariar fontes e extrair fatos explícitos; não pode concluir equivalência ICE, classificar definitivamente disciplinas nem emitir alinhamento como concluído. Não use a referência de 9h para avaliar 7h. Consulte `docs/QUALITY-PIPELINE.pt-BR.md` para a estrutura do manifesto.
+
+## 0.1 — Identificar o destino, sem presumir escrita
 A variável `ISG_QUALITY_BASE` define o caminho absoluto da planilha central `SG_Base_Qualidade_Excel_SharePoint.xlsx` (arquivo local/UNC) **ou** a URL HTTPS do arquivo no SharePoint. Como alternativa, use `${user_config.quality_base}`. A variável de ambiente prevalece. Nunca invente endereço e nunca imprima credenciais.
 Com terminal, execute `<py> "<raiz-do-plugin-instalado>/scripts/quality/quality_payload.py" status --json` (ou `--base "<valor do user_config>"`); `<py>` é Python 3.11+. Uma URL SharePoint **não é uma conexão autorizada para gravar**. Sem script de gravação configurado no tenant, a entrega termina no pacote de dados validado.
-Confirme UF, ano de análise, ano de vigência, modelo integral 7h/9h, versão do lote, documentos de origem e referencial aplicável. Caso ambíguo, registrar pendência; não escolher arbitrariamente a matriz do estado.
+Confirme UF, ano de análise, ano de vigência, modelo integral 7h/9h, versão do lote, documentos de origem e referencial ICE autorizado. Caso ambíguo, registrar pendência; não escolher arbitrariamente a matriz do estado.
 
 ## 1 — Processamento e integridade dos documentos
 Leia e aplique `skills/cfp/SKILL.md` (caminho relativo a `<raiz-do-plugin-instalado>`): cada PDF estadual é processado em trechos rastreáveis por página e hash; documentos reprovados no CFP não servem de base para conclusão.
@@ -27,7 +44,7 @@ Após `exportar`, leia `resultado.json` (inclui `celulas`, `comparacao_completa`
 Se o template já tiver valores, eles podem servir como **gabarito de comparação**, não como substituição da nova análise do Claude.
 
 ## 3 — Análise subjetiva da matriz curricular: componentes e horas
-Leia `skills/sg-componentes/SKILL.md` e `skills/sg-resumomatriz/SKILL.md`. Identifique os nomes originais das disciplinas, aulas semanais por série e modalidade, citando documento e página. A classificação para elementos ICE depende da **equivalência de propósito**, não apenas de nome semelhante. Ambiguidade gera pendência, sem chute.
+Leia `skills/sg-componentes/SKILL.md` e `skills/sg-resumomatriz/SKILL.md`. Identifique os nomes originais das disciplinas, aulas semanais por série e modalidade, citando documento e página. A classificação para elementos ICE depende da **equivalência de propósito conforme o referencial ICE carregado e aprovado**, não apenas de nome semelhante. Registre o item/aba ICE específico que sustenta classificações interpretativas. Ambiguidade gera pendência, sem chute.
 Quando houver bloco consolidado do template preenchido, preserve os valores e células originais. Quando houver somente PDF e não houver fórmula homologada, não invente totais nem assuma número de semanas letivas. Não confunda o bloco de componentes com o bloco de resumo que o Thomaz utiliza.
 
 ## 4 — Construir o lote no esquema real
