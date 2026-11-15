@@ -324,3 +324,12 @@ Review check before closing a spec: *could a new team member understand the new 
 | 2026-11-04 | SPEC-005 put on hold after reading the real template; known limitations updated. |
 | 2026-11-04 | Confidence is now a percentage everywhere (glossary, SIP, memory). |
 | 2026-11-04 | First version: overview, glossary, skills, data folder, specs index (covers SPEC-001 to SPEC-004). |
+
+---
+## 11. Quality orchestration and centralized Excel (SPEC-006, proposed)
+
+**In development, not yet deployed.** The `qualidade` skill coordinates CFP → SIP → EQV → component/matrix analysis → structured row proposals for `SG_Documentos`, `SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz`, `SG_Avaliacoes`. The eleven skills for the centralized workbook tabs are included under `skills/`, with governance/read-only behavior for the remaining six tabs.
+
+`ISG_QUALITY_BASE` locates the exact XLSX (absolute local path or HTTPS SharePoint URL); plugin setting `quality_base` is an alternative. This configuration is **not a credential**, does not grant write rights, and does not automatically upload files. The Python standard-library helper `scripts/quality/quality_payload.py` validates JSON and produces staging CSV/JSON. `scripts/quality/office-script-import.ts` is a sample importer for a separately authorized Microsoft 365 flow and workbook. No SharePoint connector is shipped in this feature.
+
+Before using this in production: install and test an Office Script / Power Automate or another authorized Microsoft integration, establish reviewer approval, verify idempotency/versioning, and compare a CE/2026 run with the original template and the Thomaz workbook. See `docs/QUALITY-PIPELINE.pt-BR.md` and `specs/SPEC-006-quality-orchestration.md`.

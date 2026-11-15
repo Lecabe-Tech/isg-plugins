@@ -20,3 +20,9 @@ No chat e no Cowork não há terminal: os comandos mostram o passo a passo para 
 
 Veja o guia de instalação do repositório (`docs/INSTALL.pt-BR.md`).
 Histórico de versões: `CHANGELOG.md`.
+
+## Qualidade — base central de dados (proposta em revisão)
+
+O comando `/isg-model-alignment:qualidade` coordena a análise de PDFs estaduais com CFP, SIP e EQV, a interpretação das matrizes e a geração de propostas para o Excel central. Há uma skill para cada aba. Veja `docs/QUALITY-PIPELINE.pt-BR.md` no repositório.
+
+Configure opcionalmente `ISG_QUALITY_BASE` com o caminho absoluto do XLSX ou com a URL HTTPS do arquivo no SharePoint; alternativamente use o campo `quality_base` das preferências do plugin. **Configurar a variável não grava dados no SharePoint.** O plugin prepara lotes JSON/CSV e fornece um Office Script para integração Microsoft, que deverá ser instalada, autenticada e testada pelo Instituto.

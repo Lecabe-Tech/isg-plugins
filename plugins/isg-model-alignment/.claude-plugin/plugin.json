@@ -3,7 +3,9 @@
   "displayName": "ISG Model Alignment",
   "version": "0.1.0",
   "description": "Apoio ao processo de qualidade do Instituto Sonho Grande",
-  "author": { "name": "Instituto Sonho Grande" },
+  "author": {
+    "name": "Instituto Sonho Grande"
+  },
   "repository": "https://github.com/<org>/isg-plugins",
   "userConfig": {
     "user_name": {
@@ -15,6 +17,11 @@
       "type": "directory",
       "title": "Pasta de dados",
       "description": "Pasta onde o plugin guarda a memória local e os documentos processados (opcional; se vazio, usa a pasta de dados do aplicativo no sistema)"
+    },
+    "quality_base": {
+      "type": "string",
+      "title": "Base central de Qualidade",
+      "description": "Caminho absoluto ou URL HTTPS do Excel SG_Base_Qualidade_Excel_SharePoint.xlsx; variável ISG_QUALITY_BASE tem preferência. Não habilita escrita por si só."
     }
   }
 }
