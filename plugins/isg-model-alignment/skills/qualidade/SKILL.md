@@ -89,3 +89,24 @@ O arquivo central fica hospedado no SharePoint sob permissões de leitura para e
 O projeto inclui `scripts/quality/office-script-import.ts` como modelo de importação para **Office Scripts executado dentro do Excel alvo** (ou fluxo Power Automate autorizado). Não há MCP SharePoint de escrita neste plugin. `ISG_QUALITY_BASE` **somente identifica o arquivo**, não fornece credencial, acesso à API ou publicação automática.
 Se a integração Microsoft ainda não tiver sido instalada e testada, informe `PACOTE_PREPARADO_NAO_GRAVADO` e entregue o staging. Não afirme que atualizou a base.
 Apenas a equipe de Qualidade aprova, por fluxo externo. Registros novos nunca chegam ao Thomaz até a aprovação e publicação do snapshot completo.
+
+## 7 — Saída estruturada real em Claude Code
+
+**Não basta pedir "retorne JSON".** Cada uma das cinco skills de dados deve usar o schema da aba em `scripts/quality/schemas/<ABA>.schema.json` (11 schemas no total; as outras seis abas são somente leitura/governança). Sem colunas extras, sem campos omitidos, com tipos numéricos e nulos corretos.
+
+Com Claude Code em execução não interativa:
+```text
+# Em bash, schema inline e envelope JSON do Claude Code:
+SCHEMA="$(python <raiz-do-plugin>/scripts/quality/quality_payload.py esquema --aba SG_Ciclos)"
+claude -p "Use a skill SG_Ciclos para o lote já analisado, respeite o referencial ICE e devolva apenas o objeto da aba." --output-format json --json-schema "$SCHEMA" > SG_Ciclos.json
+python <raiz-do-plugin>/scripts/quality/quality_payload.py validar-resposta SG_Ciclos.json --json
+```
+O prompt deve especificar **onde o resultado da análise já registrada está disponível**; não permitir que o Claude preencha o schema apenas pelo exemplo. Repetir por `SG_Documentos`, `SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz` e `SG_Avaliacoes`. Quando usar PowerShell, adaptar a sintaxe das variáveis.
+
+O CLI gera `structured_output` no envelope; se ausente (recusa/erro de modelo/limite), a validação **falha**. Não substituir por texto de `result` nem extrair com regex. Para empacotar:
+```text
+python <raiz-do-plugin>/scripts/quality/quality_payload.py agrupar <pasta-dos-cinco-json> --uf MG --ano 2026 --modelo 9h --versao v1 --saida lote.json --json
+python <raiz-do-plugin>/scripts/quality/quality_payload.py validar lote.json --json
+python <raiz-do-plugin>/scripts/quality/quality_payload.py preparar lote.json --saida staging --json
+```
+Os arquivos só serão importáveis se passarem **tanto** a validação individual de schema **quanto** a cruzada entre linhas/ciclos e estados pendentes. Erro de estrutura bloqueia importação; dados pedagogicamente duvidosos permanecem pendentes de revisão. Nenhuma linha é aprovada/publicada pelo Claude.

@@ -115,3 +115,24 @@ python "plugins/isg-model-alignment/scripts/quality/quality_payload.py" fontes -
 O comando verifica a pasta estadual, arquivos de origem, existência das referências ICE, versão, nomes exatos das abas e hashes informados. Ele **não comprova equivalência pedagógica** nem faz leitura remota de pastas SharePoint. Se as fontes estiverem hospedadas somente no SharePoint, disponibilize uma **cópia local sincronizada autorizada** ou implemente um conector Microsoft autenticado. O plugin atual não tem esse conector.
 
 Quando o preflight falhar, a skill `qualidade` deve interromper a classificação de componentes ICE e retornar pendências. Pode inventariar os documentos, mas nunca concluir que MG está alinhado sem referencial aprovado.
+
+## Saída estruturada — contratos por aba
+
+Os 11 arquivos `plugins/isg-model-alignment/scripts/quality/schemas/<ABA>.schema.json` são o **contrato de máquina**:
+- Cinco tabelas recebem dados propostos: `SG_Documentos`, `SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz`, `SG_Avaliacoes`.
+- Seis abas são governança/consulta e **nunca recebem linhas** pelo Claude: `SG_Referenciais`, `SG_Aprovacoes`, `LEIA_ME`, `VALIDACAO`, `DICIONARIO`, `CONTRATO_TH`.
+- Em cada resposta, exigem-se `aba`, `modo`, `linhas`, `pendencias`, `fontes`, `checagens`, sem outros campos. Todos os cabeçalhos das linhas são obrigatórios (valor `null` somente onde permitido). Tipos, valores fixos, enums, ausência de campos extras e identidade UF/ano/modelo são conferidos antes de preparar o lote.
+
+A API Claude aceita `output_config.format={"type":"json_schema","schema": ...}`. No **Claude Code**, use **`claude -p --output-format json --json-schema "<schema-json>"`**, que devolve `structured_output` no envelope de execução. Não confundir `--output-format json` sozinho com aplicação do schema. Em conversas interativas a skill é orientação, **não obriga por si só a geração por constrained decoding**.
+
+Comandos da integração local:
+```bash
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py esquema --aba SG_Ciclos
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py validar-resposta SG_Ciclos.json --json
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py agrupar ./respostas --uf MG --ano 2026 --modelo 9h --versao v1 --saida lote.json --json
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py validar lote.json --json
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py preparar lote.json --saida staging --json
+```
+Os cinco arquivos `./respostas/SG_*.json` devem ter sido gerados com schema aplicado ao Claude Code e ser independentes por aba. O `agrupar` verifica os cinco conjuntos e retorna erro ao faltar qualquer um; o `validar` aplica verificações entre registros e ciclos. A importação no Excel central continua separada, com identidade Microsoft autorizada e sem publicação automática.
+
+O schema impede erros de **estrutura**, não demonstra que um documento foi corretamente interpretado, que o ICE é a versão aprovada ou que uma ausência de orientação foi comprovada. Evidências e decisões seguem para revisão humana.

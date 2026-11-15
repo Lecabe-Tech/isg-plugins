@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Claude Qualidade — SG_Documentos",
+  "description": "Propostas pendentes, nunca publicadas",
+  "type": "object",
+  "properties": {
+    "aba": {
+      "type": "string",
+      "const": "SG_Documentos"
+    },
+    "modo": {
+      "type": "string",
+      "const": "proposta"
+    },
+    "linhas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "DocumentoID": {
+            "type": "string"
+          },
+          "UF": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "Ano": {
+            "type": "integer"
+          },
+          "NomeArquivo": {
+            "type": "string"
+          },
+          "Tipo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "URLSharePoint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "Paginas": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "StatusDocumento": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "Observacao": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "HashArquivo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "DocumentoID",
+          "UF",
+          "Ano",
+          "NomeArquivo",
+          "Tipo",
+          "URLSharePoint",
+          "Paginas",
+          "StatusDocumento",
+          "Observacao",
+          "HashArquivo"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "pendencias": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "campo": {
+            "type": "string"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "origem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "campo",
+          "motivo",
+          "origem"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "fontes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "arquivo": {
+            "type": "string"
+          },
+          "localizador": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "arquivo",
+          "localizador"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "checagens": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "aba",
+    "modo",
+    "linhas",
+    "pendencias",
+    "fontes",
+    "checagens"
+  ],
+  "additionalProperties": false
+}

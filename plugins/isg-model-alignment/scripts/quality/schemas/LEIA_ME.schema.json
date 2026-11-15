@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Claude Qualidade — LEIA_ME",
+  "description": "Somente leitura / governança; nunca gravar linhas",
+  "type": "object",
+  "properties": {
+    "aba": {
+      "type": "string",
+      "const": "LEIA_ME"
+    },
+    "modo": {
+      "type": "string",
+      "const": "somente_leitura"
+    },
+    "linhas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "pendencias": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "campo": {
+            "type": "string"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "origem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "campo",
+          "motivo",
+          "origem"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "fontes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "arquivo": {
+            "type": "string"
+          },
+          "localizador": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "arquivo",
+          "localizador"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "checagens": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "aba",
+    "modo",
+    "linhas",
+    "pendencias",
+    "fontes",
+    "checagens"
+  ],
+  "additionalProperties": false
+}

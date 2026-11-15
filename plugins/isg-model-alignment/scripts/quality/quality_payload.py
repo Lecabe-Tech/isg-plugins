@@ -13,6 +13,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 
+from quality_structured import (WRITE_ABAS, assemble_responses, check_record,
+                                check_response, extract_structured_output, schema_for)
+
 SCHEMA = {
     "SG_Ciclos": "CicloID UF Ano Modelo Cluster SituacaoOrigem StatusValidacao Publicado ResponsavelAprovacao ArquivoOrigem",
     "SG_Componentes": "RegistroID CicloID UF Ano Modelo ComponenteOriginal Classificacao Serie1 Serie2 Serie3 MinutosAula Evidencia CelulaOrigem StatusValidacao Publicado",
@@ -136,9 +139,17 @@ def parse_bundle(path: Path) -> dict:
     o = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(o, dict):
         raise ValueError("Lote JSON deve ser objeto.")
+    if "structured_output" in o:
+        checked = check_response(o)
+        if not checked["valido"]:
+            raise ValueError("Resposta Claude Code invalida: " + " | ".join(checked["erros"]))
+        o = extract_structured_output(o)
     if "abas" in o:
         abas = o["abas"]
     elif "aba" in o and "linhas" in o:
+        checked = check_response(o)
+        if not checked["valido"]:
+            raise ValueError("Resposta por aba invalida: " + " | ".join(checked["erros"]))
         abas = {o["aba"]: o["linhas"]}
     else:
         raise ValueError("JSON precisa de 'abas' ou de 'aba' + 'linhas'.")
@@ -167,6 +178,8 @@ def validate(bundle: dict) -> dict:
             if not isinstance(row, dict):
                 erros.append(label + ": linha não é objeto.")
                 continue
+            for err in check_record(tab, row):
+                erros.append(label + ": " + err)
             unexpected = set(row) - set(SCHEMA[tab])
             if unexpected:
                 erros.append(label + ": colunas inesperadas " + ",".join(sorted(unexpected)))
@@ -240,7 +253,7 @@ def write_staging(bundle: dict, destination: Path) -> list:
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Prepara lotes Claude sem editar a base central.")
-    parser.add_argument("comando", choices=["status", "fontes", "validar", "preparar"])
+    parser.add_argument("comando", choices=["status", "fontes", "esquema", "validar-resposta", "agrupar", "validar", "preparar"])
     parser.add_argument("arquivo", nargs="?")
     parser.add_argument("--base", default=os.getenv("ISG_QUALITY_BASE"))
     parser.add_argument("--saida")
@@ -249,6 +262,8 @@ def main(argv=None):
     parser.add_argument("--uf")
     parser.add_argument("--ano", type=int)
     parser.add_argument("--modelo")
+    parser.add_argument("--aba")
+    parser.add_argument("--versao")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
@@ -258,6 +273,32 @@ def main(argv=None):
             result["referencial_configurado"] = bool(args.referencial)
         elif args.comando == "fontes":
             result = fontes_info(args.docs, args.referencial, args.uf or "", args.ano or 0, args.modelo or "")
+        elif args.comando == "esquema":
+            if not args.aba:
+                raise ValueError("Informe --aba.")
+            print(json.dumps(schema_for(args.aba), ensure_ascii=False, separators=(",", ":")))
+            return 0
+        elif args.comando == "validar-resposta":
+            if not args.arquivo:
+                raise ValueError("Informe arquivo de resposta do Claude.")
+            raw = json.loads(Path(args.arquivo).read_text(encoding="utf-8-sig"))
+            result = check_response(raw)
+        elif args.comando == "agrupar":
+            if not args.arquivo or not args.saida:
+                raise ValueError("Informe pasta de respostas e --saida para o lote.")
+            if not args.versao:
+                raise ValueError("Informe --versao.")
+            bundle = assemble_responses(Path(args.arquivo), args.uf or "", args.ano or 0,
+                                        args.modelo or "", args.versao)
+            result = validate(bundle)
+            if result["valido"]:
+                output = Path(args.saida)
+                if output.exists():
+                    raise ValueError("Saida existente: nao sobrescrever lote.")
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                result["arquivo"] = str(output)
+                result["estado"] = "LOTE_ESTRUTURADO_VALIDADO_NAO_IMPORTADO"
         else:
             if not args.arquivo:
                 raise ValueError("Informe o caminho do lote JSON.")
