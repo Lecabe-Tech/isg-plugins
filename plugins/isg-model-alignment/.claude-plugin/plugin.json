@@ -22,6 +22,16 @@
       "type": "string",
       "title": "Base central de Qualidade",
       "description": "Caminho absoluto ou URL HTTPS do Excel SG_Base_Qualidade_Excel_SharePoint.xlsx; variável ISG_QUALITY_BASE tem preferência. Não habilita escrita por si só."
+    },
+    "quality_state_docs": {
+      "type": "directory",
+      "title": "Pasta dos documentos estaduais",
+      "description": "Pasta local/sincronizada com subpastas UF/Ano, ex. MG/2026; variável ISG_QUALITY_STATE_DOCS tem prioridade; não lê URLs SharePoint sem conector."
+    },
+    "quality_ice_reference": {
+      "type": "directory",
+      "title": "Pasta de referenciais ICE",
+      "description": "Pasta local/sincronizada com manifesto_ice.json, modelos 9h/7h, critérios e orientações aprovados; variável ISG_QUALITY_ICE_REFERENCE tem prioridade."
     }
   }
 }
