@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import math
+import re
 from pathlib import Path
 
 SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"
@@ -42,6 +44,10 @@ def _validate_node(schema: dict, value: object, loc: str, errors: list[str]) -> 
         if not any(_matches_type(value, k) for k in candidates):
             errors.append(f"{loc}: tipo inválido, esperado {candidates}.")
             return
+    if isinstance(value, str) and schema.get("pattern") and not re.fullmatch(schema["pattern"], value):
+        errors.append(f"{loc}: formato inválido.")
+    if type(value) is float and not math.isfinite(value):
+        errors.append(f"{loc}: valor numérico não finito.")
     if "const" in schema and (type(value) is not type(schema["const"]) or value != schema["const"]):
         errors.append(f"{loc}: valor fixo diferente do contrato.")
     if "enum" in schema and not any(type(value) is type(v) and value == v for v in schema["enum"]):
