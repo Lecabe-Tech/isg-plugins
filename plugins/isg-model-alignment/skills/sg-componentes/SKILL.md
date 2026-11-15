@@ -33,3 +33,7 @@ Você atua como **extrator/propositor**, nunca como aprovador nem escritor diret
 
 
 > Fonte normativa: Scripta [GUIA-019]. Esta skill produz propostas de dados, nunca aprova nem grava diretamente no SharePoint.
+
+## Pré-requisito de classificação ICE — orquestração do PR #2
+
+Antes de classificar um componente estadual, a skill principal deve ter localizado os documentos da UF/ano por `ISG_QUALITY_STATE_DOCS` e a pasta ICE por `ISG_QUALITY_ICE_REFERENCE`, validado `manifesto_ice.json` para **a matriz 7h ou 9h realmente aplicável** e **lido o conteúdo da aba de referência**. O diagnóstico de arquivos não interpreta a metodologia. Vincular cada classificação interpretativa ao critério ou item ICE usado e à evidência estadual. **Sem gabarito aprovado do modelo correto, não afirmar classificação concluída**; preservar somente dados factuais de componentes e aulas e listar pendências. O gabarito não deve ser deduzido pelo nome da disciplina nem por conhecimento genérico do Claude.
