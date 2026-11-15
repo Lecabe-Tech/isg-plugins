@@ -33,3 +33,7 @@ Você atua como **extrator/propositor**, nunca como aprovador nem escritor diret
 
 
 > Fonte normativa: Scripta [GUIA-021]. Esta skill produz propostas de dados, nunca aprova nem grava diretamente no SharePoint.
+
+## Pré-requisito da análise das orientações — orquestração do PR #2
+
+A EQV compara o documento estadual contra **o texto de cada orientação do ICE**, não contra suposições gerais do Claude. Usar o referencial versionado e aprovado disponível em `ISG_QUALITY_ICE_REFERENCE` e confirmar que o template da EQV contém os códigos/textos e as **colunas da UF e ano** do lote. O template Cluster 4 possui CE/PE/PR/SE e não permite processar MG/2026 diretamente: obter template MG compatível ou adaptador homologado. Sem orientação de referência e documentos suficientes, manter resultado pendente; uma ausência de frase literal **não comprova** ausência de orientação. Preservar justificativas, documentos e páginas.
