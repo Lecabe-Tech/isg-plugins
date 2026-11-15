@@ -34,3 +34,7 @@ Você atua como **extrator/propositor**, nunca como aprovador nem escritor diret
 
 
 > Fonte normativa: Scripta [GUIA-020]. Esta skill produz propostas de dados, nunca aprova nem grava diretamente no SharePoint.
+
+## Pré-requisito de consolidação — orquestração do PR #2
+
+`SG_ResumoMatriz` não é o lugar para o Claude calcular livremente alinhamento percentual. Quando houver template preenchido, copiar o bloco consolidado com procedência de célula. Quando houver apenas documentos estaduais, só produzir carga horária total se houver a regra formal homologada e o gabarito ICE do modelo (7h ou 9h) selecionado em `manifesto_ice.json`, além de dados de semanas, duração e séries efetivamente confirmados. O diagnóstico de fontes é só técnico. **Não fabricar totais, mínimos, ideais ou exceções**. O percentual final continua na base do Thomaz após revisão humana.
