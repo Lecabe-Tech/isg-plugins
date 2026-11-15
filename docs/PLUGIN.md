@@ -326,10 +326,16 @@ Review check before closing a spec: *could a new team member understand the new 
 | 2026-11-04 | First version: overview, glossary, skills, data folder, specs index (covers SPEC-001 to SPEC-004). |
 
 ---
-## 11. Quality orchestration and centralized Excel (SPEC-006, proposed)
+## 13. Qualidade — orquestração e fontes ICE (SPEC-006)
 
-**In development, not yet deployed.** The `qualidade` skill coordinates CFP → SIP → EQV → component/matrix analysis → structured row proposals for `SG_Documentos`, `SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz`, `SG_Avaliacoes`. The eleven skills for the centralized workbook tabs are included under `skills/`, with governance/read-only behavior for the remaining six tabs.
+O comando `qualidade` coordena CFP, SIP, EQV, interpretação da matriz e cinco conjuntos de entrada `SG_*`. As outras seis skills preservam referenciais, aprovação e visões de leitura. O referencial ICE **não está embutido no plugin**: deve ser informado, versionado e aprovado separadamente.
 
-`ISG_QUALITY_BASE` locates the exact XLSX (absolute local path or HTTPS SharePoint URL); plugin setting `quality_base` is an alternative. This configuration is **not a credential**, does not grant write rights, and does not automatically upload files. The Python standard-library helper `scripts/quality/quality_payload.py` validates JSON and produces staging CSV/JSON. `scripts/quality/office-script-import.ts` is a sample importer for a separately authorized Microsoft 365 flow and workbook. No SharePoint connector is shipped in this feature.
+Configuração de destino: `ISG_QUALITY_BASE` (XLSX local absoluto ou URL HTTPS do arquivo no SharePoint).
+Configurações de leitura: `ISG_QUALITY_STATE_DOCS` (pasta local/sincronizada organizada por UF/Ano) e `ISG_QUALITY_ICE_REFERENCE` (pasta local/sincronizada com `manifesto_ice.json`, matriz 7h/9h, orientações e critérios).
+As opções equivalentes do plugin são `quality_base`, `quality_state_docs` e `quality_ice_reference`.
 
-Before using this in production: install and test an Office Script / Power Automate or another authorized Microsoft integration, establish reviewer approval, verify idempotency/versioning, and compare a CE/2026 run with the original template and the Thomaz workbook. See `docs/QUALITY-PIPELINE.pt-BR.md` and `specs/SPEC-006-quality-orchestration.md`.
+O preflight `scripts/quality/quality_payload.py fontes --uf MG --ano 2026 --modelo 9h` verifica acesso às fontes, modelo, nomes de abas e hashes opcionais, **não** equivalência pedagógica. A skill **bloqueia conclusão de alinhamento** sem referencial do modelo correto. A leitura real deve seguir os arquivos apontados pelo manifesto; documentos públicos do estado nunca são usados como substitutos do gabarito ICE.
+
+O programa também valida o JSON e cria staging CSV/JSON sem alterar a base. O Office Script apenas representa o importador no arquivo Excel selecionado pelo fluxo Microsoft. Nenhuma das três variáveis fornece credenciais nem grava dados no SharePoint automaticamente.
+
+Homologação pendente: aprovação da versão ICE, testes MG/2026 com template de orientações apropriado, gravação autorizada no SharePoint, fluxo de revisão humana e conexão com Thomaz. Ver `docs/QUALITY-PIPELINE.pt-BR.md` e `examples/quality/manifesto_ice.example.json`.
