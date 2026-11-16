@@ -33,7 +33,7 @@ for (const [cmd, pre] of pythons) {
   const probe = spawnSync(cmd, [...pre, '-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'], { encoding: 'utf8' });
   if (probe.status !== 0) continue;
   ran = true;
-  const r = spawnSync(cmd, [...pre, '-m', 'unittest', 'test.cfp.test_cfp', 'test.eqv.test_eqv', 'test.quality.test_quality_payload', 'test.quality.test_quality_structured', 'test.quality.test_quality_templates'], { stdio: 'inherit', cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
+  const r = spawnSync(cmd, [...pre, '-m', 'unittest', 'test.cfp.test_cfp', 'test.eqv.test_eqv', 'test.quality.test_quality_payload', 'test.quality.test_quality_structured', 'test.quality.test_quality_templates', 'test.quality.test_q17_contracts'], { stdio: 'inherit', cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
   if (r.status !== 0) {
     failed++;
     console.error('>>> FAILED: Python tests (CFP, EQV, quality)');

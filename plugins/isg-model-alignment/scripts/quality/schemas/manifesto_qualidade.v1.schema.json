@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Manifesto de entrada da Qualidade (SPEC-017, v1)",
+  "description": "Quatro classes de entrada para uma análise UF + ano + Ensino Médio Integral propedêutico de 9h.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "solicitacao_id", "uf", "ano", "modelo", "modalidade", "entradas"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "solicitacao_id": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$"},
+    "revisao": {"type": "integer", "minimum": 1},
+    "uf": {"type": "string", "pattern": "^[A-Z]{2}$"},
+    "ano": {"type": "integer", "minimum": 2024, "maximum": 2100},
+    "modelo": {"type": "string"},
+    "modalidade": {"type": "string"},
+    "entradas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["orientacoes_estaduais", "matriz_estadual", "template_cluster", "referencial_ice"],
+      "properties": {
+        "orientacoes_estaduais": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/entrada"}},
+        "matriz_estadual": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/entrada"}},
+        "template_cluster": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/entrada"}},
+        "referencial_ice": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/entrada"}}
+      }
+    },
+    "homologacao_ice": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["versao", "aprovado_por", "data"],
+          "properties": {
+            "versao": {"type": "string", "minLength": 1},
+            "aprovado_por": {"type": "string", "minLength": 2},
+            "data": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+            "documento": {"type": ["string", "null"]}
+          }
+        }
+      ]
+    },
+    "regras_homologadas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["formula_sha256", "aprovado_por", "data"],
+        "properties": {
+          "formula_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "aprovado_por": {"type": "string", "minLength": 2},
+          "data": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+          "observacao": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "aplicabilidade_codigos": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["aprovado_por", "data", "pedagogicas", "gestao"],
+          "properties": {
+            "aprovado_por": {"type": "string", "minLength": 2},
+            "data": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+            "pedagogicas": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z]{1,4}\\d+$"}},
+            "gestao": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z]{1,4}\\d+$"}},
+            "exclusoes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["codigo", "motivo"],
+                "properties": {"codigo": {"type": "string"}, "motivo": {"type": "string", "minLength": 3}}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "observacoes": {"type": ["string", "null"]}
+  },
+  "definitions": {
+    "entrada": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri"],
+      "properties": {
+        "uri": {"type": "string", "minLength": 1},
+        "papel": {"type": ["string", "null"]},
+        "titulo": {"type": ["string", "null"]},
+        "emissor": {"type": ["string", "null"]},
+        "versao": {"type": ["string", "null"]},
+        "vigencia": {"type": ["string", "null"]},
+        "observacao": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
