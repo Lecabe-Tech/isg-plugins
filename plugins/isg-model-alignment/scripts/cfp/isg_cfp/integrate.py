@@ -13,6 +13,8 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .pipeline import replace_with_retry
+
 SIP_TEMPLATE_VERSION = 1
 SECTIONS = ["Tipo", "Texto na imagem (transcrição literal)", "Conteúdo estruturado", "Descrição", "Significado no contexto", "Confiança", "Dúvidas e partes ilegíveis"]
 STATES_DONE = ("interpretada", "corrigida")
@@ -92,7 +94,7 @@ def write_index(doc: Path, entries: list) -> None:
     p = doc / "imagens" / "index.json"
     tmp = p.with_name(p.name + f".tmp-{os.getpid()}")
     tmp.write_text(json.dumps({"imagens": entries}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
-    os.replace(tmp, p)
+    replace_with_retry(tmp, p)
 
 
 def _source_id(entry: dict) -> str:
@@ -149,7 +151,7 @@ def register(doc: Path, appdata: Path, image_id: str, md_file: Path, estado: str
         shutil.copyfile(target, doc / "imagens" / f"{source['id']}.v{n}.md")
     tmp = target.with_name(target.name + f".tmp-{os.getpid()}")
     tmp.write_text(final, encoding="utf-8", newline="\n")
-    os.replace(tmp, target)
+    replace_with_retry(tmp, target)
     cache = appdata / "sip" / "cache"
     cache.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(target, cache / f"{source['sha256']}.md")
@@ -268,9 +270,9 @@ def build_enriched(doc: Path) -> dict:
     target = doc / "chunks_com_imagens"
     if target.exists():  # the previous generated copy is renamed to a temporary name and removed; the sources (imagens/*.md, memory) are kept
         old_tmp = doc / f"chunks_com_imagens.tmp-old-{os.getpid()}"
-        os.replace(target, old_tmp)
+        replace_with_retry(target, old_tmp)
         shutil.rmtree(old_tmp)
-    os.replace(out_tmp, target)
+    replace_with_retry(out_tmp, target)
     cov = coverage(doc, entries)
     cov["problemas_indice"] = problems
     (doc / "cobertura.md").write_text(render_coverage(cov), encoding="utf-8", newline="\n")
