@@ -10,11 +10,31 @@ Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em
 
 Responda sempre em português do Brasil. Só execute se o usuário solicitar este comando. Argumentos: $ARGUMENTS. Exemplos: `iniciar --uf CE --ano 2026 --modelo 9h --template "template.xlsx" --doc "diretrizes.pdf"`, `validar "lote.json"`, `status`.
 
+## Como iniciar no dia a dia: ano + documento orientador
+
+**Configuração permanente opcional:** `ISG_QUALITY_TEMPLATES_DIR` (ou `quality_templates_dir` do plugin) aponta para a pasta de **templates por estado**, sem necessidade de enviar o Excel novamente. Estruturas aceitas: `<templates>/MG/template.xlsx` para uso contínuo, ou `<templates>/MG/2026/template.xlsx` para uma versão específica do ano. A opção de ano tem precedência. A pasta não substitui `ISG_QUALITY_ICE_REFERENCE` (o **gabarito pedagógico**) nem `ISG_QUALITY_STATE_DOCS` (as **fontes estaduais atuais**).
+
+O comando preferencial para iniciar:
+```text
+/isg-model-alignment:qualidade iniciar --ano 2026 --orientacao "C:\\Qualidade\\Estados\\MG\\2026\\orientacoes.pdf"
+```
+É permitido omitir `--uf` **somente se** o arquivo estiver sob a pasta configurada `<estados>/UF/Ano/`; o plugin recupera a UF do caminho, não por suposição de nome. Se o arquivo foi enviado de Downloads/outra pasta, informar `--uf MG` explicitamente ou movê-lo para o local cadastrado. Se mais de uma matriz ou modelo forem candidatos, perguntar qual usar; não escolher automaticamente 9h.
+
+Com terminal, resolver a localização antes do restante:
+```text
+<py> "<raiz-do-plugin-instalado>/scripts/quality/quality_payload.py" resolver --ano 2026 --orientacao "<caminho-absoluto-do-documento>" --json
+```
+O resolvedor devolve UF, ano, hash e caminho do **template compatível com a EQV** (`1.1`, `1.2`, colunas UF/ano), inventário estadual e possíveis arquivos de matriz por **nome**. **Ele não verifica conteúdo curricular nem comprova que exista matriz válida**. O Claude deve ler os documentos e confirmar documento/páginas da matriz propedêutica vigente e modelo 7h ou 9h; depois executar `fontes --uf ... --ano ... --modelo ...` para o gabarito ICE. **Sem matriz comprovada, a análise das orientações pode continuar, mas componentes e resumo curricular ficam pendentes.**
+
+Para EQV, reutilizar o caminho de `template.arquivo` devolvido por `resolver` no argumento obrigatório `iniciar "<template>" --uf ... --ano ...`. O template fica **somente leitura**. Respostas pré-existentes não são prova documental e nunca devem influenciar a nova análise.
+Em superfícies sem terminal, explicar que não foi possível executar o resolvedor e não fingir que ele localizou o template.
+
 ## 0 — Fontes obrigatórias: documentos estaduais e referencial ICE
 
 Configure três variáveis, preferencialmente antes de iniciar:
 - `ISG_QUALITY_BASE`: caminho/URL do Excel central, destino dos resultados. Alternativa: `quality_base` do plugin.
 - `ISG_QUALITY_STATE_DOCS`: pasta **local ou sincronizada** com `UF/Ano/` (ex.: `MG/2026`) contendo documentos do estado. Alternativa: `quality_state_docs`.
+- `ISG_QUALITY_TEMPLATES_DIR`: pasta local/sincronizada com **templates de cada estado** e colunas da UF/ano. Alternativa: `quality_templates_dir`.
 - `ISG_QUALITY_ICE_REFERENCE`: pasta **local ou sincronizada** com arquivos de referência ICE e `manifesto_ice.json` versionado, declarando o documento e a aba específicos de matriz 7h ou 9h, orientações pedagógicas, orientações de gestão e critérios. Alternativa: `quality_ice_reference`.
 
 Variáveis de ambiente prevalecem sobre preferências. URL do SharePoint não funciona para as duas pastas de leitura no plugin atual; é preciso sincronização/cópia local ou integração remota autorizada posteriormente.

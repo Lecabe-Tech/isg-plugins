@@ -136,3 +136,16 @@ python plugins/isg-model-alignment/scripts/quality/quality_payload.py preparar l
 Os cinco arquivos `./respostas/SG_*.json` devem ter sido gerados com schema aplicado ao Claude Code e ser independentes por aba. O `agrupar` verifica os cinco conjuntos e retorna erro ao faltar qualquer um; o `validar` aplica verificações entre registros e ciclos. A importação no Excel central continua separada, com identidade Microsoft autorizada e sem publicação automática.
 
 O schema impede erros de **estrutura**, não demonstra que um documento foi corretamente interpretado, que o ICE é a versão aprovada ou que uma ausência de orientação foi comprovada. Evidências e decisões seguem para revisão humana.
+
+## Inicialização simplificada por UF e ano — template fixo no cadastro
+
+Há uma **quarta configuração**, `ISG_QUALITY_TEMPLATES_DIR`, para armazenar templates reutilizáveis sem novos envios. Aceita `<pasta>/MG/Template-MG.xlsx` ou a versão mais específica `<pasta>/MG/2026/Template-MG-2026.xlsx`. Para a EQV, o arquivo precisa manter as abas `1.1` e `1.2`, os textos das orientações e colunas `MG/2026`. Mais de um `.xlsx` na mesma pasta selecionada é ambíguo e bloqueia a execução.
+
+```powershell
+$env:ISG_QUALITY_TEMPLATES_DIR = "C:\\Qualidade\\Templates"
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py resolver --ano 2026 --orientacao "C:\\Qualidade\\Estados\\MG\\2026\\Orientacoes-MG.pdf" --json
+```
+
+Se o documento está dentro de `ISG_QUALITY_STATE_DOCS/MG/2026/`, a UF é recuperada do caminho; caso contrário, é necessário especificar `--uf MG` (não confiar somente no nome do PDF). O resultado inclui a localização e o SHA-256 do template, a quantidade de orientações em cada aba, o inventário de documentos da pasta e possíveis matrizes detectadas pelo nome. **Isso é triagem, não comprovação de que a matriz estadual vigente existe**: ela pode estar embutida em outro PDF e precisa ser lida, selecionada e confirmada pelo Claude/analista. Apenas depois se determina 7h ou 9h e se verifica o gabarito ICE correspondente.
+
+O template é reutilizado apenas para **estrutura e orientação de comparação**, nunca como verdade das respostas `Sim/Não` de anos anteriores. Não escrever no template automaticamente. O objetivo é permitir ao usuário trabalhar com **ano + documento orientador do ciclo**, sem reenviar o Excel. Se a pasta estadual não contiver nenhuma matriz válida para o ciclo, a análise curricular precisa parar e solicitar esse documento; o template não supre a falta.

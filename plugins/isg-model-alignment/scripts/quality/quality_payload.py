@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 
+from quality_templates import resolver_inicio, template_info
 from quality_structured import (WRITE_ABAS, assemble_responses, check_record,
                                 check_response, extract_structured_output, schema_for)
 
@@ -253,11 +254,13 @@ def write_staging(bundle: dict, destination: Path) -> list:
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Prepara lotes Claude sem editar a base central.")
-    parser.add_argument("comando", choices=["status", "fontes", "esquema", "validar-resposta", "agrupar", "validar", "preparar"])
+    parser.add_argument("comando", choices=["status", "fontes", "resolver", "template", "esquema", "validar-resposta", "agrupar", "validar", "preparar"])
     parser.add_argument("arquivo", nargs="?")
     parser.add_argument("--base", default=os.getenv("ISG_QUALITY_BASE"))
     parser.add_argument("--saida")
     parser.add_argument("--docs", default=os.getenv("ISG_QUALITY_STATE_DOCS"))
+    parser.add_argument("--templates", default=os.getenv("ISG_QUALITY_TEMPLATES_DIR"))
+    parser.add_argument("--orientacao")
     parser.add_argument("--referencial", default=os.getenv("ISG_QUALITY_ICE_REFERENCE"))
     parser.add_argument("--uf")
     parser.add_argument("--ano", type=int)
@@ -271,8 +274,14 @@ def main(argv=None):
             result = base_info(args.base)
             result["documentos_configurados"] = bool(args.docs)
             result["referencial_configurado"] = bool(args.referencial)
+            result["templates_configurados"] = bool(args.templates)
         elif args.comando == "fontes":
             result = fontes_info(args.docs, args.referencial, args.uf or "", args.ano or 0, args.modelo or "")
+        elif args.comando == "resolver":
+            result = resolver_inicio(args.docs, args.templates, args.ano or 0,
+                                     args.orientacao, args.uf)
+        elif args.comando == "template":
+            result = template_info(args.templates, args.uf or "", args.ano or 0)
         elif args.comando == "esquema":
             if not args.aba:
                 raise ValueError("Informe --aba.")

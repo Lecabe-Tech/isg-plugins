@@ -32,6 +32,11 @@
       "type": "directory",
       "title": "Pasta de referenciais ICE",
       "description": "Pasta local/sincronizada com manifesto_ice.json, modelos 9h/7h, critérios e orientações aprovados; variável ISG_QUALITY_ICE_REFERENCE tem prioridade."
+    },
+    "quality_templates_dir": {
+      "type": "directory",
+      "title": "Templates de Qualidade por estado",
+      "description": "Pasta local/sincronizada com template por UF (ex.: MG/Template-MG.xlsx) ou UF/Ano; ISG_QUALITY_TEMPLATES_DIR prevalece. Exige abas EQV e colunas da UF/ano; leitura apenas."
     }
   }
 }

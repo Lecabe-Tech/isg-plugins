@@ -44,3 +44,9 @@ Esse comando verifica arquivo, aba, versão, modelo e hash opcional, mas não su
 O pipeline prepara JSON/CSV; **não possui cliente SharePoint para gravar**. O `office-script-import.ts` é um exemplo de importação que exige integração Microsoft externa e testes antes de produção.
 
 Guia detalhado: `docs/QUALITY-PIPELINE.pt-BR.md`. Exemplo de manifesto: `examples/quality/manifesto_ice.example.json`. Para MG, a `eqv` também precisa do catálogo de orientações em template compatível com MG/2026; o template Cluster 4 não tem essa coluna.
+
+### Templates pré-cadastrados por estado
+
+Defina `ISG_QUALITY_TEMPLATES_DIR` ou `quality_templates_dir` para uma pasta local/sincronizada com `MG/Template-MG.xlsx` ou `MG/2026/Template-MG-2026.xlsx`. O plugin seleciona um template compatível com as abas de orientações `1.1` e `1.2` e colunas da UF e do ano. Evita reenviar o mesmo Excel a cada ciclo; **não substitui matriz estadual nem referencial ICE**.
+
+Exemplo de início em Claude Code: `/isg-model-alignment:qualidade iniciar --ano 2026 --orientacao "C:\\Qualidade\\Estados\\MG\\2026\\Orientacoes.pdf"`. A UF é deduzida **somente do caminho UF/Ano** dentro da pasta de documentos já configurada; fora dessa pasta, informar `--uf MG`. O resolvedor `quality_payload.py resolver --ano ... --orientacao ...` localiza o template, mas não confirma a matriz curricular vigente; o Claude precisa lê-la antes de preencher componentes e horas.
