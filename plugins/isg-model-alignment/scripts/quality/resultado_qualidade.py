@@ -70,18 +70,10 @@ def cmd_manifesto_validar(args):
     return emit(args, True, "manifesto-validar", "MANIFESTO_VALIDO", msg, {"entradas": counts})
 
 
-def _references(run_dir, manifest, inv):
-    try:
-        import template_rules as TR
-    except ImportError:
-        return
-    TR.build_references(run_dir, manifest, inv)
-
-
 def cmd_iniciar(args):
     import quality_run as RUN
 
-    inv = RUN.start_run(Path(args.manifesto), Path(args.pasta), references=_references)
+    inv = RUN.start_run(Path(args.manifesto), Path(args.pasta))
     lines = []
     for f in inv["fontes"]:
         cov = f["cobertura"]
@@ -135,9 +127,49 @@ def cmd_imagem_registrar(args):
     return emit(args, True, "imagem-registrar", "IMAGEM_REGISTRADA", "Leitura de imagem registrada em %s; ela fica marcada como feita por IA e precisa de conferência." % args.unidade, r)
 
 
+# ---------------- G2: matrix ----------------
+
+def cmd_matriz_candidatas(args):
+    import matrix_analysis as MA
+
+    c = MA.candidates(Path(args.pasta))
+    lines = ["%s: sinais %s; %d unidade(s), %d número(s)%s" % (x["regiao"], ", ".join(x["sinais"]) or "nenhum", x["unidades"], x["numeros"], "; em imagem" if x["em_imagem"] else "") for x in c]
+    return emit(args, True, "matriz-candidatas", "CANDIDATAS", "%d região(ões) candidata(s) a matriz. O programa não escolhe: leia e confirme a oferta propedêutica de 9h." % len(c),
+                {"candidatas": c}, extra_text="\n".join(lines))
+
+
+def _matrix_message(s):
+    return ("Matriz registrada: %d componente(s); células verificadas %d, em branco na fonte %d, não verificadas %d; classificações pendentes %d; resumo: %s; completude: %s."
+            % (s["componentes"], s["verificadas"], s["ausentes_na_fonte"], s["nao_verificadas"], s["classificacoes_pendentes"], s["resumo"], s["completude"]))
+
+
+def cmd_matriz_registrar(args):
+    import matrix_analysis as MA
+
+    s = MA.register(Path(args.pasta), read_json_file(args.proposta))
+    extra = "\n".join("%s %s: %s" % (r["id"], r["nome"], "; ".join(r["motivos"])) for r in s["revisar"])
+    return emit(args, True, "matriz-registrar", "MATRIZ_REGISTRADA", _matrix_message(s), s, extra_text=extra)
+
+
+def cmd_matriz_confirmar(args):
+    import matrix_analysis as MA
+
+    sel = MA.confirm(Path(args.pasta), args.autor, args.motivo)
+    return emit(args, True, "matriz-confirmar", "MATRIZ_CONFIRMADA", "Seleção da matriz confirmada por %s." % sel["confirmacao"]["autor"], sel)
+
+
+def cmd_matriz_status(args):
+    import matrix_analysis as MA
+
+    s = MA.summary(Path(args.pasta))
+    extra = "\n".join("- %s: %s" % (x["codigo"], x["detalhe"]) for x in s["pendencias"])
+    return emit(args, True, "matriz-status", "MATRIZ_STATUS", _matrix_message(s).replace("Matriz registrada", "Matriz"), s, extra_text=extra)
+
+
 HANDLERS = {
     "esquema": cmd_esquema, "manifesto-validar": cmd_manifesto_validar, "iniciar": cmd_iniciar, "inventario": cmd_inventario,
     "buscar": cmd_buscar, "unidades": cmd_unidades, "imagem-registrar": cmd_imagem_registrar,
+    "matriz-candidatas": cmd_matriz_candidatas, "matriz-registrar": cmd_matriz_registrar, "matriz-confirmar": cmd_matriz_confirmar, "matriz-status": cmd_matriz_status,
 }
 
 
@@ -170,12 +202,13 @@ def build_parser():
     sp.add_argument("--unidade", required=True)
     sp.add_argument("--arquivo", required=True, help="texto (Markdown) da leitura da imagem feita pela skill SIP")
     sp.add_argument("--autor", default="SIP")
-    for extra in EXTRA_PARSERS:
-        extra(add)
+    add("matriz-candidatas")
+    add("matriz-registrar").add_argument("proposta", help="JSON com seleção, duração da hora-aula e componentes (ver skill)")
+    sp = add("matriz-confirmar")
+    sp.add_argument("--autor", required=True)
+    sp.add_argument("--motivo", default="")
+    add("matriz-status")
     return p
-
-
-EXTRA_PARSERS: list = []
 
 
 def main(argv):
@@ -183,6 +216,7 @@ def main(argv):
     if not args.comando:
         sys.stdout.write("Informe um comando: %s. Veja: resultado_qualidade.py --ajuda\n" % ", ".join(HANDLERS))
         return EXIT_USAGE
+    import matrix_analysis as MA
     import quality_run as RUN
     import source_resolver as SR
 
@@ -190,7 +224,7 @@ def main(argv):
         return HANDLERS[args.comando](args)
     except SR.ManifestError as e:
         return emit(args, False, args.comando, e.code, e.message, {"erros": e.errors})
-    except RUN.RunError as e:
+    except (RUN.RunError, MA.MatrixError) as e:
         return emit(args, False, args.comando, e.code, e.message)
     except json.JSONDecodeError:
         return emit(args, False, args.comando, "JSON_INVALIDO", "O arquivo JSON informado não é válido.")

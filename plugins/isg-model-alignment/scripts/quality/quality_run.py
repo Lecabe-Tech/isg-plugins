@@ -71,6 +71,10 @@ def start_run(manifest_path: Path, run_dir: Path, opener=None, references=None) 
     inv = {"uf": manifest["uf"], "ano": manifest["ano"], "modelo": manifest["modelo"], "modalidade": manifest["modalidade"],
            "solicitacao_id": manifest["solicitacao_id"], "revisao": manifest.get("revisao", 1), "iniciada_em": now(), "fontes": inventory, "pendencias": general}
     SR.write_json(run_dir / "inventario.json", inv)
+    if references is None:
+        import template_rules
+
+        references = template_rules.build_references
     if references:
         references(run_dir, manifest, inv)
     return inv

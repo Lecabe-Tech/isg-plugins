@@ -177,7 +177,9 @@ def template_xlsx(path: Path, uf: str = "MG", filled: bool = True, rule_variant:
     m["K25"], m["L25"], m["M25"] = F("K16+K20"), F("L16+L20", si=3, ref="L25:M25"), F("", si=3)
     m["K26"], m["L26"], m["M26"] = F("K12-K13"), F("L12-L13"), F("M12-M13")
     m["K27"], m["L27"], m["M27"] = F("K26-K14"), F("L26-L14"), F("M26-M14")
-    if rule_variant == "alterada":
+    if rule_variant == "alterada":  # Parte Diversificada also subtracts Eletivas de Base, in the three series
+        m["K27"], m["L27"], m["M27"] = F("K26-K14-K15"), F("L26-L14-L15"), F("M26-M14-M15")
+    elif rule_variant == "inconsistente":  # only the 1st series changed: the rule is not the same across series
         m["K27"] = F("K26-K14-K15")
     cls_sheet = {"B9": "Classificações", **{f"B{10 + i}": c for i, c in enumerate(CLASSES)}}
     return make_xlsx(path, {"1.1 Base orient. pedagógicas": t11, "1.2 Base orient. gestão": t12, f"2.1 Revisão Matriz {uf}": m, "classificacoes": cls_sheet},
