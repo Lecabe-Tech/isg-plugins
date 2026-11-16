@@ -57,14 +57,14 @@ Goals:
 
 | # | Fact | Source |
 |---|---|---|
-| F1 | The analyst's matrix input has: UF, minutes per lesson, year of validity, notes; and a component table with name, weekly lessons for grades 1–3 and classification. There is **no model (7h/9h) field** in the 2026 tab. | Cluster 4 2026, tab `2.1 Revisão Matriz CE` (local copy) |
+| F1 | The analyst's matrix input has: UF, minutes per lesson, year of validity, notes; and a component table with name, weekly lessons for grades 1–3 and classification. There is **no explicit model field** in the inspected 2026 tab; a propedêutico 9h classification requires independent confirmation from the official matrix. | Cluster 4 2026, tab `2.1 Revisão Matriz CE` (local copy) |
 | F2 | **Consolidation rule** (identical in every UF tab): for each element, lessons per grade = sum of the components with that classification; `Matriz completa` = sum of the 12 classification elements; `Projeto de Vida + Pós-Médio` = Projeto de Vida + Pós-Médio; `Itinerários Formativos` = Matriz completa − Formação Geral Básica; `Parte Diversificada` = Itinerários − Aprofundamento; the note of `Outros componentes da Parte Diversificada` lists the names of those components. | `Revisão_Matrizes_Painel.xlsx`, formulas of all 15 UF tabs |
 | F3 | The classification list (12 values) lives in a hidden tab of the template and changed between versions ("Eletivas" in 2024, "Eletivas de Base" now). | 2024 and current matrix input templates |
 | F4 | The matrix input template produces exactly the `base_matrizes` columns: UF, model, minutes, year, notes, element, **total hours**, lessons per grade, **total lessons**, key UF&year, with **total lessons = (g1+g2+g3) × 40** and **hours = total lessons × minutes ÷ 60**. Its cell `Q20` (grade 1 of `Matriz completa`) has no formula. | `Template para input de matrizes atualizadas.xlsm` |
 | F5 | `base_matrizes` holds those columns for every UF/year; MG 2026 there = 9h, 50 min, 45/46/48 lessons, 5,560 lessons, 4,633 hours, consistent with F4. | `Base do painel_v3.xlsx` |
 | F6 | The revision workbook keeps original vs revised values and two summaries per UF. MG 2026: **Atual** (= panel base) 45/46/48; **Revisto** 45/45/45. | `Revisão_Matrizes_Painel.xlsx`, tab `C2 Revisão Matriz MG` |
 | F7 | The panel's orientation inputs are wide tables: one row per UF/model/year, one column per code (70 pedagogical, 29 management), values `Sim`/`Não`. | `Base do painel_v3.xlsx` |
-| F8 | One PDF may hold several matrices (7h/9h, technical/propedêutico); picking the wrong one is the worst error; SPEC-007 must accept **propedêutico 9h only**. | NOTA-029 |
+| F8 | One PDF may contain several distinct matrices and educational offers; selecting the wrong one is a critical error. SPEC-007 accepts **confirmed propedêutico 9h only**. | NOTA-029 |
 | F9 | `SG_ResumoMatriz` has no column for the element's **notes**, which `base_matrizes` has; `SG_Ciclos` has no mapping flags for `controle_mapeamento`. | SPEC-006 schemas; skill `contrato-th` |
 | F10 | Cluster templates on SharePoint cannot be read by the Microsoft 365 connector (sensitivity label); local copies can. | Test of 2026-11-16 |
 
@@ -85,7 +85,7 @@ Goals:
 | # | Question | Proposal |
 |---|---|---|
 | Q1 | **Answer key** for the matrix: the analysts' **Revisto** values (revision workbook) or the panel's current `base_matrizes` (**Atual**)? For orientations: tabs `1.1`/`1.2` of the cluster template or `base_orientações`? | Matrix: Revisto. Orientations: the cluster template; `base_orientações` when the template is not available. |
-| Q2 | **Total lessons and hours** (`× 40`, `÷ 60`): official for 2026 and for every state/model? | Use F4 only after confirmation; until then `null` + pending. |
+| Q2 | **Total lessons and hours** (`× 40`, `÷ 60`): official for the 2026 **propedêutico 9h** matrices across all states? | Use F4 only after confirmation; until then `null` + pending. |
 | Q3 | How is **propedêutico 9h** verified? | Require explicit evidence in the official matrix and analyst confirmation; record fixed `Modelo="9h"` in `SG_Ciclos`. A conflicting or unclear offer **blocks** this analysis; never assume 9h from the filename. |
 | Q4 | Add **`Observacao`** to `SG_ResumoMatriz` (F9) so the panel's notes column is reproduced? | Yes, versioned schema change with tests. |
 | Q5 | Add the **mapping flags** (matrix / pedagogical / management mapped) to `SG_Ciclos` for `controle_mapeamento`? | Yes, same way. |
