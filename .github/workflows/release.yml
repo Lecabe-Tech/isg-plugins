@@ -55,10 +55,11 @@ jobs:
           node scripts/ci/check-no-root-writes.mjs
           node scripts/ci/check-memory.mjs
           node scripts/ci/check-cfp.mjs
+          node scripts/ci/check-links.mjs
       - name: (f) tests
         run: |
           npm test
-          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test.cfp.test_cfp test.eqv.test_eqv test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test.cfp.test_cfp test.eqv.test_eqv test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates test.quality.test_q17_result test.quality.test_q17_crosscheck test.quality.test_q17_orientations test.quality.test_q17_matrix test.quality.test_q17_extract test.quality.test_q17_contracts
 
   smoke-windows:
     name: (g) Windows smoke test
@@ -92,7 +93,7 @@ jobs:
           npm test
           node scripts/ci/check-non-interactive.mjs
           python --version
-          PYTHONDONTWRITEBYTECODE=1 python -m unittest test.cfp.test_cfp test.eqv.test_eqv test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates
+          PYTHONDONTWRITEBYTECODE=1 python -m unittest test.cfp.test_cfp test.eqv.test_eqv test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates test.quality.test_q17_result test.quality.test_q17_crosscheck test.quality.test_q17_orientations test.quality.test_q17_matrix test.quality.test_q17_extract test.quality.test_q17_contracts
 
   publish:
     name: (h-j) tag, GitHub Release, move stable

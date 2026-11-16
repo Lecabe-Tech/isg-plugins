@@ -10,7 +10,15 @@ if str(EQV_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(EQV_SCRIPTS))
 from isg_eqv.template import TemplateError, read_template
 
-UF_PATTERN = re.compile(r"^[A-Z]{2}$")
+# The 27 official abbreviations; same list as UF_CODES in scripts/cfp/isg_cfp/pipeline.py (a test keeps them equal).
+UF_CODES = frozenset("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
+
+
+def is_uf(value) -> bool:
+    return isinstance(value, str) and value in UF_CODES
+
+
+UF_HELP = "Use a sigla oficial de um estado (por exemplo MG, CE, SP)."
 ORIENTACAO_EXT = {".pdf", ".docx", ".xlsx"}
 ESTADO_EXT = {".pdf", ".docx", ".xlsx", ".doc", ".xls", ".png", ".jpg", ".jpeg"}
 MATRIZ_HINT = re.compile(r"matri[zx]|grade|organiza[cç][aã]o.?curricular|carga.?hor[aá]ria", re.I)
@@ -33,8 +41,8 @@ def require_folder(location: str | None, variable: str) -> Path:
 
 def template_info(location: str | None, uf: str, ano: int) -> dict:
     """Localiza um único template .xlsx e confirma abas EQV + colunas da UF/ano."""
-    if not UF_PATTERN.fullmatch(uf or "") or type(ano) is not int or not 2024 <= ano <= 2100:
-        raise ValueError("Informe UF (sigla) e ano válido para selecionar o template.")
+    if not is_uf(uf) or type(ano) is not int or not 2024 <= ano <= 2100:
+        raise ValueError(f"Informe UF e ano válido para selecionar o template. {UF_HELP}")
     root = require_folder(location, "ISG_QUALITY_TEMPLATES_DIR")
     base = root / uf
     if not base.is_dir():
@@ -87,11 +95,11 @@ def resolver_inicio(location_docs: str | None, location_templates: str | None,
             parts = source.relative_to(docs_root).parts
         except ValueError as e:
             raise ValueError("Documento fora da pasta estadual: informe --uf explicitamente.") from e
-        if len(parts) < 3 or not UF_PATTERN.fullmatch(parts[0]) or parts[1] != str(ano):
+        if len(parts) < 3 or not is_uf(parts[0]) or parts[1] != str(ano):
             raise ValueError("Para inferir UF, o documento deve estar em <documentos>/<UF>/<ANO>/; ou informe --uf.")
         uf = parts[0]
-    if not UF_PATTERN.fullmatch(uf):
-        raise ValueError("UF deve ter duas letras maiúsculas.")
+    if not is_uf(uf):
+        raise ValueError(f"UF inválida: '{uf}'. {UF_HELP}")
     state_folder = (docs_root / uf / str(ano)).resolve()
     if not state_folder.is_dir():
         raise ValueError(f"Não existe a pasta de documentos para {uf}/{ano}.")

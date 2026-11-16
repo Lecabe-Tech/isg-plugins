@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "solicitacao_id": "EXEMPLO-SINTETICO-001",
+  "revisao": 1,
+  "uf": "MG",
+  "ano": 2026,
+  "modelo": "9h",
+  "modalidade": "propedeutico",
+  "entradas": {
+    "orientacoes_estaduais": [
+      {"uri": "orientacoes/Diretrizes-pedagogicas.pdf", "papel": "orientacao", "titulo": "Diretrizes pedagógicas (exemplo sintético)", "emissor": "Secretaria de Educação", "vigencia": "2026"},
+      {"uri": "orientacoes/Caderno-de-gestao.docx", "papel": "orientacao", "titulo": "Caderno de gestão (exemplo sintético)"}
+    ],
+    "matriz_estadual": [
+      {"uri": "matriz/Matriz-curricular.xlsx", "papel": "matriz", "titulo": "Matriz curricular (exemplo sintético)", "vigencia": "2026"}
+    ],
+    "template_cluster": [
+      {"uri": "template/Template-cluster.xlsx", "papel": "template", "versao": "2026"}
+    ],
+    "referencial_ice": [
+      {"uri": "ice/Referencial-ICE.xlsx", "papel": "referencial", "versao": "EXEMPLO"}
+    ]
+  },
+  "homologacao_ice": null,
+  "regras_homologadas": [],
+  "aplicabilidade_codigos": null,
+  "observacoes": "Exemplo sintético: os caminhos são relativos à pasta do manifesto e não apontam para arquivos reais do Instituto."
+}

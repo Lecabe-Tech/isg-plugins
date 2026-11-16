@@ -45,10 +45,10 @@ for (const [key, cfg] of Object.entries(plugin.userConfig ?? {})) {
 
 const ROOT_TOKEN = '${CLAUDE_PLUGIN_ROOT}';
 // Skills that run a script (SPEC-001 REQ-SRF-02 exceptions). `cfp` is the declared exception of SPEC-003 (C1).
-const SHELL_SKILLS = new Set(['configure', 'upgrade', 'cfp', 'sip', 'eqv']);
+const SHELL_SKILLS = new Set(['configure', 'upgrade', 'cfp', 'sip', 'eqv', 'resultado-qualidade']);
 // Only the commands that must never run on their own need disable-model-invocation (REQ-CMD-14). `cfp` is
 // meant to be used when the analyst mentions a PDF, so it stays invocable.
-const MANUAL_ONLY = new Set(['configure', 'upgrade', 'eqv']);
+const MANUAL_ONLY = new Set(['configure', 'upgrade', 'eqv', 'resultado-qualidade']);
 for (const file of walk(SKILLS_DIR)) {
   const skill = path.basename(path.dirname(file));
   const text = readText(file);
@@ -66,6 +66,18 @@ for (const file of walk(SKILLS_DIR)) {
   } else if (/\bnode\b.*\.mjs|\bbash\b|\bpowershell\b/i.test(text)) {
     problems.push(`${rel(file)}: domain skills must not depend on scripts/shell (REQ-SRF-02)`);
   }
+}
+
+// Same behavior in the terminal CLI and in the Desktop app's Code tab (SPEC-006 note of 2026-11-16): no skill may
+// require starting another Claude from the command line (`claude -p`, `--json-schema`, `--output-format`), which needs
+// a separate CLI login that the Desktop app does not provide. Structured output goes through modelo-resposta and
+// validar-resposta instead.
+const CLI_ONLY = /\bclaude\s+-p\b|--json-schema\b|--output-format\b|\bclaude\s+--print\b/;
+for (const file of walk(SKILLS_DIR)) {
+  if (!file.endsWith('SKILL.md')) continue;
+  readText(file).split(/\r?\n/).forEach((line, i) => {
+    if (CLI_ONLY.test(line)) problems.push(`${rel(file)}:${i + 1}: depends on a CLI-only feature ("claude -p"/--json-schema); use modelo-resposta + validar-resposta, which work on CLI and Desktop`);
+  });
 }
 
 const files = walk(PLUGIN_DIR);

@@ -22,12 +22,8 @@ Aba LEIA_ME do SG_Base_Qualidade_Excel_SharePoint.xlsx, com premissas de SharePo
 - Se encontrar contradição com processo real, retorne alerta de documentação para responsável, sem editar o Excel.
 - Responder `modo="somente_leitura"`, `linhas=[]`.
 
-
 ## Contrato obrigatório para Claude
 Você atua como **extrator/propositor**, nunca como aprovador nem escritor direto do SharePoint. Receba o(s) documento(s) fonte ou o template preenchido, a identificação do lote e, quando relevante, as tabelas referenciais. **Não altere o XLSX**: devolva JSON válido para uma integração autorizada validar e gravar. Não invente UF/ano/modelo, classificação, notas, provas, páginas, URLs, pesos nem totais; dúvidas vão para `pendencias`. Preserve distinção entre Sim, Não, vazio/não avaliado e não aplicável. Nenhuma linha sai como aprovada/publicada. Formato da resposta: `{"aba":"LEIA_ME","modo":"somente_leitura","linhas":[...],"pendencias":[{"campo":"...","motivo":"...","origem":"..."}],"fontes":[...],"checagens":[...]}`. Linhas contêm **somente as colunas reais da aba**, sem colunas extras. Uma etapa posterior resolve IDs, idempotência e colisões de versões. Um dado incerto deve permanecer `null` e ter pendência.
-
-[📎 SKILL.md](http://la2pfpktfpmhpcqau3t6v7dk.2.25.124.248.sslip.io/api/v1/assets/11ca8f78-1b05-4c9d-8362-f5469eb9b2aa/HWkXlwAUHBLOBUkBrch2Sw6iUUOrFxaj)
-
 
 > Fonte normativa: Scripta [GUIA-025]. Esta skill produz propostas de dados, nunca aprova nem grava diretamente no SharePoint.
 
@@ -39,10 +35,14 @@ O objeto JSON contém exatamente `aba`, `modo`, `linhas`, `pendencias`, `fontes`
 
 **Esta aba não aceita linhas propostas pelo Claude.** A resposta sempre deve ter `linhas: []`; devolver somente `pendencias`, `fontes` e `checagens`, sem editar o workbook.
 
-Para obter o schema utilizado no Claude Code em modo não interativo:
+Como gerar e validar — **igual no Claude Code em terminal e na aba Código do app Desktop** (não use recursos que só existam em um dos dois):
 ```text
-python <raiz-do-plugin>/scripts/quality/quality_payload.py esquema --aba LEIA_ME
+<py> "<raiz-do-plugin>/scripts/quality/quality_payload.py" modelo-resposta --aba LEIA_ME --uf <UF> --ano <ANO> --modelo <7h|9h> --versao <versão> --saida "<pasta-do-lote>/LEIA_ME.json"
 ```
-O orquestrador usa `claude -p --output-format json --json-schema "<schema JSON>"` para obter `structured_output`. **Uma conversa interativa com a skill não impõe constrained decoding automaticamente**: o JSON ainda deve ser rejeitado se falhar na validação local. Extrair **somente** `structured_output` do envelope CLI; nunca aceitar `result` em Markdown como substituto.
+O arquivo gerado já tem o envelope, todas as colunas na ordem da planilha e os valores fixos. Preencha somente os dados que a análise sustenta (o que faltar fica `null` onde o schema permite, com pendência), sem mudar colunas nem valores fixos. Depois valide:
+```text
+<py> "<raiz-do-plugin>/scripts/quality/quality_payload.py" validar-resposta "<pasta-do-lote>/LEIA_ME.json" --json
+```
+Se houver erro, corrija o arquivo e valide de novo, até `"valido": true`. **A garantia de formato vem desse validador**, que aplica o mesmo schema (`esquema --aba LEIA_ME`) em qualquer ambiente. Nunca entregue JSON que não passou na validação nem texto em Markdown no lugar dele.
 
-Depois de gerar, executar `quality_payload.py validar-resposta "<arquivo-da-resposta>.json" --json`. Se houver erro, corrigir a extração e executar novamente; **não importar para o SharePoint**. O JSON válido comprova forma e tipos, **não prova a equivalência pedagógica ao ICE**.
+**Não importar para o SharePoint.** O JSON válido comprova forma e tipos, **não prova a equivalência pedagógica ao ICE**.

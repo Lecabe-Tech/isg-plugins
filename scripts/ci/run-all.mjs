@@ -13,6 +13,7 @@ const steps = [
   ['VAL-13 portable core', [path.join(here, 'check-portable.mjs')]],
   ['VAL-M02..M04 memory protocol', [path.join(here, 'check-memory.mjs')]],
   ['VAL-C09/C10 CFP vendored library and writes', [path.join(here, 'check-cfp.mjs')]],
+  ['VAL-SEC-01 external addresses', [path.join(here, 'check-links.mjs')]],
   ['unit and script tests', ['--test', path.join(root, 'test', 'lib.test.mjs'), path.join(root, 'test', 'scripts.test.mjs')]],
   ['VAL-12 non-interactive', [path.join(here, 'check-non-interactive.mjs')]],
 ];
@@ -32,7 +33,7 @@ for (const [cmd, pre] of pythons) {
   const probe = spawnSync(cmd, [...pre, '-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'], { encoding: 'utf8' });
   if (probe.status !== 0) continue;
   ran = true;
-  const r = spawnSync(cmd, [...pre, '-m', 'unittest', 'test.cfp.test_cfp', 'test.eqv.test_eqv', 'test.quality.test_quality_payload', 'test.quality.test_quality_structured', 'test.quality.test_quality_templates'], { stdio: 'inherit', cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
+  const r = spawnSync(cmd, [...pre, '-m', 'unittest', 'test.cfp.test_cfp', 'test.eqv.test_eqv', 'test.quality.test_quality_payload', 'test.quality.test_quality_structured', 'test.quality.test_quality_templates', 'test.quality.test_q17_result', 'test.quality.test_q17_crosscheck', 'test.quality.test_q17_orientations', 'test.quality.test_q17_matrix', 'test.quality.test_q17_extract', 'test.quality.test_q17_contracts'], { stdio: 'inherit', cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
   if (r.status !== 0) {
     failed++;
     console.error('>>> FAILED: Python tests (CFP, EQV, quality)');

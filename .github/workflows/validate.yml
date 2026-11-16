@@ -94,13 +94,16 @@ jobs:
       - name: VAL-C09/C10 CFP vendored library untouched, engine offline, no writes inside the plugin
         run: node scripts/ci/check-cfp.mjs
 
+      - name: VAL-SEC-01 external addresses in the plugin are on the allowed list
+        run: node scripts/ci/check-links.mjs
+
       - name: Unit and script tests
         run: npm test
 
       - name: Python tests (CFP SPEC-003, EQV SPEC-005, quality SPEC-006)
         run: |
           python3 --version
-          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test.cfp.test_cfp test.eqv.test_eqv test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates -v
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test.cfp.test_cfp test.eqv.test_eqv test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates test.quality.test_q17_result test.quality.test_q17_crosscheck test.quality.test_q17_orientations test.quality.test_q17_matrix test.quality.test_q17_extract test.quality.test_q17_contracts -v
 
       - name: VAL-12 scripts are non-interactive
         run: node scripts/ci/check-non-interactive.mjs

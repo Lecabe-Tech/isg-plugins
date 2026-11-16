@@ -123,17 +123,25 @@ Os 11 arquivos `plugins/isg-model-alignment/scripts/quality/schemas/<ABA>.schema
 - Seis abas são governança/consulta e **nunca recebem linhas** pelo Claude: `SG_Referenciais`, `SG_Aprovacoes`, `LEIA_ME`, `VALIDACAO`, `DICIONARIO`, `CONTRATO_TH`.
 - Em cada resposta, exigem-se `aba`, `modo`, `linhas`, `pendencias`, `fontes`, `checagens`, sem outros campos. Todos os cabeçalhos das linhas são obrigatórios (valor `null` somente onde permitido). Tipos, valores fixos, enums, ausência de campos extras e identidade UF/ano/modelo são conferidos antes de preparar o lote.
 
-A API Claude aceita `output_config.format={"type":"json_schema","schema": ...}`. No **Claude Code**, use **`claude -p --output-format json --json-schema "<schema-json>"`**, que devolve `structured_output` no envelope de execução. Não confundir `--output-format json` sozinho com aplicação do schema. Em conversas interativas a skill é orientação, **não obriga por si só a geração por constrained decoding**.
+**Como a saída estruturada é garantida (igual no Claude Code em terminal e na aba Código do app Desktop).** O processo não depende de nenhum recurso exclusivo de um dos dois ambientes. A garantia vem do código do plugin, que valida tudo contra os mesmos schemas:
+
+1. `modelo-resposta` gera o esqueleto da aba (envelope, colunas na ordem da planilha, valores fixos, identificação do lote).
+2. O Claude preenche só o que a análise sustenta e roda `validar-resposta` até `"valido": true`.
+3. `agrupar` **revalida as cinco respostas** e recusa o lote se qualquer uma falhar; registra em `contratos` o SHA-256 do schema de cada aba.
+4. `validar` e `preparar` conferem de novo as linhas e as impressões digitais dos schemas: um lote validado contra outra versão do contrato é recusado.
+
+Nenhum JSON fora do schema chega ao pacote final, seja qual for a forma como foi gerado. Opcionalmente, quem tiver o CLI logado pode gerar a resposta com `claude -p --output-format json --json-schema "<schema>"` (schema imposto na geração); o resultado passa pelas mesmas validações. Esse atalho é só automação, nunca requisito, e as skills não o usam.
 
 Comandos da integração local:
 ```bash
 python plugins/isg-model-alignment/scripts/quality/quality_payload.py esquema --aba SG_Ciclos
-python plugins/isg-model-alignment/scripts/quality/quality_payload.py validar-resposta SG_Ciclos.json --json
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py modelo-resposta --aba SG_Ciclos --uf MG --ano 2026 --modelo 9h --versao v1 --saida respostas/SG_Ciclos.json
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py validar-resposta respostas/SG_Ciclos.json --json
 python plugins/isg-model-alignment/scripts/quality/quality_payload.py agrupar ./respostas --uf MG --ano 2026 --modelo 9h --versao v1 --saida lote.json --json
 python plugins/isg-model-alignment/scripts/quality/quality_payload.py validar lote.json --json
 python plugins/isg-model-alignment/scripts/quality/quality_payload.py preparar lote.json --saida staging --json
 ```
-Os cinco arquivos `./respostas/SG_*.json` devem ter sido gerados com schema aplicado ao Claude Code e ser independentes por aba. O `agrupar` verifica os cinco conjuntos e retorna erro ao faltar qualquer um; o `validar` aplica verificações entre registros e ciclos. A importação no Excel central continua separada, com identidade Microsoft autorizada e sem publicação automática.
+O `agrupar` exige os cinco arquivos `./respostas/SG_*.json` e retorna erro ao faltar qualquer um; o `validar` aplica verificações entre registros e ciclos e informa `contratos: conferidos`. A importação no Excel central continua separada, com identidade Microsoft autorizada e sem publicação automática.
 
 O schema impede erros de **estrutura**, não demonstra que um documento foi corretamente interpretado, que o ICE é a versão aprovada ou que uma ausência de orientação foi comprovada. Evidências e decisões seguem para revisão humana.
 

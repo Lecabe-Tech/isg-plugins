@@ -1,6 +1,7 @@
 """Contrato JSON estrito da Qualidade (subconjunto do JSON Schema; sem dependencias)."""
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -17,6 +18,36 @@ def schema_for(aba: str) -> dict:
         raise ValueError(f"Aba desconhecida: {aba}")
     path = SCHEMA_DIR / f"{aba}.schema.json"
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def schema_sha256(aba: str) -> str:
+    """Impressão digital do contrato da aba: registrada no lote para provar contra qual schema ele foi validado."""
+    if aba not in ALL_ABAS:
+        raise ValueError(f"Aba desconhecida: {aba}")
+    return hashlib.sha256((SCHEMA_DIR / f"{aba}.schema.json").read_bytes()).hexdigest()
+
+
+def response_template(aba: str, uf: str | None = None, ano: int | None = None,
+                      modelo: str | None = None, versao: str | None = None) -> dict:
+    """Esqueleto da resposta de uma aba: envelope completo, colunas na ordem do schema, valores fixos já
+    preenchidos e o resto `null`, para o Claude completar e depois rodar `validar-resposta`.
+    Funciona igual em qualquer Claude Code com terminal (CLI ou aba Código do Desktop)."""
+    schema = schema_for(aba)
+    props = schema["properties"]
+    row_props = props["linhas"].get("items", {}).get("properties", {})
+    known = {"UF": uf, "Ano": ano, "Modelo": modelo}
+    if uf and ano and modelo and versao:
+        known["CicloID"] = f"{uf}|{ano}|{modelo}|{versao}"
+    row = {}
+    for col, spec in row_props.items():
+        if "const" in spec:
+            row[col] = spec["const"]
+        elif known.get(col) is not None:
+            row[col] = known[col]
+        else:
+            row[col] = None
+    return {"aba": aba, "modo": props["modo"]["const"], "linhas": [row] if aba in WRITE_ABAS else [],
+            "pendencias": [], "fontes": [], "checagens": []}
 
 
 def _matches_type(value: object, kind: str) -> bool:
@@ -81,9 +112,15 @@ def check_record(aba: str, row: dict) -> list[str]:
     _validate_node(schema, row, aba, errors)
     if not isinstance(row, dict):
         return errors
+    fields = schema.get("properties", {})
     for key in ("CicloID", "RegistroID", "ResumoID", "DocumentoID", "UF", "Modelo",
                 "ComponenteOriginal", "Elemento", "Codigo", "NomeArquivo"):
-        if key in row and (not isinstance(row[key], str) or not row[key].strip()):
+        if key not in row:
+            continue
+        allowed = fields.get(key, {}).get("type")
+        if row[key] is None and (allowed == "null" or (isinstance(allowed, list) and "null" in allowed)):
+            continue  # nullable reference (e.g. SG_Avaliacoes.DocumentoID before the document is confirmed)
+        if not isinstance(row[key], str) or not row[key].strip():
             errors.append(f"{aba}.{key}: identificador/texto obrigatório não pode ser vazio.")
     if "Ano" in row and type(row["Ano"]) is int and not (2024 <= row["Ano"] <= 2100):
         errors.append(f"{aba}.Ano: ano fora da faixa permitida.")
@@ -153,6 +190,7 @@ def assemble_responses(folder: Path, uf: str, ano: int, modelo: str, versao: str
         abas[aba] = content["linhas"]
         pendencias.extend({"aba": aba, **v} for v in content["pendencias"])
         fontes.extend(content["fontes"])
+    contratos = {aba: {"schema": f"{aba}.schema.json", "sha256": schema_sha256(aba)} for aba in WRITE_ABAS}
     return {"lote": {"UF": uf, "Ano": ano, "Modelo": modelo, "Versao": versao},
             "abas": abas, "pendencias": pendencias, "fontes": fontes,
-            "evidencias_eqv": None}
+            "contratos": contratos, "evidencias_eqv": None}
