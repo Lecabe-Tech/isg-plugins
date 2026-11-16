@@ -326,4 +326,9 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    for _stream in (sys.stdout, sys.stderr):  # PT-BR accents must come out as UTF-8 on every platform (same as cfp.py/eqv.py)
+        try:
+            _stream.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
     sys.exit(main())

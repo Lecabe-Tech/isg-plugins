@@ -17,6 +17,20 @@ CICLO = {"CicloID": "XX|2026|9h|v1", "UF": "XX", "Ano": 2026, "Modelo": "9h",
 
 
 class QualityPayloadTest(unittest.TestCase):
+    def test_cli_output_is_utf8(self):
+        import os
+        import subprocess
+        script = ROOT / "plugins" / "isg-model-alignment" / "scripts" / "quality" / "quality_payload.py"
+        env = {k: v for k, v in os.environ.items() if k not in ("PYTHONIOENCODING", "PYTHONUTF8")}
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+        with tempfile.TemporaryDirectory() as tmp:
+            run = subprocess.run([sys.executable, str(script), "template", "--templates", tmp, "--uf", "x", "--ano", "2026"],
+                                 capture_output=True, env=env, timeout=60)
+        self.assertEqual(run.returncode, 2)
+        out = json.loads(run.stdout.decode("utf-8"))  # fails on Windows if the CLI falls back to cp1252
+        self.assertFalse(out["valido"])
+        self.assertIn("válido", out["erro"])
+
     def test_missing_base(self):
         self.assertFalse(q.base_info(None)["configurada"])
 
