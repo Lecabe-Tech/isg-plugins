@@ -166,10 +166,73 @@ def cmd_matriz_status(args):
     return emit(args, True, "matriz-status", "MATRIZ_STATUS", _matrix_message(s).replace("Matriz registrada", "Matriz"), s, extra_text=extra)
 
 
+# ---------------- G3: orientations ----------------
+
+def _orientation_message(s):
+    parts = []
+    for k, label in (("pedagogicas", "pedagógicas"), ("gestao", "gestão")):
+        c = s["completude"][k]
+        parts.append("%s: %s de %s aplicáveis decididas (Sim %d, Não %d), %d pendente(s), %d não avaliada(s), %d com revisão"
+                     % (label, c["codigos_avaliados"], c["codigos_aplicaveis"] if c["codigos_aplicaveis"] is not None else "?", c["sim"], c["nao"], c["pendentes"], c["nao_avaliados"], c["revisar"]))
+    return "Códigos: %s. %s." % (s["codigos"]["status"].replace("_", " "), "; ".join(parts))
+
+
+def cmd_orientacoes_codigos(args):
+    import orientation_analysis as OA
+
+    s = OA.summary(Path(args.pasta))
+    c = s["codigos"]
+    extra = "Só no template: %s\nSó no ICE: %s\nAutoridade: %s" % (", ".join(c["somente_template"]) or "nenhum", ", ".join(c["somente_ice"]) or "nenhum", c["autoridade"] or "nenhuma")
+    return emit(args, True, "orientacoes-codigos", "CODIGOS", _orientation_message(s), s, extra_text=extra)
+
+
+def cmd_orientacoes_registrar(args):
+    import orientation_analysis as OA
+
+    r = OA.register(Path(args.pasta), read_json_file(args.propostas))
+    s = OA.summary(Path(args.pasta))
+    msg = "%d orientação(ões) registrada(s)%s%s. %s" % (len(r["registradas"]), ("; %d decisão(ões) do analista preservada(s)" % len(r["preservadas_do_analista"])) if r["preservadas_do_analista"] else "",
+                                                       ("; códigos desconhecidos: " + ", ".join(r["codigos_desconhecidos"])) if r["codigos_desconhecidos"] else "", _orientation_message(s))
+    extra = "\n".join("%s: %s (%s)%s" % (x["codigo"], x["presenca"] or "pendente", x["status"], (" — " + "; ".join(x["motivos"])) if x["motivos"] else "") for x in r["registradas"])
+    return emit(args, True, "orientacoes-registrar", "ORIENTACOES_REGISTRADAS", msg, r, extra_text=extra)
+
+
+def cmd_orientacao_decidir(args):
+    import orientation_analysis as OA
+
+    r = OA.analyst_decision(Path(args.pasta), args.codigo, args.presenca, args.justificativa, args.autor)
+    return emit(args, True, "orientacao-decidir", "DECISAO_REGISTRADA", "Decisão do analista registrada: %s = %s. Uma nova execução da IA não a substitui." % (args.codigo, r["presenca"] or "pendente"), r)
+
+
+def cmd_orientacoes_importar_eqv(args):
+    import orientation_analysis as OA
+
+    mapping = {}
+    for item in args.mapa:
+        label, _, doc = item.partition("=")
+        if not label.strip() or not doc.strip():
+            return emit(args, False, "orientacoes-importar-eqv", "USO_INCORRETO", 'Use --mapa "Rótulo na EQV=DOC-n".', exit_code=EXIT_USAGE)
+        mapping[label.strip()] = doc.strip()
+    r = OA.import_eqv(Path(args.pasta), Path(args.eqv), mapping)
+    msg = "%d célula(s) da EQV importada(s) e conferida(s) de novo; %d Não sem prova suficiente virou pendência; %d decisão(ões) de analista preservada(s)." % (
+        r["importadas"], r["convertidas_em_pendencia"], len(r["preservadas_do_analista"]))
+    return emit(args, True, "orientacoes-importar-eqv", "EQV_IMPORTADA", msg, r)
+
+
+def cmd_orientacoes_status(args):
+    import orientation_analysis as OA
+
+    s = OA.summary(Path(args.pasta))
+    extra = "\n".join("- %s: %s" % (x["codigo"], x["detalhe"]) for x in s["pendencias"])
+    return emit(args, True, "orientacoes-status", "ORIENTACOES_STATUS", _orientation_message(s), s, extra_text=extra)
+
+
 HANDLERS = {
     "esquema": cmd_esquema, "manifesto-validar": cmd_manifesto_validar, "iniciar": cmd_iniciar, "inventario": cmd_inventario,
     "buscar": cmd_buscar, "unidades": cmd_unidades, "imagem-registrar": cmd_imagem_registrar,
     "matriz-candidatas": cmd_matriz_candidatas, "matriz-registrar": cmd_matriz_registrar, "matriz-confirmar": cmd_matriz_confirmar, "matriz-status": cmd_matriz_status,
+    "orientacoes-codigos": cmd_orientacoes_codigos, "orientacoes-registrar": cmd_orientacoes_registrar, "orientacao-decidir": cmd_orientacao_decidir,
+    "orientacoes-importar-eqv": cmd_orientacoes_importar_eqv, "orientacoes-status": cmd_orientacoes_status,
 }
 
 
@@ -208,6 +271,17 @@ def build_parser():
     sp.add_argument("--autor", required=True)
     sp.add_argument("--motivo", default="")
     add("matriz-status")
+    add("orientacoes-codigos")
+    add("orientacoes-registrar").add_argument("propostas", help="JSON com a lista de orientações propostas (ver skill)")
+    sp = add("orientacao-decidir")
+    sp.add_argument("--codigo", required=True)
+    sp.add_argument("--presenca", required=True, choices=("Sim", "Não", "Nao", "pendente"))
+    sp.add_argument("--justificativa", required=True)
+    sp.add_argument("--autor", required=True)
+    sp = add("orientacoes-importar-eqv")
+    sp.add_argument("--eqv", required=True, help="pasta da execução da EQV (com celulas/)")
+    sp.add_argument("--mapa", action="append", default=[], required=True, help='"Rótulo na EQV=DOC-n" (repetível)')
+    add("orientacoes-status")
     return p
 
 
@@ -217,6 +291,7 @@ def main(argv):
         sys.stdout.write("Informe um comando: %s. Veja: resultado_qualidade.py --ajuda\n" % ", ".join(HANDLERS))
         return EXIT_USAGE
     import matrix_analysis as MA
+    import orientation_analysis as OA
     import quality_run as RUN
     import source_resolver as SR
 
@@ -224,7 +299,7 @@ def main(argv):
         return HANDLERS[args.comando](args)
     except SR.ManifestError as e:
         return emit(args, False, args.comando, e.code, e.message, {"erros": e.errors})
-    except (RUN.RunError, MA.MatrixError) as e:
+    except (RUN.RunError, MA.MatrixError, OA.OrientationError) as e:
         return emit(args, False, args.comando, e.code, e.message)
     except json.JSONDecodeError:
         return emit(args, False, args.comando, "JSON_INVALIDO", "O arquivo JSON informado não é válido.")
