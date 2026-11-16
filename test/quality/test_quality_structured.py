@@ -64,6 +64,29 @@ class StructuredOutputTest(unittest.TestCase):
                 schema = s.schema_for(aba)
                 self.assertEqual(set(schema["required"]), set(schema["properties"]))
 
+    def test_schemas_accepted_by_claude_code(self):
+        """`claude -p --json-schema` (Claude Code 2.1.x) rejects the draft 2020-12 declaration; keep draft-07 keywords only."""
+        only_2020 = {"$defs", "prefixItems", "unevaluatedProperties", "unevaluatedItems", "dependentRequired",
+                     "dependentSchemas", "$dynamicRef", "$dynamicAnchor", "minContains", "maxContains"}
+
+        def keys(node):
+            if isinstance(node, dict):
+                for k, v in node.items():
+                    yield k
+                    yield from keys(v)
+            elif isinstance(node, list):
+                for v in node:
+                    yield from keys(v)
+
+        for aba in s.ALL_ABAS:
+            with self.subTest(aba=aba):
+                schema = s.schema_for(aba)
+                self.assertEqual(schema.get("$schema"), "http://json-schema.org/draft-07/schema#")
+                self.assertFalse(only_2020 & set(keys(schema)))
+                out = subprocess.run([sys.executable, str(QROOT / "quality_payload.py"), "esquema", "--aba", aba],
+                                     capture_output=True, check=True)
+                self.assertEqual(json.loads(out.stdout.decode("utf-8")), schema)
+
     def test_five_data_schemas_match_excel(self):
         for aba in s.WRITE_ABAS:
             self.assertEqual(list(s.schema_for(aba)["properties"]["linhas"]["items"]["properties"]),

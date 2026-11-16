@@ -24,12 +24,8 @@ Template Cluster 4 → Controle!B8:E12 para UF e status; abas 2.1 a 2.4 para UF 
 - Fixar `StatusValidacao="Pendente revisão"`, `Publicado="Não"`, `ResponsavelAprovacao=null`. `ArquivoOrigem` é o nome real.
 - Se múltiplos modelos coexistem para UF/ano, não fundir; se não há evidência suficiente, gere pendência.
 
-
 ## Contrato obrigatório para Claude
 Você atua como **extrator/propositor**, nunca como aprovador nem escritor direto do SharePoint. Receba o(s) documento(s) fonte ou o template preenchido, a identificação do lote e, quando relevante, as tabelas referenciais. **Não altere o XLSX**: devolva JSON válido para uma integração autorizada validar e gravar. Não invente UF/ano/modelo, classificação, notas, provas, páginas, URLs, pesos nem totais; dúvidas vão para `pendencias`. Preserve distinção entre Sim, Não, vazio/não avaliado e não aplicável. Nenhuma linha sai como aprovada/publicada. Formato da resposta: `{"aba":"SG_Ciclos","modo":"proposta","linhas":[...],"pendencias":[{"campo":"...","motivo":"...","origem":"..."}],"fontes":[...],"checagens":[...]}`. Linhas contêm **somente as colunas reais da aba**, sem colunas extras. Uma etapa posterior resolve IDs, idempotência e colisões de versões. Um dado incerto deve permanecer `null` e ter pendência.
-
-[📎 SKILL.md](http://la2pfpktfpmhpcqau3t6v7dk.2.25.124.248.sslip.io/api/v1/assets/848585cd-6a54-484f-a9d8-eea80c01dc4b/eH_R3az7BaNXobjDkwfNrrqtXIzTkIDg)
-
 
 > Fonte normativa: Scripta [GUIA-018]. Esta skill produz propostas de dados, nunca aprova nem grava diretamente no SharePoint.
 
