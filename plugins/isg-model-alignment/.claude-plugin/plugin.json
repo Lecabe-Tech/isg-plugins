@@ -6,7 +6,7 @@
   "author": {
     "name": "Instituto Sonho Grande"
   },
-  "repository": "https://github.com/<org>/isg-plugins",
+  "repository": "https://github.com/Lecabe-Tech-Company/isg-plugins",
   "userConfig": {
     "user_name": {
       "type": "string",
