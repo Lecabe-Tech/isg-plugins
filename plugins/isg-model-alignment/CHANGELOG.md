@@ -7,6 +7,9 @@ Todas as mudanças relevantes deste plugin são registradas aqui.
 ### Corrigido
 - Processo de Qualidade: avaliações (`SG_Avaliacoes`) sem documento confirmado (`DocumentoID` vazio) eram recusadas, embora o formato permita. Agora são aceitas; em `SG_Documentos` o identificador continua obrigatório.
 - Processo de Qualidade: o pacote preparado (`preparar`) perdia a lista de fontes (arquivo e página) reunida pelo `agrupar`. Agora ela é mantida em `lote-validado.json`.
+- Processo de Qualidade: os schemas de saída estruturada declaravam um padrão (JSON Schema 2020-12) que o Claude Code recusa no `claude -p --json-schema`. Agora declaram o padrão aceito, sem mudar nenhuma regra.
+- Processo de Qualidade: `fontes`, `resolver` e `template` aceitavam qualquer par de letras como UF. Agora só as 27 siglas oficiais.
+- Segurança: as skills de Qualidade tinham links para anexos em um servidor externo não auditado. Os links foram removidos e uma checagem impede novos endereços fora da lista permitida.
 
 ## [0.1.0] - 2026-11-16
 

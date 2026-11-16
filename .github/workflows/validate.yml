@@ -94,6 +94,9 @@ jobs:
       - name: VAL-C09/C10 CFP vendored library untouched, engine offline, no writes inside the plugin
         run: node scripts/ci/check-cfp.mjs
 
+      - name: VAL-SEC-01 external addresses in the plugin are on the allowed list
+        run: node scripts/ci/check-links.mjs
+
       - name: Unit and script tests
         run: npm test
 

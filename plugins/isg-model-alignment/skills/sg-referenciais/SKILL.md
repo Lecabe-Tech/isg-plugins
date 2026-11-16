@@ -24,12 +24,8 @@ Base do Thomaz: orientações_referenciais_ICE, orientações_modelo_gestao e cr
 - `Status` só pode ser marcado `Ativo` se a governança confirmou. Mudança em qualquer referência cria nova versão, não atualiza silenciosamente histórico.
 - Claude retorna **proposta em modo governança**; integração só grava após autorização expressa do responsável por critérios, separadamente da ingestão por UF.
 
-
 ## Contrato obrigatório para Claude
 Você atua como **extrator/propositor**, nunca como aprovador nem escritor direto do SharePoint. Receba o(s) documento(s) fonte ou o template preenchido, a identificação do lote e, quando relevante, as tabelas referenciais. **Não altere o XLSX**: devolva JSON válido para uma integração autorizada validar e gravar. Não invente UF/ano/modelo, classificação, notas, provas, páginas, URLs, pesos nem totais; dúvidas vão para `pendencias`. Preserve distinção entre Sim, Não, vazio/não avaliado e não aplicável. Nenhuma linha sai como aprovada/publicada. Formato da resposta: `{"aba":"SG_Referenciais","modo":"governanca","linhas":[...],"pendencias":[{"campo":"...","motivo":"...","origem":"..."}],"fontes":[...],"checagens":[...]}`. Linhas contêm **somente as colunas reais da aba**, sem colunas extras. Uma etapa posterior resolve IDs, idempotência e colisões de versões. Um dado incerto deve permanecer `null` e ter pendência.
-
-[📎 SKILL.md](http://la2pfpktfpmhpcqau3t6v7dk.2.25.124.248.sslip.io/api/v1/assets/c7b570c4-bd2e-4b2a-99ab-7859a4e413d5/B8GEcWIDiWUILm3pcxjtVRi5ht13eXXA)
-
 
 > Fonte normativa: Scripta [GUIA-022]. Esta skill produz propostas de dados, nunca aprova nem grava diretamente no SharePoint.
 

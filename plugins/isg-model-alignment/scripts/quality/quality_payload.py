@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 
-from quality_templates import resolver_inicio, template_info
+from quality_templates import UF_HELP, is_uf, resolver_inicio, template_info
 from quality_structured import (WRITE_ABAS, assemble_responses, check_record,
                                 check_response, extract_structured_output, schema_for)
 
@@ -104,8 +104,8 @@ def _reference_entry(root: Path, entry: object, label: str) -> dict:
 
 def fontes_info(docs: str | None, ice: str | None, uf: str, ano: int, modelo: str) -> dict:
     """Verifica a disponibilidade técnica das fontes; não faz julgamento pedagógico."""
-    if not re.fullmatch(r"[A-Z]{2}", uf) or ano < 2024 or ano > 2100 or modelo not in ("7h", "9h"):
-        raise ValueError("Informe --uf (duas letras), --ano (2024..2100) e --modelo (7h/9h).")
+    if not is_uf(uf) or ano < 2024 or ano > 2100 or modelo not in ("7h", "9h"):
+        raise ValueError(f"Informe --uf, --ano (2024..2100) e --modelo (7h/9h). {UF_HELP}")
     state_root = _checked_directory(docs, "ISG_QUALITY_STATE_DOCS")
     state_path = state_root / uf / str(ano)
     if not state_path.is_dir():

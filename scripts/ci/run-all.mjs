@@ -13,6 +13,7 @@ const steps = [
   ['VAL-13 portable core', [path.join(here, 'check-portable.mjs')]],
   ['VAL-M02..M04 memory protocol', [path.join(here, 'check-memory.mjs')]],
   ['VAL-C09/C10 CFP vendored library and writes', [path.join(here, 'check-cfp.mjs')]],
+  ['VAL-SEC-01 external addresses', [path.join(here, 'check-links.mjs')]],
   ['unit and script tests', ['--test', path.join(root, 'test', 'lib.test.mjs'), path.join(root, 'test', 'scripts.test.mjs')]],
   ['VAL-12 non-interactive', [path.join(here, 'check-non-interactive.mjs')]],
 ];
