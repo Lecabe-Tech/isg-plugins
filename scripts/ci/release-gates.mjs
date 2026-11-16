@@ -40,7 +40,8 @@ const REPO = env.GITHUB_REPOSITORY;
   console.log(`(b) ok: ${head.slice(0, 7)} is the tip of ${MAIN_BRANCH}`);
 }
 
-// (c) HEAD came from a merged PR with an approval from someone other than the author
+// (c) HEAD came from a merged PR (no direct push to main). Since SPEC-001 v0.10 an approval from someone other than
+// the author is no longer required (the team has a single maintainer account); approvals, when present, are logged.
 {
   const r = gh('api', `repos/${REPO}/commits/${env.GITHUB_SHA}/pulls`, '--jq', `[.[] | select(.merged_at != null and .base.ref == "${MAIN_BRANCH}")] | map({number, author: .user.login, merge: .merge_commit_sha})`);
   if (!r.ok) fail(`(c) Could not read the pull requests of ${env.GITHUB_SHA}: ${r.err}`);
@@ -50,9 +51,8 @@ const REPO = env.GITHUB_REPOSITORY;
   const rv = gh('api', `repos/${REPO}/pulls/${pr.number}/reviews`, '--paginate', '--jq', '[.[] | select(.state == "APPROVED") | .user.login]');
   if (!rv.ok) fail(`(c) Could not read the reviews of PR #${pr.number}: ${rv.err}`);
   const approvers = rv.out.split('\n').flatMap((l) => (l.trim() ? JSON.parse(l) : []));
-  const others = approvers.filter((u) => u !== pr.author);
-  if (others.length === 0) fail(`(c) PR #${pr.number} has no approval from someone other than its author (${pr.author}) (REQ-ACC-03).`);
-  console.log(`(c) ok: PR #${pr.number} by ${pr.author}, approved by ${[...new Set(others)].join(', ')}`);
+  const others = [...new Set(approvers.filter((u) => u !== pr.author))];
+  console.log(`(c) ok: PR #${pr.number} by ${pr.author}` + (others.length ? `, approved by ${others.join(', ')}` : ', merged without an independent approval (allowed since SPEC-001 v0.10)'));
 }
 
 // (d) version is valid and greater than the latest tag (or a re-run for a tag on this same commit)

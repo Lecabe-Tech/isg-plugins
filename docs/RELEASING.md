@@ -5,7 +5,7 @@ Source of truth: `specs/SPEC-001-installation-and-management.md`. This page is t
 ## The rules (read once, follow always)
 
 1. **Never** push to `main` or `stable`. **Never** force-push. **Never** create, move or delete a tag by hand. GitHub Free would let you; the process does not. (REQ-ACC-03, risk acceptance 1.4)
-2. Every change goes through a **pull request to `main`** with **one approval from a maintainer who is not the author**, and green checks. GitHub suggests `stable` as the base because it is the default branch: **change the base to `main`**. A PR to `stable` fails the check `pr-must-target-main`.
+2. Every change goes through a **pull request to `main`** and green checks. An approval from another maintainer is welcome but **not required** (SPEC-001 v0.10: the team has a single maintainer account). GitHub suggests `stable` as the base because it is the default branch: **change the base to `main`**. A PR to `stable` fails the check `pr-must-target-main`.
 3. **Users get what is on `stable`**, on every route. Merging to `main` ships nothing. The **Release workflow** is the only thing that moves `stable`.
 4. A release = **release PR** (bump `version` in `plugins/isg-model-alignment/.claude-plugin/plugin.json` **and** add the `## [X.Y.Z] - AAAA-MM-DD` section to `plugins/isg-model-alignment/CHANGELOG.md`, in PT-BR) → merge → run the **release** workflow.
 5. Versions are SemVer. Breaking change = MAJOR (MINOR while `0.x`) and a `### Quebra de compatibilidade` section. **Never reuse a version number.**
@@ -15,9 +15,9 @@ Source of truth: `specs/SPEC-001-installation-and-management.md`. This page is t
 ## Releasing
 
 1. Open a branch, change what you need, then in a **release PR** bump `version` and add the CHANGELOG section (PT-BR, format in SPEC 4.6). Run `npm run check` locally.
-2. Get one approval from another maintainer. Merge (squash or merge commit) into `main`.
-3. GitHub > **Actions** > **release** > **Run workflow** > branch **main**.
-4. The workflow checks, in order: (a) you have Write access; (b) it runs on the tip of `main`; (c) the commit comes from a merged PR approved by someone other than its author; (d) the version is valid and greater than the latest tag; (e) the CHANGELOG has that version; (f) validate, consistency, language, portable-core checks and tests; (g) a Windows smoke test; then (h) tag `isg-model-alignment--vX.Y.Z`, (i) a GitHub Release whose notes are the CHANGELOG section, (j) `stable` fast-forwarded. A failed step stops everything after it.
+2. Merge (squash or merge commit) into `main` when the checks are green (an approval from another maintainer is optional).
+3. GitHub > **Actions** > **release** > **Run workflow** > branch **main**. The selector opens on `stable` (the default branch): change it to `main`, or gate (b) fails. Never open a PR from `main` to `stable`: only this workflow moves `stable`.
+4. The workflow checks, in order: (a) you have Write access; (b) it runs on the tip of `main`; (c) the commit comes from a merged PR (no direct push; approvals are logged when present); (d) the version is valid and greater than the latest tag; (e) the CHANGELOG has that version; (f) validate, consistency, language, portable-core checks and tests; (g) a Windows smoke test; then (h) tag `isg-model-alignment--vX.Y.Z`, (i) a GitHub Release whose notes are the CHANGELOG section, (j) `stable` fast-forwarded. A failed step stops everything after it.
 5. **Announce** the release to users (REQ-REL-10): version + the PT-BR highlights. Channel: *to be decided (Q11)*; until then the Release page is the announcement and you also tell users directly. Remind route-A users that "Sync automatically" or "Check for updates" brings it.
 6. If the workflow stopped halfway (for example after the tag): **do not delete the tag**. Fix the cause and run the workflow again; finished steps are skipped.
 
@@ -26,7 +26,7 @@ Source of truth: `specs/SPEC-001-installation-and-management.md`. This page is t
 `stable` must exist before the workflow can move it, and a workflow is only visible in the Actions tab when its file is on the **default branch**:
 
 1. Create the organization and the private repo `isg-plugins` (SPEC T2); push `main`.
-2. Set the real organization in `plugins/isg-model-alignment/scripts/lib/constants.mjs` (`GITHUB_ORG`) and in `plugin.json` (`repository`); open a PR, get approval, merge. `npm run check:release` must pass.
+2. Set the real organization in `plugins/isg-model-alignment/scripts/lib/constants.mjs` (`GITHUB_ORG`) and in `plugin.json` (`repository`); open a PR, merge. `npm run check:release` must pass.
 3. Create `stable` from that commit: `git push origin main:stable`.
 4. **Settings > General > Default branch: `stable`.** Then check Actions shows the **release** workflow.
 5. Run the **release** workflow (version `0.1.0`). Install it from `#stable` on two machines (route B) and through claude.ai (route A) before announcing.
