@@ -24,7 +24,7 @@ Referências originais no Scripta: **NOTA-009**, **NOTA-016**, **NOTA-019**, **N
 | SIP | Interpreta imagens e marca conteúdo derivado por IA | Verificar tabelas visuais/ilegíveis |
 | EQV | Compara orientações por significado, usa códigos do template e citações | Cobrir todas orientações aplicáveis, múltiplos formatos, negativas somente com fontes suficientes |
 | Componentes e resumos | Existem skills e schemas de base central, mas ainda não homologamos matriz completa de MG | Fechar seleção, transcrição, classificação, consolidação |
-| JSON \`SG_*\` | Estrutura técnica e testes existem | **Não é a entrega final desta fase** |
+| JSON `SG_*` | Estrutura técnica e testes existem | **Não é a entrega final desta fase** |
 | Notion, SharePoint, Thomaz, BI | Arquitetura e artefatos parciais; integração final não homologada | **Adiar até concluir a entrega JSON** |
 
 **Atenção:** testes anteriores de MG/2026 cobriram parte das orientações e **não comprovam um ciclo completo**. Nenhum percentual global de automação do trabalho do Jhon foi validado.
@@ -42,11 +42,11 @@ O Notion poderá receber os quatro documentos (ou conjuntos de arquivos); templa
 
 **Acesso a fontes:** materiais das Secretarias podem ser públicos e localizáveis em sites oficiais. Isso não significa que todo arquivo em SharePoint seja público: links com permissão/rótulo exigem acesso legítimo ou uma cópia fornecida pelo usuário. **Pesquisar fonte pública é permitido; contornar controle de acesso não é.**
 
-**Tipos de documento:** PDF, DOCX, XLSX, imagens JPG/PNG e arquivos textuais, com adaptadores adequados. Documentos antigos DOC/XLS e tabelas que não puderem ser lidas geram pendência/conversão controlada. **Nunca converter erro de leitura em \`Não\`.**
+**Tipos de documento:** PDF, DOCX, XLSX, imagens JPG/PNG e arquivos textuais, com adaptadores adequados. Documentos antigos DOC/XLS e tabelas que não puderem ser lidas geram pendência/conversão controlada. **Nunca converter erro de leitura em `Não`.**
 
 ## 4. Desenho de operação da entrega 1
 
-\`\`\`text
+```text
 [Quatro entradas fornecidas pelo responsável]
                     |
                     v
@@ -71,7 +71,7 @@ O Notion poderá receber os quatro documentos (ou conjuntos de arquivos); templa
     [Resumo PT-BR para Jhon e gestor]
                     |
           PARAR A ENTREGA AQUI
-\`\`\`
+```
 
 ### Exemplo de validação cruzada
 
@@ -98,15 +98,15 @@ A equipe deverá selecionar **uma matriz oficial e um conjunto completo de orien
 | Ordem | Local | Para quê |
 |---|---|---|
 | 1 | Este documento + [SPEC-017](../specs/SPEC-017-jhon-quality-first-json-pipeline.md) | Entender resultado e limites atuais |
-| 2 | \`specs/SPEC-001-...\` | Superfícies e distribuição Claude; cuidado com Desktop/chat vs execução local |
-| 3 | \`specs/SPEC-003-...\` e \`SPEC-004-...\` | Reaproveitar CFP e SIP |
-| 4 | \`specs/SPEC-005-...\` e \`skills/eqv/\` | Reaproveitar regras de análise semântica |
-| 5 | \`specs/SPEC-006-...\` + \`scripts/quality/\` | Entender validação existente **sem ficar preso ao \`SG_*\`** |
+| 2 | `specs/SPEC-001-...` | Superfícies e distribuição Claude; cuidado com Desktop/chat vs execução local |
+| 3 | `specs/SPEC-003-...` e `SPEC-004-...` | Reaproveitar CFP e SIP |
+| 4 | `specs/SPEC-005-...` e `skills/eqv/` | Reaproveitar regras de análise semântica |
+| 5 | `specs/SPEC-006-...` + `scripts/quality/` | Entender validação existente **sem ficar preso ao `SG_*`** |
 | 6 | Scripta **NOTA-016**, **NOTA-029**, **GUIA-032** | Ver campos do Jhon e critérios humanos de revisão |
 | 7 | Scripta **ADR-001** e **ESP-012** | Acesso multiformato e proposta futura do formulário |
 | 8 | PR #6 / SPEC-007 | Contexto de **paridade e integração downstream**; não é o objetivo desta entrega |
 
-Rota de teste do mantenedor: \`npm run check\`. **Este PR é apenas documentação** e não implementa os marcos.
+Rota de teste do mantenedor: `npm run check`. **Este PR é apenas documentação** e não implementa os marcos.
 
 ## 7. Regra de priorização
 
