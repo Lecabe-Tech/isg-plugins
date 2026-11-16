@@ -15,7 +15,8 @@ from xml.etree import ElementTree as ET
 
 from quality_templates import UF_HELP, is_uf, resolver_inicio, template_info
 from quality_structured import (WRITE_ABAS, assemble_responses, check_record,
-                                check_response, extract_structured_output, schema_for)
+                                check_response, extract_structured_output, response_template, schema_for,
+                                schema_sha256)
 
 SCHEMA = {
     "SG_Ciclos": "CicloID UF Ano Modelo Cluster SituacaoOrigem StatusValidacao Publicado ResponsavelAprovacao ArquivoOrigem",
@@ -159,8 +160,11 @@ def parse_bundle(path: Path) -> dict:
     fontes = o.get("fontes", [])
     if not isinstance(fontes, list):
         raise ValueError("'fontes' deve ser lista.")
-    return {"lote": o.get("lote", {}), "abas": abas, "pendencias": o.get("pendencias", []),
-            "fontes": fontes, "evidencias_eqv": o.get("evidencias_eqv")}
+    bundle = {"lote": o.get("lote", {}), "abas": abas, "pendencias": o.get("pendencias", []),
+              "fontes": fontes, "evidencias_eqv": o.get("evidencias_eqv")}
+    if "contratos" in o:
+        bundle["contratos"] = o["contratos"]
+    return bundle
 
 
 def validate(bundle: dict) -> dict:
@@ -232,8 +236,19 @@ def validate(bundle: dict) -> dict:
         for i, row in enumerate(abas.get(tab, []), 1):
             if isinstance(row, dict) and row.get("CicloID") not in ciclo_ids:
                 erros.append(f"{tab}[{i}]: CicloID precisa constar no mesmo pacote.")
+    contratos = bundle.get("contratos")
+    estado_contratos = "ausentes"
+    if contratos is not None:
+        if not isinstance(contratos, dict):
+            erros.append("contratos precisa ser objeto.")
+        else:
+            for tab in abas:
+                registro = contratos.get(tab) if isinstance(contratos.get(tab), dict) else {}
+                if tab in SCHEMA and registro.get("sha256") != schema_sha256(tab):
+                    erros.append(f"{tab}: o lote não foi validado contra o schema em vigor (contrato ausente ou de outra versão); rode agrupar de novo.")
+            estado_contratos = "conferidos"
     return {"valido": not erros, "erros": erros, "contagens": counts,
-            "total": sum(counts.values()), "publicado": False}
+            "total": sum(counts.values()), "publicado": False, "contratos": estado_contratos}
 
 
 def write_staging(bundle: dict, destination: Path) -> list:
@@ -257,7 +272,7 @@ def write_staging(bundle: dict, destination: Path) -> list:
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Prepara lotes Claude sem editar a base central.")
-    parser.add_argument("comando", choices=["status", "fontes", "resolver", "template", "esquema", "validar-resposta", "agrupar", "validar", "preparar"])
+    parser.add_argument("comando", choices=["status", "fontes", "resolver", "template", "esquema", "modelo-resposta", "validar-resposta", "agrupar", "validar", "preparar"])
     parser.add_argument("arquivo", nargs="?")
     parser.add_argument("--base", default=os.getenv("ISG_QUALITY_BASE"))
     parser.add_argument("--saida")
@@ -290,6 +305,22 @@ def main(argv=None):
                 raise ValueError("Informe --aba.")
             print(json.dumps(schema_for(args.aba), ensure_ascii=False, separators=(",", ":")))
             return 0
+        elif args.comando == "modelo-resposta":
+            if not args.aba:
+                raise ValueError("Informe --aba.")
+            if args.uf and not is_uf(args.uf):
+                raise ValueError(f"UF inválida: '{args.uf}'. {UF_HELP}")
+            skeleton = response_template(args.aba, args.uf, args.ano, args.modelo, args.versao)
+            if args.saida:
+                target = Path(args.saida)
+                if target.exists():
+                    raise ValueError("Arquivo de saída já existe; escolha outro nome.")
+                target.write_text(json.dumps(skeleton, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                result = {"valido": True, "arquivo": str(target), "aba": args.aba, "linhas": len(skeleton["linhas"]),
+                          "estado": "MODELO_GERADO_PREENCHER_E_VALIDAR"}
+            else:
+                print(json.dumps(skeleton, ensure_ascii=False, indent=2))
+                return 0
         elif args.comando == "validar-resposta":
             if not args.arquivo:
                 raise ValueError("Informe arquivo de resposta do Claude.")

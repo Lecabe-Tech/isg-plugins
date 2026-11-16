@@ -68,6 +68,18 @@ for (const file of walk(SKILLS_DIR)) {
   }
 }
 
+// Same behavior in the terminal CLI and in the Desktop app's Code tab (SPEC-006 note of 2026-11-16): no skill may
+// require starting another Claude from the command line (`claude -p`, `--json-schema`, `--output-format`), which needs
+// a separate CLI login that the Desktop app does not provide. Structured output goes through modelo-resposta and
+// validar-resposta instead.
+const CLI_ONLY = /\bclaude\s+-p\b|--json-schema\b|--output-format\b|\bclaude\s+--print\b/;
+for (const file of walk(SKILLS_DIR)) {
+  if (!file.endsWith('SKILL.md')) continue;
+  readText(file).split(/\r?\n/).forEach((line, i) => {
+    if (CLI_ONLY.test(line)) problems.push(`${rel(file)}:${i + 1}: depends on a CLI-only feature ("claude -p"/--json-schema); use modelo-resposta + validar-resposta, which work on CLI and Desktop`);
+  });
+}
+
 const files = walk(PLUGIN_DIR);
 const bytes = files.reduce((n, f) => n + fs.statSync(f).size, 0);
 if (files.length >= 5000) problems.push(`plugin has ${files.length} files (limit < 5000, REQ-SRF-06)`);
