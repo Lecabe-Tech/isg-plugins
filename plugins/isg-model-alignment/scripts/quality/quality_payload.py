@@ -156,8 +156,11 @@ def parse_bundle(path: Path) -> dict:
         raise ValueError("JSON precisa de 'abas' ou de 'aba' + 'linhas'.")
     if not isinstance(abas, dict) or not abas:
         raise ValueError("'abas' deve ser objeto não vazio.")
+    fontes = o.get("fontes", [])
+    if not isinstance(fontes, list):
+        raise ValueError("'fontes' deve ser lista.")
     return {"lote": o.get("lote", {}), "abas": abas, "pendencias": o.get("pendencias", []),
-            "evidencias_eqv": o.get("evidencias_eqv")}
+            "fontes": fontes, "evidencias_eqv": o.get("evidencias_eqv")}
 
 
 def validate(bundle: dict) -> dict:

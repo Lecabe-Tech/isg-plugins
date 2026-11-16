@@ -81,9 +81,15 @@ def check_record(aba: str, row: dict) -> list[str]:
     _validate_node(schema, row, aba, errors)
     if not isinstance(row, dict):
         return errors
+    fields = schema.get("properties", {})
     for key in ("CicloID", "RegistroID", "ResumoID", "DocumentoID", "UF", "Modelo",
                 "ComponenteOriginal", "Elemento", "Codigo", "NomeArquivo"):
-        if key in row and (not isinstance(row[key], str) or not row[key].strip()):
+        if key not in row:
+            continue
+        allowed = fields.get(key, {}).get("type")
+        if row[key] is None and (allowed == "null" or (isinstance(allowed, list) and "null" in allowed)):
+            continue  # nullable reference (e.g. SG_Avaliacoes.DocumentoID before the document is confirmed)
+        if not isinstance(row[key], str) or not row[key].strip():
             errors.append(f"{aba}.{key}: identificador/texto obrigatório não pode ser vazio.")
     if "Ano" in row and type(row["Ano"]) is int and not (2024 <= row["Ano"] <= 2100):
         errors.append(f"{aba}.Ano: ano fora da faixa permitida.")
