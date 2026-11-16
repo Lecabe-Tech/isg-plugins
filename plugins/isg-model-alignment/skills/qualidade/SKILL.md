@@ -78,31 +78,16 @@ Leia, nesta ordem, os arquivos:
 
 `skills/sg-referenciais/SKILL.md` é governança, não atualização por estado. `sg-aprovacoes` apenas para o evento humano. `leia-me`, `validacao`, `dicionario`, `contrato-th` são regras/visões de leitura. Portanto, só as cinco tabelas acima podem receber propostas de novos registros de Claude.
 
-Gere arquivo JSON válido:
-```json
-{
-  "lote": {"UF":"CE","Ano":2026,"Modelo":"9h","Versao":"v1"},
-  "abas": {
-    "SG_Documentos": [],
-    "SG_Ciclos": [],
-    "SG_Componentes": [],
-    "SG_ResumoMatriz": [],
-    "SG_Avaliacoes": []
-  },
-  "pendencias": [],
-  "evidencias_eqv": "resultado.json"
-}
-```
-As listas vazias ilustram o formato, não significam que CE foi analisado.
+Gere **um arquivo por aba** com o esqueleto `modelo-resposta`, preencha e valide cada um (passo a passo na seção 7). **Não monte o lote à mão**: ele é montado pelo `agrupar`, que revalida as cinco abas e registra contra qual schema cada uma foi validada.
 Cada linha inclui **apenas colunas definidas na skill da sua aba**. Novos ciclos: `StatusValidacao="Pendente revisão"`; demais linhas com status: `"Importado - revisar"`; sempre `Publicado="Não"`. Nenhuma aprovação ou publicação é feita pelo Claude. `Presenca` nula não equivale a `Não`. Chave do ciclo incorpora UF, ano, modelo e versão; não reutilizar a chave legada `UF+Ano` como identificador técnico.
 
 ## 5 — Validar e gerar staging
-Com Python 3.11+, executar:
+Com Python 3.11+, depois do `agrupar` (seção 7), executar:
 ```
 <py> "<raiz-do-plugin-instalado>/scripts/quality/quality_payload.py" validar "<lote.json>" --json
 <py> "<raiz-do-plugin-instalado>/scripts/quality/quality_payload.py" preparar "<lote.json>" --saida "<diretorio>" --json
 ```
-Corrija erros antes de preparar. O resultado são JSON e CSV padronizados, **ainda não publicados**. Não editar a planilha origem nem a do Thomaz.
+Corrija erros antes de preparar. O `validar` deve informar `"contratos": "conferidos"`; se informar `"ausentes"`, o lote não passou pelo `agrupar`: refaça pela seção 7. O resultado são JSON e CSV padronizados, **ainda não publicados**. Não editar a planilha origem nem a do Thomaz.
 
 ## 6 — Gravação no Excel central e aprovação
 O arquivo central fica hospedado no SharePoint sob permissões de leitura para equipe e escrita somente para integração.
@@ -110,23 +95,29 @@ O projeto inclui `scripts/quality/office-script-import.ts` como modelo de import
 Se a integração Microsoft ainda não tiver sido instalada e testada, informe `PACOTE_PREPARADO_NAO_GRAVADO` e entregue o staging. Não afirme que atualizou a base.
 Apenas a equipe de Qualidade aprova, por fluxo externo. Registros novos nunca chegam ao Thomaz até a aprovação e publicação do snapshot completo.
 
-## 7 — Saída estruturada real em Claude Code
+## 7 — Saída estruturada (igual no terminal e no app Desktop)
 
-**Não basta pedir "retorne JSON".** Cada uma das cinco skills de dados deve usar o schema da aba em `scripts/quality/schemas/<ABA>.schema.json` (11 schemas no total; as outras seis abas são somente leitura/governança). Sem colunas extras, sem campos omitidos, com tipos numéricos e nulos corretos.
+**Não basta pedir "retorne JSON".** Cada uma das cinco abas de dados segue o schema em `scripts/quality/schemas/<ABA>.schema.json` (11 schemas no total; as outras seis abas são somente leitura/governança). Sem colunas extras, sem campos omitidos, com tipos numéricos e nulos corretos.
 
-Com Claude Code em execução não interativa:
+Este passo roda **do mesmo jeito no Claude Code em terminal e na aba Código do app Desktop**: só usa os programas do plugin. Não dependa de recursos que existam em um único ambiente (por exemplo, abrir outra sessão do Claude pela linha de comando). Para cada aba (`SG_Documentos`, `SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz`, `SG_Avaliacoes`), nesta conversa:
+
+1. Gere o esqueleto, já com as colunas na ordem da planilha, os valores fixos e a identificação do lote:
 ```text
-# Em terminal, schema inline e envelope JSON do Claude Code:
-SCHEMA="$(python <raiz-do-plugin>/scripts/quality/quality_payload.py esquema --aba SG_Ciclos)"
-claude -p "Use a skill SG_Ciclos para o lote já analisado, respeite o referencial ICE e devolva apenas o objeto da aba." --output-format json --json-schema "$SCHEMA" > SG_Ciclos.json
-python <raiz-do-plugin>/scripts/quality/quality_payload.py validar-resposta SG_Ciclos.json --json
+<py> "<raiz-do-plugin-instalado>/scripts/quality/quality_payload.py" modelo-resposta --aba SG_Ciclos --uf MG --ano 2026 --modelo 9h --versao v1 --saida "<pasta-do-lote>/SG_Ciclos.json"
 ```
-O prompt deve especificar **onde o resultado da análise já registrada está disponível**; não permitir que o Claude preencha o schema apenas pelo exemplo. Repetir por `SG_Documentos`, `SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz` e `SG_Avaliacoes`. Quando usar terminal Windows, adaptar a sintaxe das variáveis.
-
-O CLI gera `structured_output` no envelope; se ausente (recusa/erro de modelo/limite), a validação **falha**. Não substituir por texto de `result` nem extrair com regex. Para empacotar:
+2. Leia a skill da aba e preencha o arquivo **somente com o que a análise registrada sustenta** (CFP, SIP, EQV e matriz confirmada). O que faltar fica `null` onde o schema permite, com pendência. Não preencha a partir do exemplo.
+3. Valide e corrija até passar:
 ```text
-python <raiz-do-plugin>/scripts/quality/quality_payload.py agrupar <pasta-dos-cinco-json> --uf MG --ano 2026 --modelo 9h --versao v1 --saida lote.json --json
-python <raiz-do-plugin>/scripts/quality/quality_payload.py validar lote.json --json
-python <raiz-do-plugin>/scripts/quality/quality_payload.py preparar lote.json --saida staging --json
+<py> "<raiz-do-plugin-instalado>/scripts/quality/quality_payload.py" validar-resposta "<pasta-do-lote>/SG_Ciclos.json" --json
+```
+Se aparecer erro, corrija o arquivo e valide de novo, até `"valido": true`. **A garantia de formato vem desse validador**, que aplica o mesmo schema em qualquer ambiente. Nunca entregue JSON que não passou na validação, nem texto em Markdown no lugar dele.
+
+Depois das cinco abas, empacote:
+```text
+<py> "<raiz-do-plugin-instalado>/scripts/quality/quality_payload.py" agrupar "<pasta-do-lote>" --uf MG --ano 2026 --modelo 9h --versao v1 --saida lote.json --json
+<py> "<raiz-do-plugin-instalado>/scripts/quality/quality_payload.py" validar lote.json --json
+<py> "<raiz-do-plugin-instalado>/scripts/quality/quality_payload.py" preparar lote.json --saida staging --json
 ```
 Os arquivos só serão importáveis se passarem **tanto** a validação individual de schema **quanto** a cruzada entre linhas/ciclos e estados pendentes. Erro de estrutura bloqueia importação; dados pedagogicamente duvidosos permanecem pendentes de revisão. Nenhuma linha é aprovada/publicada pelo Claude.
+
+Em superfícies sem terminal (chat do claude.ai, chat do app Desktop, Cowork), estes programas não rodam: explique isso e não diga que validou ou empacotou nada.

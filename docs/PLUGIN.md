@@ -338,4 +338,6 @@ O preflight `scripts/quality/quality_payload.py fontes --uf MG --ano 2026 --mode
 
 O programa também valida o JSON e cria staging CSV/JSON sem alterar a base. O Office Script apenas representa o importador no arquivo Excel selecionado pelo fluxo Microsoft. Nenhuma das três variáveis fornece credenciais nem grava dados no SharePoint automaticamente.
 
+**Saída estruturada sem depender do ambiente.** Cada aba é gerada a partir do esqueleto `modelo-resposta`, preenchida na conversa e validada com `validar-resposta`; `agrupar`, `validar` e `preparar` revalidam tudo e registram/conferem o SHA-256 do schema de cada aba (`contratos`). Funciona igual no Claude Code em terminal e na aba Código do app Desktop. O `claude -p --json-schema` é apenas um atalho opcional para quem tem o CLI logado; nenhuma skill depende dele (checagem VAL-13).
+
 Homologação pendente: aprovação da versão ICE, testes MG/2026 com template de orientações apropriado, gravação autorizada no SharePoint, fluxo de revisão humana e conexão com Thomaz. Ver `docs/QUALITY-PIPELINE.pt-BR.md` e `examples/quality/manifesto_ice.example.json`.

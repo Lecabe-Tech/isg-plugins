@@ -4,6 +4,9 @@ Todas as mudanças relevantes deste plugin são registradas aqui.
 
 ## [0.1.1] - 2026-11-16
 
+### Alterado
+- Processo de Qualidade roda igual no Claude Code em terminal e na aba Código do app Desktop: a saída estruturada não depende mais de abrir outra sessão com `claude -p`. Novo comando `modelo-resposta` gera o esqueleto de cada aba; o Claude preenche e valida com `validar-resposta` até passar. A garantia continua: `agrupar`, `validar` e `preparar` revalidam tudo e o lote registra a impressão digital (SHA-256) do schema de cada aba, recusando lotes validados contra outra versão do contrato.
+
 ### Corrigido
 - Processo de Qualidade: avaliações (`SG_Avaliacoes`) sem documento confirmado (`DocumentoID` vazio) eram recusadas, embora o formato permita. Agora são aceitas; em `SG_Documentos` o identificador continua obrigatório.
 - Processo de Qualidade: o pacote preparado (`preparar`) perdia a lista de fontes (arquivo e página) reunida pelo `agrupar`. Agora ela é mantida em `lote-validado.json`.

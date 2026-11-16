@@ -145,6 +145,69 @@ class StructuredOutputTest(unittest.TestCase):
             staged = json.loads((Path(tmp) / "staging" / "lote-validado.json").read_text(encoding="utf-8"))
             self.assertEqual(staged["fontes"][0]["arquivo"], "origem.pdf")
 
+    def test_batch_records_and_checks_schema_contracts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            answers = Path(tmp) / "respostas"
+            answers.mkdir()
+            for aba in s.WRITE_ABAS:
+                (answers / (aba + ".json")).write_text(json.dumps(sample(aba), ensure_ascii=False), encoding="utf-8")
+            bundle = s.assemble_responses(answers, "MG", 2026, "9h", "v1")
+            self.assertEqual(set(bundle["contratos"]), set(s.WRITE_ABAS))
+            self.assertEqual(bundle["contratos"]["SG_Ciclos"]["sha256"], s.schema_sha256("SG_Ciclos"))
+            result = q.validate(bundle)
+            self.assertTrue(result["valido"], result)
+            self.assertEqual(result["contratos"], "conferidos")
+            lote = Path(tmp) / "lote.json"
+            lote.write_text(json.dumps(bundle, ensure_ascii=False), encoding="utf-8")
+            q.write_staging(q.parse_bundle(lote), Path(tmp) / "staging")
+            staged = json.loads((Path(tmp) / "staging" / "lote-validado.json").read_text(encoding="utf-8"))
+            self.assertEqual(staged["contratos"], bundle["contratos"])
+            tampered = json.loads(json.dumps(bundle))
+            tampered["contratos"]["SG_Avaliacoes"]["sha256"] = "0" * 64
+            self.assertFalse(q.validate(tampered)["valido"])
+            legacy = {k: v for k, v in bundle.items() if k != "contratos"}
+            self.assertEqual(q.validate(legacy)["contratos"], "ausentes")
+
+    def test_response_template_matches_schema(self):
+        for aba in s.ALL_ABAS:
+            with self.subTest(aba=aba):
+                t = s.response_template(aba, "MG", 2026, "9h", "v1")
+                schema = s.schema_for(aba)
+                self.assertEqual(list(t), ["aba", "modo", "linhas", "pendencias", "fontes", "checagens"])
+                self.assertEqual(t["modo"], schema["properties"]["modo"]["const"])
+                if aba in s.READ_ABAS:
+                    self.assertEqual(t["linhas"], [])
+                    self.assertTrue(s.check_response(t)["valido"])
+                    continue
+                cols = list(schema["properties"]["linhas"]["items"]["properties"])
+                self.assertEqual(list(t["linhas"][0]), cols)
+                for col, spec in schema["properties"]["linhas"]["items"]["properties"].items():
+                    if "const" in spec:
+                        self.assertEqual(t["linhas"][0][col], spec["const"])
+                if "CicloID" in cols:
+                    self.assertEqual(t["linhas"][0]["CicloID"], "MG|2026|9h|v1")
+                # a skeleton is not data: unfilled required fields must fail validation
+                self.assertFalse(s.check_response(t)["valido"])
+                # once the empty fields are filled, it validates
+                filled = sample(aba)
+                row = {k: (v if v is not None else filled["linhas"][0][k]) for k, v in t["linhas"][0].items()}
+                t["linhas"] = [row]
+                self.assertTrue(s.check_response(t)["valido"], s.check_response(t))
+
+    def test_response_template_cli(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "SG_Ciclos.json"
+            args = [sys.executable, str(QROOT / "quality_payload.py"), "modelo-resposta", "--aba", "SG_Ciclos",
+                    "--uf", "MG", "--ano", "2026", "--modelo", "9h", "--versao", "v1", "--saida", str(out), "--json"]
+            r = subprocess.run(args, capture_output=True)
+            self.assertEqual(r.returncode, 0, r.stdout)
+            self.assertEqual(json.loads(out.read_text(encoding="utf-8"))["linhas"][0]["CicloID"], "MG|2026|9h|v1")
+            again = subprocess.run(args, capture_output=True)
+            self.assertEqual(again.returncode, 2)  # never overwrites an answer being filled
+            bad = subprocess.run([sys.executable, str(QROOT / "quality_payload.py"), "modelo-resposta", "--aba", "SG_Ciclos",
+                                  "--uf", "ZZ"], capture_output=True)
+            self.assertEqual(bad.returncode, 2)
+
     def test_reference_and_approval_readonly(self):
         for aba in s.READ_ABAS:
             doc = sample(aba)
