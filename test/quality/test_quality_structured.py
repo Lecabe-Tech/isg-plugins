@@ -96,6 +96,32 @@ class StructuredOutputTest(unittest.TestCase):
         doc["linhas"][0]["Aprovador"] = "Claude"
         self.assertFalse(s.check_response(doc)["valido"])
 
+    def test_nullable_document_reference(self):
+        doc = sample("SG_Avaliacoes")
+        doc["linhas"][0]["DocumentoID"] = None
+        self.assertTrue(s.check_response(doc)["valido"], s.check_response(doc))
+        doc["linhas"][0]["DocumentoID"] = "  "
+        self.assertFalse(s.check_response(doc)["valido"])
+        doc = sample("SG_Documentos")
+        doc["linhas"][0]["DocumentoID"] = None
+        self.assertFalse(s.check_response(doc)["valido"])
+
+    def test_fontes_survive_prepare(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            answers = Path(tmp) / "respostas"
+            answers.mkdir()
+            for aba in s.WRITE_ABAS:
+                (answers / (aba + ".json")).write_text(
+                    json.dumps({"structured_output": sample(aba)}, ensure_ascii=False), encoding="utf-8")
+            lote = Path(tmp) / "lote.json"
+            lote.write_text(json.dumps(s.assemble_responses(answers, "MG", 2026, "9h", "v1"), ensure_ascii=False),
+                            encoding="utf-8")
+            bundle = q.parse_bundle(lote)
+            self.assertEqual(len(bundle["fontes"]), len(s.WRITE_ABAS))
+            q.write_staging(bundle, Path(tmp) / "staging")
+            staged = json.loads((Path(tmp) / "staging" / "lote-validado.json").read_text(encoding="utf-8"))
+            self.assertEqual(staged["fontes"][0]["arquivo"], "origem.pdf")
+
     def test_reference_and_approval_readonly(self):
         for aba in s.READ_ABAS:
             doc = sample(aba)

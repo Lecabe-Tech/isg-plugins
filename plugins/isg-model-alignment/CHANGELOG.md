@@ -2,6 +2,12 @@
 
 Todas as mudanças relevantes deste plugin são registradas aqui.
 
+## [0.1.1] - 2026-11-16
+
+### Corrigido
+- Processo de Qualidade: avaliações (`SG_Avaliacoes`) sem documento confirmado (`DocumentoID` vazio) eram recusadas, embora o formato permita. Agora são aceitas; em `SG_Documentos` o identificador continua obrigatório.
+- Processo de Qualidade: o pacote preparado (`preparar`) perdia a lista de fontes (arquivo e página) reunida pelo `agrupar`. Agora ela é mantida em `lote-validado.json`.
+
 ## [0.1.0] - 2026-11-16
 
 ### Adicionado
