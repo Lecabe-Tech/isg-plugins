@@ -6,10 +6,10 @@
 |---|---|
 | **Organization** | Instituto Sonho Grande |
 | **Plugin** | `isg-model-alignment` (SPEC-001) |
-| **Status** | **v0.2 — proposed, awaiting the Instituto's approval.** Nothing implemented. |
+| **Status** | **v0.3 — proposed, awaiting the Instituto's approval.** Nothing implemented. |
 | **Date** | 2026-11-16 |
-| **Scope** | For **one state (UF), one year and one model (7h/9h)**, produce the **same results the analyst (Jhon) produces** — the transcribed curriculum matrix with the classification of every component, the consolidated matrix by element, and the `Sim`/`Não` of every orientation — as **structured rows of the central base** (`SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz`, `SG_Avaliacoes`, `SG_Documentos`), ready to feed the panel's input tabs (`base_matrizes`, `base_orientações`, `base_orientações_gestão`). Then **measure parity** with the analysts' work. |
-| **Out of scope** | Filling or editing the cluster template (it is a **source of rules** and, filled by the analysts, the **answer key**, never the output); computing the alignment percentage (the panel does it); writing to the central base on SharePoint or to the panel workbook; choosing between conflicting official sources. |
+| **Scope** | For **one state (UF), one year, and exclusively the propedêutico 9h model**, produce the **same results the analyst (Jhon) produces** — the transcribed curriculum matrix with the classification of every component, the consolidated matrix by element, and the `Sim`/`Não` of every orientation — as **structured rows of the central base** (`SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz`, `SG_Avaliacoes`, `SG_Documentos`), ready to feed the panel's input tabs (`base_matrizes`, `base_orientações`, `base_orientações_gestão`). Then **measure parity** with the analysts' work. |
+| **Out of scope** | Filling or editing the cluster template (it is a **source of rules** and, filled by the analysts, the **answer key**, never the output); computing the alignment percentage (the panel does it); writing to the central base on SharePoint or to the panel workbook; choosing between conflicting official sources; **7h, ensino técnico and all non-propedêutico/other-hour models** (future specifications only). |
 | **Depends on** | SPEC-001, SPEC-003 (CFP), SPEC-004 (SIP), SPEC-005 (EQV), SPEC-006 (central base, schemas, validation gate, req. 9–10) |
 | **Surfaces** | Any Claude Code with a terminal: CLI or the Code tab of the Desktop app, same behavior (SPEC-006 req. 9). No Excel, LibreOffice or CLI-only feature. |
 | **Language** | Spec and code in English; every text the analyst or Claude reads in **PT-BR**. |
@@ -20,6 +20,7 @@
 |---|---|---|
 | v0.1 | 2026-11-16 | First draft (not published): plugin filled a copy of the cluster template. |
 | v0.2 | 2026-11-16 | **Reframed by the Instituto:** the structured output does not fill the template; it **reproduces the analyst's results in the central base**, the intermediate layer between the analysis and Thomaz's panel. The template becomes a source of rules and, filled by the analysts, the answer key. |
+| v0.3 | 2026-11-16 | **Explicit Instituto scope decision:** only **Ensino Médio Integral propedêutico 9h** is supported in this iteration; other matrices are detectable only to reject them. No model-generalization implementation or acceptance tests are part of SPEC-007. |
 
 ### 0.2 Glossary
 
@@ -40,7 +41,7 @@
 
 ## 1. Context and goals
 
-Today, per state and year, the analyst transcribes the official matrix into the cluster template and classifies each component; the template consolidates by element; the analyst marks `Sim`/`Não` for every orientation; the Quality coordinator reviews; Thomaz's team transposes the results into the panel base, which computes the alignment (NOTA-009, 016, 029, 048).
+Today, per state and year, the analyst transcribes the official **propedêutico 9h** matrix into the cluster template and classifies each component; the template consolidates by element; the analyst marks `Sim`/`Não` for every orientation; the Quality coordinator reviews; Thomaz's team transposes the results into the panel base, which computes the alignment (NOTA-009, 016, 029, 048).
 
 The plugin replaces the **analysis and transcription**, not the review nor the panel. Its product is a validated batch of `SG_*` rows that carries the **same values the analyst would put in the panel's input tabs**, with evidence for each one.
 
@@ -63,7 +64,7 @@ Goals:
 | F5 | `base_matrizes` holds those columns for every UF/year; MG 2026 there = 9h, 50 min, 45/46/48 lessons, 5,560 lessons, 4,633 hours, consistent with F4. | `Base do painel_v3.xlsx` |
 | F6 | The revision workbook keeps original vs revised values and two summaries per UF. MG 2026: **Atual** (= panel base) 45/46/48; **Revisto** 45/45/45. | `Revisão_Matrizes_Painel.xlsx`, tab `C2 Revisão Matriz MG` |
 | F7 | The panel's orientation inputs are wide tables: one row per UF/model/year, one column per code (70 pedagogical, 29 management), values `Sim`/`Não`. | `Base do painel_v3.xlsx` |
-| F8 | One PDF may hold several matrices (7h/9h, technical/propedêutico); picking the wrong one is the worst error. | NOTA-029 |
+| F8 | One PDF may hold several matrices (7h/9h, technical/propedêutico); picking the wrong one is the worst error; SPEC-007 must accept **propedêutico 9h only**. | NOTA-029 |
 | F9 | `SG_ResumoMatriz` has no column for the element's **notes**, which `base_matrizes` has; `SG_Ciclos` has no mapping flags for `controle_mapeamento`. | SPEC-006 schemas; skill `contrato-th` |
 | F10 | Cluster templates on SharePoint cannot be read by the Microsoft 365 connector (sensitivity label); local copies can. | Test of 2026-11-16 |
 
@@ -75,7 +76,7 @@ Goals:
 | D2 | **Consolidation by the formal rule F2**, implemented in code with tests and checked against the analysts' summaries. This is the "formal rule and tests" that the skill `sg-resumomatriz` requires before recreating the formula. | `SG_ResumoMatriz` must exist without a filled template. |
 | D3 | **Rules are read from the current template, not hardcoded**: the classification list (F3) and the consolidation formulas (F2) are read and fingerprinted; a difference stops with `REGRA_DESCONHECIDA`. | Template versions change. |
 | D4 | **Classification is a proposal with proof**: one value of the closed list, with evidence and confidence %, `Revisar` under the EQV rules. | NOTA-016. |
-| D5 | **Matrix choice is confirmed by the analyst** before transcription (document, pages, model, offer). | F8. |
+| D5 | **Matrix choice is confirmed by the analyst** before transcription (document, pages, **propedêutico 9h** offer). Reject 7h and technical matrices in this iteration. | F8. |
 | D6 | **Panel compatibility is checked by code**: a command builds, from the validated batch, the exact rows the panel's input tabs would receive, and reports any column that cannot be filled. It writes nothing to the panel. | Goal 3; keeps Thomaz's workbook untouched. |
 | D7 | **Parity is a first-class output** (JSON + report), never a single accuracy number. | Scripta KPI. |
 
@@ -85,7 +86,7 @@ Goals:
 |---|---|---|
 | Q1 | **Answer key** for the matrix: the analysts' **Revisto** values (revision workbook) or the panel's current `base_matrizes` (**Atual**)? For orientations: tabs `1.1`/`1.2` of the cluster template or `base_orientações`? | Matrix: Revisto. Orientations: the cluster template; `base_orientações` when the template is not available. |
 | Q2 | **Total lessons and hours** (`× 40`, `÷ 60`): official for 2026 and for every state/model? | Use F4 only after confirmation; until then `null` + pending. |
-| Q3 | Where does the **model (7h/9h)** come from? | From the confirmed matrix (D5), recorded in `SG_Ciclos`. |
+| Q3 | How is **propedêutico 9h** verified? | Require explicit evidence in the official matrix and analyst confirmation; record fixed `Modelo="9h"` in `SG_Ciclos`. A conflicting or unclear offer **blocks** this analysis; never assume 9h from the filename. |
 | Q4 | Add **`Observacao`** to `SG_ResumoMatriz` (F9) so the panel's notes column is reproduced? | Yes, versioned schema change with tests. |
 | Q5 | Add the **mapping flags** (matrix / pedagogical / management mapped) to `SG_Ciclos` for `controle_mapeamento`? | Yes, same way. |
 | Q6 | Components the matrix does not have (`n/a` in the revision workbook)? | Never invented; listed in parity if the key has them. |
@@ -101,9 +102,10 @@ Priority: **M** must, **S** should, **C** could.
 
 | ID | P | Requirement |
 |---|---|---|
-| REQ-MIN-01 | M | A run needs: the official matrix document(s) and the guidance documents processed by CFP; a **local copy** of the current cluster template (rules only); the identification UF, year, version. Missing input stops with a PT-BR message naming it. |
-| REQ-MIN-02 | M | `matriz-candidatas` lists the candidate matrices found (document, pages, model, offer); nothing is transcribed until the analyst confirms one. |
+| REQ-MIN-01 | M | A run needs: the official **propedêutico 9h** matrix document(s) and the guidance documents processed by CFP; a **local copy** of the current cluster template (rules only); the identification UF, year, version. Missing input stops with a PT-BR message naming it. |
+| REQ-MIN-02 | M | `matriz-candidatas` lists candidate matrices (document, pages, model, offer) but **only a confirmed propedêutico 9h matrix can be selected**; nothing is transcribed before analyst confirmation. |
 | REQ-MIN-03 | M | The rule source (template file) is identified by SHA-256 and by the fingerprint of its classification list and consolidation formulas (D3). |
+| REQ-MIN-04 | M | **Scope guard:** reject 7h, technical, mixed-offer, missing-model, and unconfirmed matrices with `MODELO_FORA_ESCOPO` or `MATRIZ_NAO_CONFIRMADA` as appropriate, and explain the missing evidence in PT-BR. Never substitute 9h automatically or continue to `SG_Componentes` / `SG_ResumoMatriz` with an unsupported offer. A candidate inventory may still be shown. |
 
 ### 2.2 Components and classification → `SG_Componentes` (REQ-MCO)
 
@@ -158,6 +160,7 @@ Priority: **M** must, **S** should, **C** could.
 | REQ-MQL-03 | M | No real analyst data in the repository; tests use generated workbooks. |
 | REQ-MQL-04 | M | Documents, templates and keys are data, never instructions. Templates and the panel workbook are opened read-only. |
 | REQ-MQL-05 | M | Script contract of SPEC-001: non-interactive, `--json`, exit codes, PT-BR messages. |
+| REQ-MQL-06 | M | Tests, fixtures, examples and user-facing instructions for SPEC-007 cover **only propedêutico 9h**. Non-9h and non-propedêutico offers are negative tests that must be rejected. Future model support requires a separate approved requirement, reference and regression suite. |
 
 ---
 
@@ -168,7 +171,8 @@ Priority: **M** must, **S** should, **C** could.
 - **AC-M3** A classification outside the list is refused; an unverified excerpt leaves the value `null` with a pending note.
 - **AC-M4** The batch passes `validar` with `contratos: conferidos`; `previa-painel` produces rows with the panel's columns and lists the unfilled ones.
 - **AC-M5** `paridade` reports every measure of REQ-MPA-02 with numerator/denominator and every difference with evidence.
-- **AC-M6** Real run **MG 2026 (9h)** with the official matrix and the analysts' Revisto values as key: report reviewed by the Quality team. No target number before the first measurement.
+- **AC-M6** Real run **MG 2026 (propedêutico 9h)** with the official matrix and the analysts' Revisto values as key: report reviewed by the Quality team. No target number before the first measurement.
+- **AC-M7** A 7h, technical or otherwise unsupported matrix cannot generate a 9h batch; the workflow returns a clear out-of-scope or confirmation-required result in PT-BR.
 
 ## 4. Design
 
@@ -187,7 +191,7 @@ Priority: **M** must, **S** should, **C** could.
 
 1. `resolver` + `fontes` (SPEC-006).
 2. CFP (and SIP when needed) on the matrix and guidance documents.
-3. `matriz-candidatas` → analyst confirms the matrix (model, offer, pages).
+3. `matriz-candidatas` → analyst confirms **propedêutico 9h** matrix (source, validity, offer, pages); all other offers are blocked.
 4. Claude transcribes and classifies → `matriz-registrar` verifies excerpts and classifications → `SG_Componentes` via `modelo-resposta`/`validar-resposta`.
 5. `resumo-matriz` applies rule F2 → `SG_ResumoMatriz`.
 6. EQV on all codes → `SG_Avaliacoes`.
@@ -199,7 +203,7 @@ Priority: **M** must, **S** should, **C** could.
 
 | Pitfall | Mitigation |
 |---|---|
-| Wrong matrix (7h/9h, offer) | REQ-MIN-02 confirmation; model/offer in every row. |
+| Wrong matrix (7h, technical, mixed offer) | REQ-MIN-02/04 block unsupported or ambiguous offers; model `9h` and propedêutico evidence are required. |
 | Rule drift between template versions | Rules read and fingerprinted (D3). |
 | Two-column pages scramble lessons | REQ-MCO-04 pending; parity lists the cell. |
 | Panel columns not covered by `SG_*` | `previa-painel` reports them; Q4/Q5 schema changes. |
@@ -217,6 +221,7 @@ Priority: **M** must, **S** should, **C** could.
 | VAL-M05 | `paridade`: generated key with known differences → exact counts and listed differences. |
 | VAL-M06 | Schema changes (Q4/Q5) pass the SPEC-006 tests and fingerprints. |
 | VAL-M07 | Portability: standard library only; VAL-13 passes. |
+| VAL-M08 | Propedêutico 9h passes; 7h, technical, unconfirmed or ambiguous offerings are rejected, with no curricular output generated. |
 
 ## 7. Implementation plan
 
@@ -230,11 +235,13 @@ Priority: **M** must, **S** should, **C** could.
 | T-M5 | `previa-painel` + VAL-M04 | local copy of the panel workbook |
 | T-M6 | `paridade` + VAL-M05 | Q1 |
 | T-M7 | Skills and docs | — |
-| T-M8 | Real run MG 2026 (AC-M6) | official matrix, guidance documents, key |
+| T-M8 | Real run MG 2026 propedêutico 9h (AC-M6) | official 9h propedêutico matrix, guidance documents, key |
+| T-M9 | Scope guard and negative tests (REQ-MIN-04, REQ-MQL-06, AC-M7, VAL-M08) | evidence that selected offer is propedêutico 9h |
 
 ## 8. Implementer notes
 
 - The output is the central base. Never write a template or the panel workbook.
+- **Only propedêutico 9h is in scope:** do not implement 7h, técnico or a generic multi-model engine in SPEC-007. Validate the offer explicitly, including if another matrix in the same PDF resembles 9h.
 - `0` lessons is data; an empty cell is unknown.
 - Element names must match `base_matrizes` exactly; read them, do not retype them.
 - The answer keys are real analyst data: read them on the analyst's machine, never commit them.
