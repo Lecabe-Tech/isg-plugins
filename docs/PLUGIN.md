@@ -279,6 +279,9 @@ Everything a user or Claude reads or writes (skills, messages, generated Markdow
 | SPEC-003 | CFP: chunked PDF processing | Implemented (0.2.0 adds images); trialed on MG and CE documents |
 | SPEC-004 | SIP and image integration into CFP | Implemented; accuracy validation pending (needs evaluation set) |
 | SPEC-005 | EQV: comparing the Instituto's orientations (the analysts' template, tabs 1.1 and 1.2) with a state's documents, by meaning, with verified evidence | **Approved v0.3; implemented** (engine, `eqv` skill, tests); trial on 10 CE 2026 cells; full validation pending |
+| SPEC-006 | Quality orchestration and structured SG_* staging | Implemented components, full-state validation and authenticated Excel/BI integration pending |
+| SPEC-007 (PR #6) | Matrix/parity and panel compatibility plan | Proposed in a separate open PR; **not the delivery priority of SPEC-017** |
+| **SPEC-017** | **Current delivery priority: four source classes, two Jhon workflows, typed cross-check, JSON v1 only** | **Proposal; implementation not started**; see [PT-BR entry guide](QUALIDADE-ENTREGA-1.pt-BR.md) |
 
 ---
 
@@ -341,3 +344,8 @@ O programa também valida o JSON e cria staging CSV/JSON sem alterar a base. O O
 **Saída estruturada sem depender do ambiente.** Cada aba é gerada a partir do esqueleto `modelo-resposta`, preenchida na conversa e validada com `validar-resposta`; `agrupar`, `validar` e `preparar` revalidam tudo e registram/conferem o SHA-256 do schema de cada aba (`contratos`). Funciona igual no Claude Code em terminal e na aba Código do app Desktop. O `claude -p --json-schema` é apenas um atalho opcional para quem tem o CLI logado; nenhuma skill depende dele (checagem VAL-13).
 
 Homologação pendente: aprovação da versão ICE, testes MG/2026 com template de orientações apropriado, gravação autorizada no SharePoint, fluxo de revisão humana e conexão com Thomaz. Ver `docs/QUALITY-PIPELINE.pt-BR.md` e `examples/quality/manifesto_ice.example.json`.
+
+
+## 14. New delivery priority — SPEC-017 (2026-11-16, PROPOSED)
+
+**For new maintainers:** start at [Qualidade — Entrega 1 (PT-BR)](QUALIDADE-ENTREGA-1.pt-BR.md) and [SPEC-017](../specs/SPEC-017-jhon-quality-first-json-pipeline.md). SPEC-017 documents a deliberate focus: **propedêutico 9h**, four input classes (state orientations, official matrix, cluster template, approved ICE), **two analytical fronts** (orientations + matrix), typed cross-check, and a **reviewable JSON v1**. Source files may be PDF, DOCX, XLSX, PNG/JPG or other explicitly supported types. Public official-source search is allowed, but access controls on individual SharePoint links are still enforced. **Do not treat existing SG_* staging or Thomaz/BI integration as a milestone deliverable.** This section describes a proposal, not implemented code.
