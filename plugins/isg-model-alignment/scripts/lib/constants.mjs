@@ -6,9 +6,10 @@ export const MARKETPLACE_NAME = 'isg-plugins';
 export const PLUGIN_ID = `${PLUGIN_NAME}@${MARKETPLACE_NAME}`;
 export const SYNCED_ID = `${PLUGIN_NAME}@synced`;
 
-// GitHub organization of the Instituto. Placeholder until the free organization is created (Q2, T2).
-// The release workflow refuses to publish while this is still "<org>" (check-consistency.mjs --release).
-export const GITHUB_ORG = '<org>';
+// GitHub organization that hosts the repository. Interim host until the transfer to the Instituto's
+// organization (Q2, T2); GitHub redirects the old address after a transfer, and the next release sets the new name.
+// The release workflow refuses to publish while this is the "<org>" placeholder (check-consistency.mjs --release).
+export const GITHUB_ORG = 'Lecabe-Tech-Company';
 export const REPO_NAME = 'isg-plugins';
 export const REPO_SLUG = `${GITHUB_ORG}/${REPO_NAME}`;
 export const ORG_IS_PLACEHOLDER = GITHUB_ORG.includes('<');

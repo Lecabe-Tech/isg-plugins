@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { CHANGELOG, LIST_BOTH, LIST_R1, LIST_R2, listCfg, runScript } from './_harness.mjs';
+import { REPO_SLUG } from '../plugins/isg-model-alignment/scripts/lib/constants.mjs';
 
 const UPDATE_CMD = 'plugin update isg-model-alignment@isg-plugins --scope user';
 const MKT_UPDATE = 'plugin marketplace update isg-plugins';
@@ -137,7 +138,10 @@ const HEALTHY_CFG = (list = LIST_R2()) => ({
     'plugin marketplace list --json': { code: 0, stdout: JSON.stringify([{ name: 'isg-plugins', source: 'github', ref: 'stable' }]) },
   },
   gh: { 'auth status': { code: 0, stdout: 'Logged in' } },
-  git: { 'config --get-all credential.helper': { code: 0, stdout: 'manager\n' } },
+  git: {
+    'config --get-all credential.helper': { code: 0, stdout: 'manager\n' },
+    [`ls-remote --heads https://github.com/${REPO_SLUG}.git stable`]: { code: 0, stdout: 'abc123\trefs/heads/stable\n' },
+  },
 });
 const byId = (json, id) => json.checks.find((c) => c.id === id);
 

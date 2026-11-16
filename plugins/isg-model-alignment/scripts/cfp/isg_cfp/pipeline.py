@@ -69,10 +69,24 @@ def validate_inputs(pdf: Path, uf: str, ano) -> tuple:
     return uf, year
 
 
+def replace_with_retry(src: Path, dst: Path, attempts: int = 6) -> None:
+    """os.replace that waits a moment when Windows refuses it because another program (antivirus,
+    indexer, OneDrive) is briefly holding files that were just written. Other systems succeed at once."""
+    import time
+    for attempt in range(attempts):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.25 * (attempt + 1))
+
+
 def _atomic_write_json(path: Path, data) -> None:
     tmp = path.with_name(path.name + f".tmp-{os.getpid()}")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
-    os.replace(tmp, path)
+    replace_with_retry(tmp, path)
 
 
 def load_catalog(cfp_root: Path) -> list:
@@ -96,7 +110,7 @@ def write_catalog(cfp_root: Path, docs: list) -> None:
     _atomic_write_json(cfp_root / "catalogo.json", {"documentos": docs})
     tmp = cfp_root / f"catalogo.md.tmp-{os.getpid()}"
     tmp.write_text(render_catalog_md(docs), encoding="utf-8", newline="\n")
-    os.replace(tmp, cfp_root / "catalogo.md")
+    replace_with_retry(tmp, cfp_root / "catalogo.md")
 
 
 def _render_all(results, info, chunks_cap, minimum, meta, ligatures):
@@ -225,12 +239,12 @@ def process_pdf(pdf, uf, ano, appdata: Path, titulo=None, force=False, max_chars
 
     if target.exists():  # --force: keep the previous folder, never delete (REQ-COU-06)
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        os.replace(target, target.parent / f"{pasta_nome}-substituido-{stamp}")
+        replace_with_retry(target, target.parent / f"{pasta_nome}-substituido-{stamp}")
         for d in catalog:
             if d["pasta"] == rel:
                 d["pasta"] = f"{uf}/{year}/{pasta_nome}-substituido-{stamp}"
                 d["substituido_por"] = rel
-    os.replace(tmp, target)
+    replace_with_retry(tmp, target)
 
     # ---- catalog: new entry; older versions of the same title are marked superseded (REQ-COU-07)
     for d in catalog:

@@ -33,3 +33,23 @@ Você atua como **extrator/propositor**, nunca como aprovador nem escritor diret
 
 
 > Fonte normativa: Scripta [GUIA-021]. Esta skill produz propostas de dados, nunca aprova nem grava diretamente no SharePoint.
+
+## Pré-requisito da análise das orientações — orquestração do PR #2
+
+A EQV compara o documento estadual contra **o texto de cada orientação do ICE**, não contra suposições gerais do Claude. Usar o referencial versionado e aprovado disponível em `ISG_QUALITY_ICE_REFERENCE` e confirmar que o template da EQV contém os códigos/textos e as **colunas da UF e ano** do lote. O template Cluster 4 possui CE/PE/PR/SE e não permite processar MG/2026 diretamente: obter template MG compatível ou adaptador homologado. Sem orientação de referência e documentos suficientes, manter resultado pendente; uma ausência de frase literal **não comprova** ausência de orientação. Preservar justificativas, documentos e páginas.
+
+## Structured Output — contrato versionado (obrigatório)
+
+**Contrato canônico:** `scripts/quality/schemas/SG_Avaliacoes.schema.json`. A skill **não deve** retornar Markdown livre, tabelas, JSON parcialmente preenchido ou campos adicionais quando estiver preparando dados para a integração.
+
+O objeto JSON contém exatamente `aba`, `modo`, `linhas`, `pendencias`, `fontes` e `checagens`. `aba="SG_Avaliacoes"` e `modo="proposta"`. **Todas as colunas da planilha são obrigatórias no JSON de cada linha**; campos sem informação comprovada recebem `null` somente quando seu schema autoriza. Nunca criar colunas extras nem transformar texto livre em número. `Publicado="Não"` e status pendente são valores fixos da geração pelo Claude.
+
+**Esta aba aceita linhas propostas**, sempre pendentes de validação humana. As referências de origem e pendências ficam no envelope, separadas das colunas da tabela Excel.
+
+Para obter o schema utilizado no Claude Code em modo não interativo:
+```text
+python <raiz-do-plugin>/scripts/quality/quality_payload.py esquema --aba SG_Avaliacoes
+```
+O orquestrador usa `claude -p --output-format json --json-schema "<schema JSON>"` para obter `structured_output`. **Uma conversa interativa com a skill não impõe constrained decoding automaticamente**: o JSON ainda deve ser rejeitado se falhar na validação local. Extrair **somente** `structured_output` do envelope CLI; nunca aceitar `result` em Markdown como substituto.
+
+Depois de gerar, executar `quality_payload.py validar-resposta "<arquivo-da-resposta>.json" --json`. Se houver erro, corrigir a extração e executar novamente; **não importar para o SharePoint**. O JSON válido comprova forma e tipos, **não prova a equivalência pedagógica ao ICE**.

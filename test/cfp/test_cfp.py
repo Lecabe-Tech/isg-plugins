@@ -610,6 +610,37 @@ class PerformanceTests(Base):
         print(f"\n  300 pages processed in {elapsed:.1f}s, {r['chunks']} chunks, status {r['status']}")
 
 
+class ReplaceRetryTests(unittest.TestCase):
+    """Windows can refuse a rename for a moment while antivirus/indexer holds new files."""
+
+    def test_retries_a_transient_permission_error(self):
+        from unittest import mock
+        from isg_cfp import pipeline
+        with tempfile.TemporaryDirectory() as tmp:
+            src, dst = Path(tmp) / "a.tmp", Path(tmp) / "a"
+            src.write_text("x", encoding="utf-8")
+            real = os.replace
+            calls = []
+
+            def flaky(s, d):
+                calls.append(1)
+                if len(calls) < 3:
+                    raise PermissionError(5, "Acesso negado")
+                return real(s, d)
+
+            with mock.patch.object(pipeline.os, "replace", side_effect=flaky), mock.patch("time.sleep"):
+                pipeline.replace_with_retry(src, dst)
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(dst.read_text(encoding="utf-8"), "x")
+
+    def test_gives_up_after_the_last_attempt(self):
+        from unittest import mock
+        from isg_cfp import pipeline
+        with mock.patch.object(pipeline.os, "replace", side_effect=PermissionError(5, "Acesso negado")), mock.patch("time.sleep"):
+            with self.assertRaises(PermissionError):
+                pipeline.replace_with_retry(Path("a"), Path("b"), attempts=3)
+
+
 # ---------------------------------------------------------------- SPEC-004: image extraction, SIP registration, enriched copy
 
 from isg_cfp import integrate as sip  # noqa: E402

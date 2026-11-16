@@ -1,0 +1,25 @@
+{
+  "versao": "CONFIRMAR_VERSAO_ICE",
+  "aprovado": false,
+  "aprovado_por": null,
+  "referencias": {
+    "matrizes": {
+      "9h": {
+        "arquivo": "ReferenciaisICE.xlsx",
+        "aba": "matriz_referencial_ICE"
+      }
+    },
+    "orientacoes_pedagogicas": {
+      "arquivo": "ReferenciaisICE.xlsx",
+      "aba": "orientações_referenciais_ICE"
+    },
+    "orientacoes_gestao": {
+      "arquivo": "ReferenciaisICE.xlsx",
+      "aba": "orientações_modelo_gestão"
+    },
+    "criterios": {
+      "arquivo": "ReferenciaisICE.xlsx",
+      "aba": "criterios_calculo"
+    }
+  }
+}

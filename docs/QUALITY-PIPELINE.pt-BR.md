@@ -48,3 +48,104 @@ python "plugins/isg-model-alignment/scripts/quality/quality_payload.py" preparar
 - EQV usa Sim/Não e Revisar; não confundir uma proposta EQV com um dado aprovado.
 - Não existe cliente Microsoft Graph/SharePoint nesta PR e o Office Script precisa ser instalado no tenant.
 - Testes não contêm informações reais de estados e devem ser executados antes da homologação. O repositório exige PR para main e release própria para stable.
+
+
+## Pastas de leitura — documentos estaduais e gabarito ICE
+
+Configure **mais duas variáveis**, distintas do destino `ISG_QUALITY_BASE`:
+
+```powershell
+$env:ISG_QUALITY_STATE_DOCS = "C:\Qualidade\Estados"
+$env:ISG_QUALITY_ICE_REFERENCE = "C:\Qualidade\ReferenciaisICE"
+```
+
+O exemplo acima é ilustrativo; substitua pelos caminhos reais da máquina ou servidor que executará Claude Code. As duas configurações também aparecem nas preferências do plugin como `quality_state_docs` e `quality_ice_reference`. **As variáveis de ambiente têm precedência.**
+
+Estrutura de documentos estaduais:
+
+```text
+C:\Qualidade\Estados\
+    MG\
+        2026\
+            Documento_Orientador_MG_2026.pdf
+            Matriz_Curricular_MG_2026.pdf
+    CE\
+        2026\
+            Diretrizes_CE_2026.pdf
+```
+
+**Não confundir** uma pasta com dados do estado com a pasta ICE. O Claude precisa conferir quais documentos são efetivamente vigentes para cada ano e oferta (7h/9h, propedêutico/técnico), mesmo dentro de `MG/2026`.
+
+A pasta dos referenciais deve incluir `manifesto_ice.json`, que identifica a versão do gabarito **autorizada pela equipe** e os arquivos Excel/abas para cada avaliação. É possível usar um único workbook com várias abas, desde que ele seja uma cópia de referência aprovada e versionada:
+
+```text
+C:\Qualidade\ReferenciaisICE\
+    manifesto_ice.json
+    ReferenciaisICE.xlsx
+```
+
+Conteúdo inicial de **exemplo** para `manifesto_ice.json` (ainda não aprovado):
+
+```json
+{
+  "versao": "CONFIRMAR_VERSAO_ICE",
+  "aprovado": false,
+  "aprovado_por": null,
+  "referencias": {
+    "matrizes": {
+      "9h": {"arquivo": "ReferenciaisICE.xlsx", "aba": "matriz_referencial_ICE"}
+    },
+    "orientacoes_pedagogicas": {"arquivo": "ReferenciaisICE.xlsx", "aba": "orientações_referenciais_ICE"},
+    "orientacoes_gestao": {"arquivo": "ReferenciaisICE.xlsx", "aba": "orientações_modelo_gestão"},
+    "criterios": {"arquivo": "ReferenciaisICE.xlsx", "aba": "criterios_calculo"}
+  }
+}
+```
+
+Para 7h é necessária uma entrada adicional em `referencias.matrizes.7h` apontando para o gabarito de 7h aprovado. A inexistência **bloqueia a avaliação de 7h** — não se utiliza o gabarito 9h como substituto. O responsável pode adicionar `sha256` a cada entrada para impedir troca silenciosa de arquivo. O hash é conferido pelo programa.
+
+A declaração `aprovado=true` no manifesto **não prova que alguém autorizado realmente aprovou**. É somente uma marca de configuração; estabelecer a governança, identificar a versão correta e autenticar a aprovação continua sendo requisito do Instituto. Não marcar `true` apenas para fazer o comando passar.
+
+Antes de analisar Minas Gerais, testar localmente:
+
+```powershell
+python "plugins/isg-model-alignment/scripts/quality/quality_payload.py" fontes --uf MG --ano 2026 --modelo 9h --json
+```
+
+O comando verifica a pasta estadual, arquivos de origem, existência das referências ICE, versão, nomes exatos das abas e hashes informados. Ele **não comprova equivalência pedagógica** nem faz leitura remota de pastas SharePoint. Se as fontes estiverem hospedadas somente no SharePoint, disponibilize uma **cópia local sincronizada autorizada** ou implemente um conector Microsoft autenticado. O plugin atual não tem esse conector.
+
+Quando o preflight falhar, a skill `qualidade` deve interromper a classificação de componentes ICE e retornar pendências. Pode inventariar os documentos, mas nunca concluir que MG está alinhado sem referencial aprovado.
+
+## Saída estruturada — contratos por aba
+
+Os 11 arquivos `plugins/isg-model-alignment/scripts/quality/schemas/<ABA>.schema.json` são o **contrato de máquina**:
+- Cinco tabelas recebem dados propostos: `SG_Documentos`, `SG_Ciclos`, `SG_Componentes`, `SG_ResumoMatriz`, `SG_Avaliacoes`.
+- Seis abas são governança/consulta e **nunca recebem linhas** pelo Claude: `SG_Referenciais`, `SG_Aprovacoes`, `LEIA_ME`, `VALIDACAO`, `DICIONARIO`, `CONTRATO_TH`.
+- Em cada resposta, exigem-se `aba`, `modo`, `linhas`, `pendencias`, `fontes`, `checagens`, sem outros campos. Todos os cabeçalhos das linhas são obrigatórios (valor `null` somente onde permitido). Tipos, valores fixos, enums, ausência de campos extras e identidade UF/ano/modelo são conferidos antes de preparar o lote.
+
+A API Claude aceita `output_config.format={"type":"json_schema","schema": ...}`. No **Claude Code**, use **`claude -p --output-format json --json-schema "<schema-json>"`**, que devolve `structured_output` no envelope de execução. Não confundir `--output-format json` sozinho com aplicação do schema. Em conversas interativas a skill é orientação, **não obriga por si só a geração por constrained decoding**.
+
+Comandos da integração local:
+```bash
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py esquema --aba SG_Ciclos
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py validar-resposta SG_Ciclos.json --json
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py agrupar ./respostas --uf MG --ano 2026 --modelo 9h --versao v1 --saida lote.json --json
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py validar lote.json --json
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py preparar lote.json --saida staging --json
+```
+Os cinco arquivos `./respostas/SG_*.json` devem ter sido gerados com schema aplicado ao Claude Code e ser independentes por aba. O `agrupar` verifica os cinco conjuntos e retorna erro ao faltar qualquer um; o `validar` aplica verificações entre registros e ciclos. A importação no Excel central continua separada, com identidade Microsoft autorizada e sem publicação automática.
+
+O schema impede erros de **estrutura**, não demonstra que um documento foi corretamente interpretado, que o ICE é a versão aprovada ou que uma ausência de orientação foi comprovada. Evidências e decisões seguem para revisão humana.
+
+## Inicialização simplificada por UF e ano — template fixo no cadastro
+
+Há uma **quarta configuração**, `ISG_QUALITY_TEMPLATES_DIR`, para armazenar templates reutilizáveis sem novos envios. Aceita `<pasta>/MG/Template-MG.xlsx` ou a versão mais específica `<pasta>/MG/2026/Template-MG-2026.xlsx`. Para a EQV, o arquivo precisa manter as abas `1.1` e `1.2`, os textos das orientações e colunas `MG/2026`. Mais de um `.xlsx` na mesma pasta selecionada é ambíguo e bloqueia a execução.
+
+```powershell
+$env:ISG_QUALITY_TEMPLATES_DIR = "C:\\Qualidade\\Templates"
+python plugins/isg-model-alignment/scripts/quality/quality_payload.py resolver --ano 2026 --orientacao "C:\\Qualidade\\Estados\\MG\\2026\\Orientacoes-MG.pdf" --json
+```
+
+Se o documento está dentro de `ISG_QUALITY_STATE_DOCS/MG/2026/`, a UF é recuperada do caminho; caso contrário, é necessário especificar `--uf MG` (não confiar somente no nome do PDF). O resultado inclui a localização e o SHA-256 do template, a quantidade de orientações em cada aba, o inventário de documentos da pasta e possíveis matrizes detectadas pelo nome. **Isso é triagem, não comprovação de que a matriz estadual vigente existe**: ela pode estar embutida em outro PDF e precisa ser lida, selecionada e confirmada pelo Claude/analista. Apenas depois se determina 7h ou 9h e se verifica o gabarito ICE correspondente.
+
+O template é reutilizado apenas para **estrutura e orientação de comparação**, nunca como verdade das respostas `Sim/Não` de anos anteriores. Não escrever no template automaticamente. O objetivo é permitir ao usuário trabalhar com **ano + documento orientador do ciclo**, sem reenviar o Excel. Se a pasta estadual não contiver nenhuma matriz válida para o ciclo, a análise curricular precisa parar e solicitar esse documento; o template não supre a falta.

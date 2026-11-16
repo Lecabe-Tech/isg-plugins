@@ -9,7 +9,7 @@
 
 - A Claude **Pro, Max, Ultra, Team or Enterprise** plan. **Claude Free is not supported.**
 - A **personal GitHub account**. Tip: add and verify your institutional email on it so we can tell who is who. **No shared accounts.**
-- To be **invited** to the repository `<org>/isg-plugins` (ask one of the owners: **<owner names>**) and to **accept the invitation** that arrives by email.
+- To be **invited** to the repository `Lecabe-Tech-Company/isg-plugins` (ask one of the owners: **<owner names>**) and to **accept the invitation** that arrives by email.
 
 | Where you use Claude | Route |
 |---|---|
@@ -25,7 +25,7 @@ One install covers chat, Cowork and Claude Code.
 
 1. In **claude.ai** (or the Desktop app) open **Customize > Plugins**.
 2. **Add > Add marketplace**.
-3. Enter `<org>/isg-plugins` and confirm.
+3. Enter `Lecabe-Tech-Company/isg-plugins` and confirm.
 4. If asked, **connect your GitHub account** and authorize the **Claude** GitHub app. If it says you have no access, your invitation is not accepted yet, or the Claude app has no access to the repository: ask the owners.
 5. Open the **isg-plugins** marketplace, pick **ISG Model Alignment**, click **Add**.
 6. Turn on **"Sync automatically"**.
@@ -53,7 +53,7 @@ Choose **GitHub.com** and **HTTPS**. Then set the environment variable `CLAUDE_C
 **Install (2 commands):**
 
 ```bash
-claude plugin marketplace add <org>/isg-plugins#stable
+claude plugin marketplace add Lecabe-Tech-Company/isg-plugins#stable
 claude plugin install isg-model-alignment@isg-plugins
 ```
 
