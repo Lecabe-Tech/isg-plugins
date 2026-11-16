@@ -53,7 +53,7 @@ class QualityPayloadTest(unittest.TestCase):
         docs = home / "estados"
         mg = docs / "MG" / "2026"
         mg.mkdir(parents=True)
-        (mg / "curriculo.pdf").write_bytes(b"Documento sintético")
+        (mg / "curriculo.pdf").write_bytes("Documento sintético".encode("utf-8"))
         ice = home / "ice"
         ice.mkdir()
         workbook = ice / "ice_teste.xlsx"

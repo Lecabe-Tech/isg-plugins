@@ -97,10 +97,10 @@ jobs:
       - name: Unit and script tests
         run: npm test
 
-      - name: CFP tests (Python, SPEC-003 VAL-C01..C08; ground truth from generated PDFs)
+      - name: Python tests (CFP SPEC-003, EQV SPEC-005, quality SPEC-006)
         run: |
           python3 --version
-          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test.cfp.test_cfp -v
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test.cfp.test_cfp test.eqv.test_eqv test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates -v
 
       - name: VAL-12 scripts are non-interactive
         run: node scripts/ci/check-non-interactive.mjs
