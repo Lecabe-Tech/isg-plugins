@@ -1,5 +1,5 @@
 # Documentation only: on the GitHub Free plan CODEOWNERS is NOT enforced on private repositories (REQ-ACC-04).
-# Enforcement is the Release workflow (scripts/ci/release-gates.mjs) plus the team rule "PR + one approval".
+# Enforcement is the Release workflow (scripts/ci/release-gates.mjs) plus the team rule "every change through a PR" (approval optional since SPEC-001 v0.10).
 # When the organization exists (Q2) and the maintainers are named (Q3), replace <org> and uncomment:
 #
 # *                                  @<org>/maintainers

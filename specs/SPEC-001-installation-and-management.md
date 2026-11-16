@@ -36,6 +36,7 @@
 | v0.8 | 2026-11-04 | Repository pushed to the **interim host** `Lecabe-Tech-Company/isg-plugins` (private); ownership to be transferred to the Instituto's account later (Q2, P-44, transfer checklist in `docs/RELEASING.md`). |
 | v0.7 | 2026-11-04 | For SPEC-002: REQ-SRF-03 and VAL-13 amended to allow a **remote** MCP server with a fixed URL (the bundled Notion connection); new check C-13; out-of-scope line now points to SPEC-002 / SPEC-003+. |
 | v0.6 | 2026-11-04 | **Implementation.** Repo created at `C:\dev\isg-plugins` (outside OneDrive, P-26): scaffold, `configure`/`upgrade` skills and scripts, CI check scripts, 31 tests, `validate.yml`, `release.yml`, docs. New spec text: 7.1 status; file list in 4.1; test-only hooks and `redact()` in 4.8; REQ-CST-02 (no path filters); VAL-03 method verified. The repo copy of `specs/` is canonical from now on. |
+| v0.10 | 2026-11-16 | **Release approval relaxed (decision of the repository admin):** the team has a single maintainer account, so REQ-ACC-03 and gate (c) of REQ-REL-03 no longer require an approval from someone other than the author. Gate (c) still requires the released commit to come from a merged PR (no direct push to `main`); approvals, when present, are logged. |
 | v0.5.2 | 2026-11-04 | **T0 Part 1** (this machine): results in `SPEC-001-T0-results.md`; 1.5 status table; CLI resolution via `CLAUDE_CODE_EXECPATH` and script-file quoting rule (4.8); C-03; P-42, P-43; `MIN_CLAUDE_VERSION` = 2.1.317 provisional. Part 2 (GitHub, claude.ai, cloud) pending. |
 
 ### 0.2 Glossary
@@ -121,7 +122,7 @@ Read in the official docs on 2026-11-04 (sources in section 10). Items marked �
 | D3 | For the **CLI route (R2)** users authenticate once with `gh auth login` + `gh auth setup-git` (HTTPS) and set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`. For the **account route (R1)** they connect GitHub on claude.ai instead. | Each route uses the credential it supports. |
 | D4 | **Explicit SemVer `version` in `plugin.json` only.** | Predictable upgrades, auditable history. |
 | D5 | **Two branches.** `main` = integration. `stable` = delivery. Only the Release workflow fast-forwards `stable`. | On Free we cannot protect `main`; this keeps unreleased pushes away from users. |
-| D6 | **Release = release PR + Release workflow.** The workflow only checks, tags, publishes and promotes. It never commits. | Every released commit came through an approved PR. |
+| D6 | **Release = release PR + Release workflow.** The workflow only checks, tags, publishes and promotes. It never commits. | Every released commit came through a merged PR. |
 | D7 | CI on **GitHub Actions, Linux runners**. One Windows smoke test per release. macOS by hand. | Stays inside free minutes. |
 | D8 | `configure` and `upgrade` are **surface-aware skills**. Where a shell and `node` exist (Claude Code), they call **Node.js scripts** shipped in the plugin. Where they don't (chat, Cowork), the skill gives PT-BR manual steps. Scripts never prompt; Claude asks the user. | One code base; works on every surface. |
 | D9 | Paid repository controls are replaced by **process + workflow checks + gitleaks**. | Zero cost (1.3, 1.4). |
@@ -253,7 +254,7 @@ Priority: **M** = must, **S** = should, **C** = could. IDs are stable. Every com
 |---|---|---|
 | REQ-ACC-01 | M | Access is managed **only** in GitHub (collaborators on the repo) for R1, R2 and R4. No token, password, or URL with credentials is committed or shipped in the plugin. **R1 is allowed only if A15 holds.** |
 | REQ-ACC-02 | M | Offboarding = remove the person from the collaborators. After that they cannot fetch updates. Copies already installed or already on their claude.ai account keep working until removed; the guide says so. For R3, offboarding also means removing them from that Claude organization. |
-| REQ-ACC-03 | M | Changes reach `main` **only through a pull request** with at least one approval from a maintainer who is not the author (team rule, documented in `docs/RELEASING.md`). No direct pushes and no force-pushes on `main` or `stable`. PRs never target `stable`. |
+| REQ-ACC-03 | M | Changes reach `main` **only through a pull request** (team rule, documented in `docs/RELEASING.md`). An approval from another maintainer is recommended but not required since v0.10. No direct pushes and no force-pushes on `main` or `stable`. PRs never target `stable`. |
 | REQ-ACC-04 | S | A `CODEOWNERS` file documents who should review what. It is **not enforced** on Free; enforcement is the Release workflow (REQ-REL-03). |
 | REQ-ACC-05 | S | The plugin contains **no secrets**. If a future user-specific value is secret, it uses `userConfig` with `sensitive: true` (Claude Code only; see REQ-SRF-05). |
 | REQ-ACC-06 | S | **Quarterly review** by a release owner: collaborators and access levels, Claude GitHub App repository access, authors of all tags and `stable` moves since the last review, Actions minutes used. Also after every offboarding. Logged in `docs/RELEASING.md`. |
@@ -266,7 +267,7 @@ Priority: **M** = must, **S** = should, **C** = could. IDs are stable. Every com
 |---|---|---|
 | REQ-REL-01 | M | Versions follow **SemVer** `MAJOR.MINOR.PATCH`. `version` lives **only** in `plugins/isg-model-alignment/.claude-plugin/plugin.json`, never in the marketplace entry. First release is `0.1.0`. |
 | REQ-REL-02 | M | There is **one** release procedure: (1) a **release PR** to `main` that bumps `version` and adds the CHANGELOG section, reviewed and merged per REQ-ACC-03; (2) a maintainer runs the **Release workflow** (`workflow_dispatch`, no inputs) with branch `main` selected. |
-| REQ-REL-03 | M | The Release workflow **never commits**. In this order it: (a) checks the actor has Write access; (b) checks it runs on `main` HEAD; (c) checks the HEAD commit belongs to a merged PR with ≥ 1 approval from someone other than the author; (d) reads `version` from `plugin.json`, checks valid SemVer and **greater** than the latest `isg-model-alignment--v*` tag; (e) checks `CHANGELOG.md` has a section for exactly that version; (f) runs VAL-01..04, 11, 13; (g) runs the Windows smoke test (VAL-05 on Windows) and VAL-08; (h) creates the tag with `claude plugin tag --push` as `github-actions[bot]`; (i) publishes a GitHub Release whose notes are that CHANGELOG section; (j) fast-forwards `stable` to the tagged commit. Any failed step stops the workflow and **nothing after it runs**. |
+| REQ-REL-03 | M | The Release workflow **never commits**. In this order it: (a) checks the actor has Write access; (b) checks it runs on `main` HEAD; (c) checks the HEAD commit belongs to a merged PR (approvals are logged, not required since v0.10); (d) reads `version` from `plugin.json`, checks valid SemVer and **greater** than the latest `isg-model-alignment--v*` tag; (e) checks `CHANGELOG.md` has a section for exactly that version; (f) runs VAL-01..04, 11, 13; (g) runs the Windows smoke test (VAL-05 on Windows) and VAL-08; (h) creates the tag with `claude plugin tag --push` as `github-actions[bot]`; (i) publishes a GitHub Release whose notes are that CHANGELOG section; (j) fast-forwards `stable` to the tagged commit. Any failed step stops the workflow and **nothing after it runs**. |
 | REQ-REL-04 | M | A release **cannot** be published if `claude plugin validate --strict` fails. |
 | REQ-REL-05 | M | `plugins/isg-model-alignment/CHANGELOG.md` is written in **PT-BR** in the format of section 4.6. A breaking change goes under `### Quebra de compatibilidade` and requires a MAJOR bump (while `0.x`, a MINOR bump). |
 | REQ-REL-06 | S | **Rollback** = revert the bad change on `main` and release a **new PATCH**. Never move `stable` backwards, never reuse a version number, never delete or move a published tag. |
@@ -395,7 +396,7 @@ Given / When / Then. "Authorized user" = collaborator with Read access, on a sup
 - Then both have `0.2.0`: R2 in `claude plugin list`, R1 in **Customize > Plugins** and, after restarting Claude Code, as the synced copy.
 
 **AC-REL-5 — Release authorization (REQ-ACC-03, REQ-REL-03)**
-- When the Release workflow is started (a) by someone without Write access, (b) on a branch other than `main`, or (c) when the HEAD commit's PR has no approval from someone other than the author,
+- When the Release workflow is started (a) by someone without Write access, (b) on a branch other than `main`, or (c) when the HEAD commit does not come from a merged PR (direct push),
 - Then (a) GitHub does not allow the run or the workflow fails at step (a); (b) and (c) fail before tagging; nothing is published.
 
 **AC-REL-6 — Unreleased changes never reach users (REQ-REL-09, D5, D11)**
@@ -813,7 +814,7 @@ The running script lives in the **old** version folder; updating is safe because
 | UAT-07 | `configure` on healthy and broken R2 machines | AC-CMD-1, 2, 3 |
 | UAT-08 | `upgrade` up to date, no access, offline (R2) | AC-CMD-5 |
 | UAT-09 | Rollback drill: bad PATCH, then fixing PATCH | Users end on the fix without touching caches |
-| UAT-10 | Release workflow by Read-only user, and on a PR without approval | AC-REL-5 |
+| UAT-10 | Release workflow by Read-only user, and on a commit pushed directly to `main` | AC-REL-5 |
 | UAT-11 | Merge to `main` without releasing; R1 and R2 users check | AC-REL-6 |
 | UAT-12 | Write in English, run `configure`/`upgrade` on S1, S4, S6 | AC-LNG-1 |
 | UAT-13 | First quarterly review after the first month | AC-CST-1 |
@@ -920,7 +921,7 @@ These are easy to forget. They are rules, not suggestions.
 2. No code without a requirement ID. If you need something the spec does not say, **stop and change the spec first** (PR to `specs/`), then code.
 3. One task = one branch = one PR **to `main`**. The PR description lists the IDs it closes and how you tested them.
 4. When you open a PR on GitHub, **change the base branch to `main`** — GitHub suggests `stable` because it is the default branch.
-5. A PR is merged only with green CI and an approval from another maintainer. You never approve your own PR. You never merge a red PR "because it's only docs".
+5. A PR is merged only with green CI; an approval from another maintainer is welcome when one is available (not required since v0.10). You never approve your own PR. You never merge a red PR "because it's only docs".
 6. Never push directly to `main` or `stable`. Never force-push. Never delete or move a tag. Even though GitHub Free would let you.
 7. The Release workflow is the only way to publish. If it is broken, fix it or use the manual fallback in `docs/RELEASING.md`. Do not "just tag it by hand".
 8. Users get what is on `stable`, on **every** route. Merging to `main` ships nothing. Running the Release workflow does.
