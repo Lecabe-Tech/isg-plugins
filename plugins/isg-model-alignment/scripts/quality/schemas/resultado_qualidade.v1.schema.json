@@ -1,0 +1,450 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Resultado da Qualidade (SPEC-017, v1)",
+  "description": "Matriz curricular propedêutica de 9h e orientações pedagógicas e de gestão, com evidências, cruzamento, pendências e completude. JSON válido não significa análise aprovada.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "execucao", "fontes", "referencias", "matriz", "orientacoes", "consistencia", "pendencias", "revisao_humana", "metricas", "gravacoes_externas"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "execucao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "solicitacao_id", "revisao", "uf", "ano", "modalidade", "modelo", "versao_referencia_ice", "motor_versao", "gerado_em", "status", "conteudo_sha256"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "solicitacao_id": {"type": "string", "minLength": 1},
+        "revisao": {"type": "integer", "minimum": 1},
+        "uf": {"type": "string", "pattern": "^[A-Z]{2}$"},
+        "ano": {"type": "integer", "minimum": 2024, "maximum": 2100},
+        "modalidade": {"const": "propedeutico"},
+        "modelo": {"const": "9h"},
+        "versao_referencia_ice": {"type": ["string", "null"]},
+        "motor_versao": {"type": "string", "minLength": 1},
+        "gerado_em": {"type": "string", "minLength": 1},
+        "status": {"enum": ["completo", "parcial", "bloqueado"]},
+        "conteudo_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "fontes": {"type": "array", "items": {"$ref": "#/definitions/fonte"}},
+    "referencias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["template", "ice"],
+      "properties": {
+        "template": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fonte_id", "aba_matriz", "classificacoes", "codigos", "regra"],
+          "properties": {
+            "fonte_id": {"type": ["string", "null"]},
+            "aba_matriz": {"type": ["string", "null"]},
+            "classificacoes": {"type": "array", "items": {"type": "string"}},
+            "codigos": {"$ref": "#/definitions/contagem_codigos"},
+            "regra": {
+              "anyOf": [
+                {"type": "null"},
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["regra_id", "formula_sha256", "status", "homologacao"],
+                  "properties": {
+                    "regra_id": {"type": "string"},
+                    "formula_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "status": {"enum": ["reconhecida", "desconhecida"]},
+                    "homologacao": {"anyOf": [{"type": "null"}, {"$ref": "#/definitions/aprovacao"}]}
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "ice": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fonte_ids", "versao", "homologacao", "codigos"],
+          "properties": {
+            "fonte_ids": {"type": "array", "items": {"type": "string"}},
+            "versao": {"type": ["string", "null"]},
+            "homologacao": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["status", "aprovado_por", "data"],
+              "properties": {
+                "status": {"enum": ["declarada_no_manifesto", "ausente"]},
+                "aprovado_por": {"type": ["string", "null"]},
+                "data": {"type": ["string", "null"]}
+              }
+            },
+            "codigos": {"$ref": "#/definitions/contagem_codigos"}
+          }
+        }
+      }
+    },
+    "matriz": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selecao", "minutos_aula", "componentes", "resumo_por_elemento", "completude"],
+      "properties": {
+        "selecao": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "fonte_id", "unidades", "oferta", "vigencia", "evidencias", "confirmada_por_analista", "confirmacao", "candidatas_descartadas", "revisar", "motivos"],
+          "properties": {
+            "status": {"enum": ["nao_registrada", "registrada", "confirmada"]},
+            "fonte_id": {"type": ["string", "null"]},
+            "unidades": {"type": "array", "items": {"type": "string"}},
+            "oferta": {
+              "anyOf": [
+                {"type": "null"},
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["modalidade", "modelo", "etapa"],
+                  "properties": {"modalidade": {"const": "propedeutico"}, "modelo": {"const": "9h"}, "etapa": {"type": ["string", "null"]}}
+                }
+              ]
+            },
+            "vigencia": {"type": ["string", "null"]},
+            "evidencias": {"type": "array", "items": {"$ref": "#/definitions/evidencia"}},
+            "confirmada_por_analista": {"type": "boolean"},
+            "confirmacao": {
+              "anyOf": [
+                {"type": "null"},
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["autor", "data", "motivo"],
+                  "properties": {"autor": {"type": "string", "minLength": 2}, "data": {"type": "string"}, "motivo": {"type": ["string", "null"]}}
+                }
+              ]
+            },
+            "candidatas_descartadas": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["unidades", "motivo"],
+                "properties": {"unidades": {"type": "array", "items": {"type": "string"}}, "motivo": {"type": "string", "minLength": 3}}
+              }
+            },
+            "revisar": {"type": "boolean"},
+            "motivos": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "minutos_aula": {"$ref": "#/definitions/valor_verificado"},
+        "componentes": {"type": "array", "items": {"$ref": "#/definitions/componente"}},
+        "resumo_por_elemento": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "regra_id", "formula_version", "motivo", "elementos"],
+          "properties": {
+            "status": {"enum": ["calculado", "parcial", "pendente_regra_homologada", "pendente_dados"]},
+            "regra_id": {"type": ["string", "null"]},
+            "formula_version": {"type": ["string", "null"]},
+            "motivo": {"type": ["string", "null"]},
+            "elementos": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["elemento", "serie1", "serie2", "serie3", "status", "entradas_contribuintes", "motivo"],
+                "properties": {
+                  "elemento": {"type": "string", "minLength": 1},
+                  "serie1": {"type": ["number", "null"]},
+                  "serie2": {"type": ["number", "null"]},
+                  "serie3": {"type": ["number", "null"]},
+                  "status": {"enum": ["calculado", "pendente"]},
+                  "entradas_contribuintes": {"type": "array", "items": {"type": "string"}},
+                  "motivo": {"type": ["string", "null"]}
+                }
+              }
+            }
+          }
+        },
+        "completude": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "total_linhas_fonte", "linhas_extraidas", "celulas_verificadas", "celulas_ausentes_na_fonte", "celulas_nao_verificadas", "classificacoes_pendentes", "motivos"],
+          "properties": {
+            "status": {"enum": ["completa", "incompleta", "nao_iniciada"]},
+            "total_linhas_fonte": {"type": ["integer", "null"], "minimum": 0},
+            "linhas_extraidas": {"type": "integer", "minimum": 0},
+            "celulas_verificadas": {"type": "integer", "minimum": 0},
+            "celulas_ausentes_na_fonte": {"type": "integer", "minimum": 0},
+            "celulas_nao_verificadas": {"type": "integer", "minimum": 0},
+            "classificacoes_pendentes": {"type": "integer", "minimum": 0},
+            "motivos": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "orientacoes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["codigos", "pedagogicas", "gestao", "completude"],
+      "properties": {
+        "codigos": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "aplicaveis", "somente_template", "somente_ice", "exclusoes", "autoridade"],
+          "properties": {
+            "status": {"enum": ["reconciliado_por_igualdade", "reconciliado_por_mapeamento_aprovado", "nao_reconciliado", "sem_codigos"]},
+            "aplicaveis": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pedagogicas", "gestao"],
+              "properties": {"pedagogicas": {"type": ["integer", "null"], "minimum": 0}, "gestao": {"type": ["integer", "null"], "minimum": 0}}
+            },
+            "somente_template": {"type": "array", "items": {"type": "string"}},
+            "somente_ice": {"type": "array", "items": {"type": "string"}},
+            "exclusoes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["codigo", "motivo"],
+                "properties": {"codigo": {"type": "string"}, "motivo": {"type": "string"}}
+              }
+            },
+            "autoridade": {"type": ["string", "null"]}
+          }
+        },
+        "pedagogicas": {"type": "array", "items": {"$ref": "#/definitions/orientacao"}},
+        "gestao": {"type": "array", "items": {"$ref": "#/definitions/orientacao"}},
+        "completude": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pedagogicas", "gestao"],
+          "properties": {"pedagogicas": {"$ref": "#/definitions/completude_orientacoes"}, "gestao": {"$ref": "#/definitions/completude_orientacoes"}}
+        }
+      }
+    },
+    "consistencia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "conflitos", "checagens"],
+      "properties": {
+        "status": {"enum": ["executada", "nao_executada"]},
+        "conflitos": {"type": "array", "items": {"$ref": "#/definitions/conflito"}},
+        "checagens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["regra", "resultado", "detalhe"],
+            "properties": {"regra": {"type": "string"}, "resultado": {"enum": ["sem_conflito", "conflito", "nao_aplicavel", "ignorada"]}, "detalhe": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "pendencias": {"type": "array", "items": {"$ref": "#/definitions/pendencia"}},
+    "revisao_humana": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["necessaria", "status", "itens"],
+      "properties": {
+        "necessaria": {"const": true},
+        "status": {"enum": ["aguardando"]},
+        "itens": {"type": "integer", "minimum": 0}
+      }
+    },
+    "metricas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cobertura_documental", "cobertura_matriz", "cobertura_orientacoes", "observacao"],
+      "properties": {
+        "cobertura_documental": {"$ref": "#/definitions/razao"},
+        "cobertura_matriz": {"$ref": "#/definitions/razao"},
+        "cobertura_orientacoes": {"$ref": "#/definitions/razao"},
+        "observacao": {"type": "string"}
+      }
+    },
+    "gravacoes_externas": {"type": "array", "maxItems": 0}
+  },
+  "definitions": {
+    "codigo_pendencia": {
+      "enum": ["FONTE_AUSENTE", "ACESSO_NEGADO", "FORMATO_NAO_SUPORTADO", "LEITURA_FALHOU", "VERSAO_DIVERGENTE", "REFERENCIAL_NAO_HOMOLOGADO", "MODELO_FORA_ESCOPO", "TIPO_DIVERGENTE", "FONTE_DUPLICADA", "IMAGEM_PENDENTE", "FORMULA_SEM_VALOR_EM_CACHE", "CONTEUDO_NAO_LIDO", "MATRIZ_NAO_REGISTRADA", "MATRIZ_NAO_CONFIRMADA", "OFERTA_9H_NAO_EVIDENCIADA", "VALOR_NAO_VERIFICADO", "CLASSIFICACAO_PENDENTE", "TOTAL_LINHAS_DESCONHECIDO", "LINHAS_FALTANDO", "REGRA_DESCONHECIDA", "REGRA_NAO_HOMOLOGADA", "CODIGOS_NAO_RECONCILIADOS", "CODIGOS_NAO_IDENTIFICADOS", "PENDENTE_EVIDENCIA", "COBERTURA_DOCUMENTAL_INCOMPLETA", "ORIENTACAO_NAO_AVALIADA", "CRUZAMENTO_NAO_EXECUTADO", "CONFLITO_PENDENTE"]
+    },
+    "contagem_codigos": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pedagogicas", "gestao"],
+      "properties": {"pedagogicas": {"type": "integer", "minimum": 0}, "gestao": {"type": "integer", "minimum": 0}}
+    },
+    "aprovacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aprovado_por", "data"],
+      "properties": {"aprovado_por": {"type": "string", "minLength": 2}, "data": {"type": "string"}}
+    },
+    "razao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numerador", "denominador", "descricao"],
+      "properties": {"numerador": {"type": "integer", "minimum": 0}, "denominador": {"type": ["integer", "null"], "minimum": 0}, "descricao": {"type": "string"}}
+    },
+    "fonte": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "classes", "nome", "uri", "sha256", "media_type", "tamanho_bytes", "extrator", "status_leitura", "cobertura", "metadados", "pendencias"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^DOC-\\d+$"},
+        "classes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["orientacoes_estaduais", "matriz_estadual", "template_cluster", "referencial_ice"]}},
+        "nome": {"type": "string"},
+        "uri": {"type": "string"},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "media_type": {"type": ["string", "null"]},
+        "tamanho_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "extrator": {"type": ["string", "null"]},
+        "status_leitura": {"enum": ["lida", "lida_com_pendencias", "nao_lida"]},
+        "cobertura": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["unidades_total", "unidades_lidas", "unidades_pendentes"],
+          "properties": {
+            "unidades_total": {"type": "integer", "minimum": 0},
+            "unidades_lidas": {"type": "integer", "minimum": 0},
+            "unidades_pendentes": {"type": "integer", "minimum": 0}
+          }
+        },
+        "metadados": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["titulo", "emissor", "versao", "vigencia", "papeis"],
+          "properties": {
+            "titulo": {"type": ["string", "null"]},
+            "emissor": {"type": ["string", "null"]},
+            "versao": {"type": ["string", "null"]},
+            "vigencia": {"type": ["string", "null"]},
+            "papeis": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "pendencias": {"type": "array", "items": {"$ref": "#/definitions/codigo_pendencia"}}
+      }
+    },
+    "evidencia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fonte_id", "unidade", "localizacao", "trecho_literal", "metodo", "verificacao", "relacao"],
+      "properties": {
+        "fonte_id": {"type": "string", "pattern": "^DOC-\\d+$"},
+        "unidade": {"type": "string", "minLength": 1},
+        "localizacao": {"type": "object"},
+        "trecho_literal": {"type": "string"},
+        "metodo": {"enum": ["citacao_conferida", "celula_conferida", "interpretacao_ia", "eqv_citacao_conferida"]},
+        "verificacao": {"enum": ["conferida", "nao_conferida", "nao_verificavel"]},
+        "relacao": {"enum": ["Equivalente", "Parte de", "Cobre", "Indireta", "Distinto", null]}
+      }
+    },
+    "valor_verificado": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["valor", "status", "valor_proposto", "evidencia", "motivo"],
+      "properties": {
+        "valor": {"type": ["number", "null"], "minimum": 0},
+        "status": {"enum": ["verificado", "ausente_na_fonte", "nao_verificado"]},
+        "valor_proposto": {"type": ["number", "null"]},
+        "evidencia": {"anyOf": [{"type": "null"}, {"$ref": "#/definitions/evidencia"}]},
+        "motivo": {"type": ["string", "null"]}
+      }
+    },
+    "componente": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nome_original", "aulas_semanais", "classificacao", "classificacao_status", "justificativa_classificacao", "base_classificacao", "evidencias", "revisar", "motivos"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^C\\d{3}$"},
+        "nome_original": {"type": "string", "minLength": 1},
+        "aulas_semanais": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["serie1", "serie2", "serie3"],
+          "properties": {
+            "serie1": {"$ref": "#/definitions/valor_verificado"},
+            "serie2": {"$ref": "#/definitions/valor_verificado"},
+            "serie3": {"$ref": "#/definitions/valor_verificado"}
+          }
+        },
+        "classificacao": {"type": ["string", "null"]},
+        "classificacao_status": {"enum": ["aceita", "pendente"]},
+        "justificativa_classificacao": {"type": "string"},
+        "base_classificacao": {"enum": ["funcao_educacional", "nome", "nao_informada"]},
+        "evidencias": {"type": "array", "items": {"$ref": "#/definitions/evidencia"}},
+        "revisar": {"type": "boolean"},
+        "motivos": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "orientacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["codigo", "tipo", "texto_referencia", "presenca", "status", "justificativa", "evidencias", "fontes_verificadas", "revisar", "confianca", "origem", "pendencias", "motivos"],
+      "properties": {
+        "codigo": {"type": "string", "pattern": "^[A-Z]{1,4}\\d+$"},
+        "tipo": {"enum": ["pedagogica", "gestao"]},
+        "texto_referencia": {"type": "string"},
+        "presenca": {"enum": ["Sim", "Não", null]},
+        "status": {"enum": ["decidido", "decidido_revisar", "pendente", "nao_avaliado"]},
+        "justificativa": {"type": "string"},
+        "evidencias": {"type": "array", "items": {"$ref": "#/definitions/evidencia"}},
+        "fontes_verificadas": {"type": "array", "items": {"type": "string"}},
+        "revisar": {"type": "boolean"},
+        "confianca": {"type": ["integer", "null"], "minimum": 0, "maximum": 100},
+        "origem": {"enum": ["ia", "analista", "eqv_importada", "nao_avaliado"]},
+        "pendencias": {"type": "array", "items": {"$ref": "#/definitions/codigo_pendencia"}},
+        "motivos": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "completude_orientacoes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "codigos_aplicaveis", "codigos_avaliados", "sim", "nao", "pendentes", "nao_avaliados", "revisar", "motivos"],
+      "properties": {
+        "status": {"enum": ["completa", "incompleta", "nao_iniciada"]},
+        "codigos_aplicaveis": {"type": ["integer", "null"], "minimum": 0},
+        "codigos_avaliados": {"type": "integer", "minimum": 0},
+        "sim": {"type": "integer", "minimum": 0},
+        "nao": {"type": "integer", "minimum": 0},
+        "pendentes": {"type": "integer", "minimum": 0},
+        "nao_avaliados": {"type": "integer", "minimum": 0},
+        "revisar": {"type": "integer", "minimum": 0},
+        "motivos": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "conflito": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["codigo", "gravidade", "predicado", "entidade", "valores", "fontes", "resolucao_pendente", "detalhe"],
+      "properties": {
+        "codigo": {"enum": ["CONTRADICAO_OFERTA_CARGA", "NORMATIVO_VS_OFERTA", "CONFLITO_ENTRE_FONTES", "CLASSIFICACAO_PENDENTE", "COBERTURA_DOCUMENTAL_INCOMPLETA"]},
+        "gravidade": {"enum": ["alta", "media", "baixa"]},
+        "predicado": {"type": "string"},
+        "entidade": {"type": "string"},
+        "valores": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["origem", "fonte_id", "unidade", "valor"],
+            "properties": {"origem": {"type": "string"}, "fonte_id": {"type": ["string", "null"]}, "unidade": {"type": ["string", "null"]}, "valor": {}}
+          }
+        },
+        "fontes": {"type": "array", "items": {"type": "string"}},
+        "resolucao_pendente": {"type": "boolean"},
+        "detalhe": {"type": "string"}
+      }
+    },
+    "pendencia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["codigo", "frente", "detalhe", "fonte_id", "bloqueia_completude"],
+      "properties": {
+        "codigo": {"$ref": "#/definitions/codigo_pendencia"},
+        "frente": {"enum": ["entradas", "matriz", "orientacoes", "consistencia", "geral"]},
+        "detalhe": {"type": "string", "minLength": 3},
+        "fonte_id": {"type": ["string", "null"]},
+        "bloqueia_completude": {"type": "boolean"}
+      }
+    }
+  }
+}

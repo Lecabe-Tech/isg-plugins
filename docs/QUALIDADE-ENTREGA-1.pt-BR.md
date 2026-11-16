@@ -29,6 +29,19 @@ Referências originais no Scripta: **NOTA-009**, **NOTA-016**, **NOTA-019**, **N
 
 **Atenção:** testes anteriores de MG/2026 cobriram parte das orientações e **não comprovam um ciclo completo**. Nenhum percentual global de automação do trabalho do Jhon foi validado.
 
+### 2.1 Implementação da entrega 1 (marcos G0 a G5)
+
+O motor da SPEC-017 está em `plugins/isg-model-alignment/scripts/quality/` e é usado pela skill `/isg-model-alignment:resultado-qualidade`. Ele foi testado só com **dados sintéticos** (`test/quality/test_q17_*.py`).
+
+| Marco | O que existe | Ainda não comprovado |
+|---|---|---|
+| G0 | Manifesto das quatro classes e schema `resultado_qualidade.v1` versionados (`schemas/`), com exemplos em `examples/quality/` | Valores reais de homologação do ICE e das regras |
+| G1 | Leitura de PDF, DOCX, XLSX, PNG/JPEG, TXT/CSV e HTML com hash e localização de cada unidade; pendência explícita para imagem, fórmula sem valor, formato antigo, arquivo ausente ou bloqueado | DOC/XLS antigos dependem de conversão |
+| G2 | Seleção da matriz 9h, transcrição conferida célula a célula ou por citação, `0` × vazio × não verificado, classificação pela lista do template, totais só com a regra homologada | Paridade com uma matriz real conferida pelo analista |
+| G3 | Reconciliação formal dos códigos ICE × template, Sim/Não/pendente com citação conferida, importação da EQV | Reconciliação 70 × 77 pela Qualidade; ciclo real completo |
+| G4 | Cruzamento tipado (oferta, carga, norma × oferta, cobertura) sem alterar as frentes | Casos reais |
+| G5 | JSON validado (schema + consistência), resumo PT-BR, hash de conteúdo reproduzível, relatório de paridade | Revisão da coordenação sobre um ciclo real; execução na aba Código do Desktop |
+
 ## 3. Entradas — formulário futuro e piloto técnico usam o mesmo contrato
 
 | Campo lógico | O que entra | Regra |
