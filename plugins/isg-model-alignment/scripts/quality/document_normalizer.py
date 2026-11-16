@@ -255,9 +255,10 @@ def _xlsx_units(doc_id: str, path: Path, evidence_class: bool) -> tuple:
             avisos = []
             status = "lida"
             if c["formula"] is not None and c["valor"] is None:
-                status = "sem_valor"
-                no_cache += 1
                 avisos.append("Fórmula sem valor calculado salvo no arquivo: o valor não foi inventado.")
+                if evidence_class:  # in the template/ICE the formula TEXT is the rule; its cached value is never used as data
+                    status = "sem_valor"
+                    no_cache += 1
             elif c["tipo"] == "erro":
                 status = "sem_valor"
                 avisos.append(f"A célula mostra erro do Excel ({c['texto']}).")

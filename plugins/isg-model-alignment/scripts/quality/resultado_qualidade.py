@@ -246,6 +246,67 @@ def cmd_cruzar(args):
                 % (len(r["conflitos"]), sum(c["resultado"] == "sem_conflito" for c in r["checagens"])), r, extra_text=extra)
 
 
+# ---------------- G5: final JSON, summary, parity ----------------
+
+def cmd_resultado(args):
+    import quality_result as QR
+
+    r = QR.write(Path(args.pasta), Path(args.saida) if args.saida else None)
+    if not r["ok"]:
+        v = r["validacao"]
+        return emit(args, False, "resultado", "RESULTADO_INVALIDO", "O resultado não passou na validação e não foi gravado: %s" % "; ".join((v["erros_schema"] + v["erros_semanticos"])[:8]),
+                    {"validacao": v})
+    e = r["resultado"]["execucao"]
+    msg = "Resultado gravado e validado (%s): %s. Status: %s. Resumo para revisão: %s. Nada foi gravado no Excel, SharePoint, base central ou painel." % (
+        e["id"], r["arquivo"], e["status"], r["resumo"])
+    return emit(args, True, "resultado", "RESULTADO_GRAVADO", msg, {"arquivo": r["arquivo"], "resumo": r["resumo"], "status": e["status"], "conteudo_sha256": e["conteudo_sha256"],
+                                                                   "pendencias": r["resultado"]["pendencias"]})
+
+
+def cmd_validar(args):
+    import quality_result as QR
+
+    v = QR.validate(read_json_file(args.resultado))
+    if v["valido"]:
+        return emit(args, True, "validar", "RESULTADO_VALIDO", "O arquivo segue o schema v1 e as regras de consistência. Isso não significa análise aprovada: a revisão humana continua necessária.", v)
+    return emit(args, False, "validar", "RESULTADO_INVALIDO", "O arquivo tem %d erro(s) de schema e %d de consistência." % (len(v["erros_schema"]), len(v["erros_semanticos"])), v,
+                extra_text="\n".join(v["erros_schema"] + v["erros_semanticos"]))
+
+
+def cmd_resumo(args):
+    import quality_result as QR
+
+    data = read_json_file(args.resultado)
+    v = QR.validate(data)
+    if not v["valido"]:
+        return emit(args, False, "resumo", "RESULTADO_INVALIDO", "O resumo só é gerado de um resultado válido. Rode o comando validar para ver os erros.", v)
+    text = QR.summary_md(data)
+    return emit(args, True, "resumo", "RESUMO", "Resumo em português gerado do mesmo JSON.", {"markdown": text}, extra_text=text)
+
+
+def cmd_paridade(args):
+    import quality_result as QR
+
+    data = read_json_file(args.resultado)
+    if args.gabarito_template:
+        key = QR.key_from_template(Path(args.gabarito_template), data["execucao"]["uf"], data["execucao"]["ano"])
+    elif args.gabarito:
+        key = read_json_file(args.gabarito)
+    else:
+        return emit(args, False, "paridade", "USO_INCORRETO", "Informe --gabarito-template (template preenchido) ou --gabarito (JSON).", exit_code=EXIT_USAGE)
+    rep = QR.parity(data, key)
+    if args.saida:
+        Path(args.saida).write_text(json.dumps(rep, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    m, o = rep["matriz"], rep["orientacoes"]
+    msg = ("Paridade com %s. Matriz: %d linha(s) pareada(s) de %d do gabarito; campos comparados %d, iguais %d, diferentes %d, sem valor no plugin %d. "
+           "Orientações: comparadas %d, iguais %d, diferentes %d, sem decisão do plugin %d." % (
+               rep["gabarito"], m["pareadas"], m["linhas_gabarito"], m["campos"]["comparados"], m["campos"]["iguais"], m["campos"]["diferentes"], m["campos"]["sem_valor_no_plugin"],
+               o["comparadas"], o["iguais"], o["diferentes"], o["sem_decisao_no_plugin"]))
+    extra = "\n".join(["%s %s: plugin %s, gabarito %s" % (d["componente"], d["campo"], d["plugin"], d["gabarito"]) for d in m["diferencas"]]
+                      + ["%s: plugin %s, gabarito %s" % (d["codigo"], d["plugin"], d["gabarito"]) for d in o["diferencas"]])
+    return emit(args, True, "paridade", "PARIDADE", msg, rep, extra_text=extra)
+
+
 HANDLERS = {
     "esquema": cmd_esquema, "manifesto-validar": cmd_manifesto_validar, "iniciar": cmd_iniciar, "inventario": cmd_inventario,
     "buscar": cmd_buscar, "unidades": cmd_unidades, "imagem-registrar": cmd_imagem_registrar,
@@ -253,6 +314,7 @@ HANDLERS = {
     "orientacoes-codigos": cmd_orientacoes_codigos, "orientacoes-registrar": cmd_orientacoes_registrar, "orientacao-decidir": cmd_orientacao_decidir,
     "orientacoes-importar-eqv": cmd_orientacoes_importar_eqv, "orientacoes-status": cmd_orientacoes_status,
     "afirmacoes-registrar": cmd_afirmacoes_registrar, "cruzar": cmd_cruzar,
+    "resultado": cmd_resultado, "validar": cmd_validar, "resumo": cmd_resumo, "paridade": cmd_paridade,
 }
 
 
@@ -304,6 +366,14 @@ def build_parser():
     add("orientacoes-status")
     add("afirmacoes-registrar").add_argument("afirmacoes", help="JSON com afirmações tipadas (oferta, nao_oferta, carga_semanal, exigencia_normativa)")
     add("cruzar")
+    add("resultado").add_argument("--saida", default="", help="arquivo de saída (padrão: <pasta>/resultado_qualidade.v1.json)")
+    add("validar", run=False).add_argument("resultado")
+    add("resumo", run=False).add_argument("resultado")
+    sp = add("paridade", run=False)
+    sp.add_argument("resultado")
+    sp.add_argument("--gabarito-template", default="", help="template do cluster preenchido pelos analistas (cópia local)")
+    sp.add_argument("--gabarito", default="", help="gabarito em JSON")
+    sp.add_argument("--saida", default="")
     return p
 
 

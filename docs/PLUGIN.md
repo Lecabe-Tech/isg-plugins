@@ -281,7 +281,7 @@ Everything a user or Claude reads or writes (skills, messages, generated Markdow
 | SPEC-005 | EQV: comparing the Instituto's orientations (the analysts' template, tabs 1.1 and 1.2) with a state's documents, by meaning, with verified evidence | **Approved v0.3; implemented** (engine, `eqv` skill, tests); trial on 10 CE 2026 cells; full validation pending |
 | SPEC-006 | Quality orchestration and structured SG_* staging | Implemented components, full-state validation and authenticated Excel/BI integration pending |
 | SPEC-007 (PR #6) | Matrix/parity and panel compatibility plan | Proposed in a separate open PR; **not the delivery priority of SPEC-017** |
-| **SPEC-017** | **Current delivery priority: four source classes, two Jhon workflows, typed cross-check, JSON v1 only** | **Proposal; implementation not started**; see [PT-BR entry guide](QUALIDADE-ENTREGA-1.pt-BR.md) |
+| **SPEC-017** | **Current delivery priority: four source classes, two Jhon workflows, typed cross-check, JSON v1 only** | **Engine G0–G5 implemented with synthetic tests** (`scripts/quality/resultado_qualidade.py`, skill `resultado-qualidade`); real reviewed 9h cycle (AC-017-15) and Desktop execution (AC-017-16) not yet demonstrated; see [PT-BR entry guide](QUALIDADE-ENTREGA-1.pt-BR.md) |
 
 ---
 

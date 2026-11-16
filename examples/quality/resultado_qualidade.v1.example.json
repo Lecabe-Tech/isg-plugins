@@ -1,0 +1,1175 @@
+{
+  "schema_version": "1.0",
+  "execucao": {
+    "id": "EXEMPLO-SINTETICO-001-r1",
+    "solicitacao_id": "EXEMPLO-SINTETICO-001",
+    "revisao": 1,
+    "uf": "MG",
+    "ano": 2026,
+    "modalidade": "propedeutico",
+    "modelo": "9h",
+    "versao_referencia_ice": "SINTETICA-1",
+    "motor_versao": "spec017-1.0.0",
+    "gerado_em": "2026-11-16T00:00:00+00:00",
+    "status": "completo",
+    "conteudo_sha256": "4b69e8ec3d3dbe3cdba8f9faedfd668fcaacc7861ff6ffb4883e21b743f3338f"
+  },
+  "fontes": [
+    {
+      "id": "DOC-1",
+      "classes": [
+        "orientacoes_estaduais"
+      ],
+      "nome": "diretrizes.pdf",
+      "uri": "diretrizes.pdf",
+      "sha256": "3bc1035b12603d229dbca14cb7029e9d1082f71d497a3d98163e0c22ab4d86e7",
+      "media_type": "application/pdf",
+      "tamanho_bytes": 5887,
+      "extrator": "q17-normalizer-1/pdf",
+      "status_leitura": "lida",
+      "cobertura": {
+        "unidades_total": 2,
+        "unidades_lidas": 2,
+        "unidades_pendentes": 0
+      },
+      "metadados": {
+        "titulo": null,
+        "emissor": null,
+        "versao": null,
+        "vigencia": null,
+        "papeis": [
+          "orientacao"
+        ]
+      },
+      "pendencias": []
+    },
+    {
+      "id": "DOC-2",
+      "classes": [
+        "orientacoes_estaduais"
+      ],
+      "nome": "gestao.docx",
+      "uri": "gestao.docx",
+      "sha256": "2c8f954ea6e5a29b127f9e5e53be94270eef2c8aa335d6335684b03d21d18dc8",
+      "media_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "tamanho_bytes": 751,
+      "extrator": "q17-normalizer-1/docx",
+      "status_leitura": "lida",
+      "cobertura": {
+        "unidades_total": 6,
+        "unidades_lidas": 6,
+        "unidades_pendentes": 0
+      },
+      "metadados": {
+        "titulo": null,
+        "emissor": null,
+        "versao": null,
+        "vigencia": null,
+        "papeis": [
+          "orientacao"
+        ]
+      },
+      "pendencias": []
+    },
+    {
+      "id": "DOC-3",
+      "classes": [
+        "matriz_estadual"
+      ],
+      "nome": "matriz.xlsx",
+      "uri": "matriz.xlsx",
+      "sha256": "0d44e9660efaf9acff87415472058a3773cacfbdebe8d8855a3cbff9244f63f7",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "tamanho_bytes": 1976,
+      "extrator": "q17-normalizer-1/xlsx",
+      "status_leitura": "lida",
+      "cobertura": {
+        "unidades_total": 44,
+        "unidades_lidas": 44,
+        "unidades_pendentes": 0
+      },
+      "metadados": {
+        "titulo": null,
+        "emissor": null,
+        "versao": null,
+        "vigencia": "2026",
+        "papeis": [
+          "matriz"
+        ]
+      },
+      "pendencias": []
+    },
+    {
+      "id": "DOC-4",
+      "classes": [
+        "template_cluster"
+      ],
+      "nome": "template.xlsx",
+      "uri": "template.xlsx",
+      "sha256": "69acc9cc58c2e725fda304510e91d008395ff6db49396913043fd8be926175f7",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "tamanho_bytes": 3930,
+      "extrator": "q17-normalizer-1/xlsx",
+      "status_leitura": "lida",
+      "cobertura": {
+        "unidades_total": 169,
+        "unidades_lidas": 169,
+        "unidades_pendentes": 0
+      },
+      "metadados": {
+        "titulo": null,
+        "emissor": null,
+        "versao": null,
+        "vigencia": null,
+        "papeis": [
+          "template"
+        ]
+      },
+      "pendencias": []
+    },
+    {
+      "id": "DOC-5",
+      "classes": [
+        "referencial_ice"
+      ],
+      "nome": "ice.xlsx",
+      "uri": "ice.xlsx",
+      "sha256": "beb1d5de1ec9cb42ce27e24f806ffed4c23b2932155dd456da8d9b510d38d1de",
+      "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "tamanho_bytes": 2198,
+      "extrator": "q17-normalizer-1/xlsx",
+      "status_leitura": "lida",
+      "cobertura": {
+        "unidades_total": 42,
+        "unidades_lidas": 42,
+        "unidades_pendentes": 0
+      },
+      "metadados": {
+        "titulo": null,
+        "emissor": null,
+        "versao": "SINTETICA-1",
+        "vigencia": null,
+        "papeis": [
+          "referencial"
+        ]
+      },
+      "pendencias": []
+    }
+  ],
+  "referencias": {
+    "template": {
+      "fonte_id": "DOC-4",
+      "aba_matriz": "2.1 Revisão Matriz MG",
+      "classificacoes": [
+        "Formação Geral Básica",
+        "Aprofundamento",
+        "Eletivas de Base",
+        "Projeto de Vida",
+        "Estudo Orientado e Avaliação Semanal",
+        "Tutoria",
+        "Práticas Experimentais",
+        "Pós-Médio",
+        "Projeto de Corresponsabilidade Social",
+        "Protagonismo",
+        "Recomposição",
+        "Outros componentes da Parte Diversificada"
+      ],
+      "codigos": {
+        "pedagogicas": 3,
+        "gestao": 2
+      },
+      "regra": {
+        "regra_id": "template-revisao-matriz:1d5535d0b7e7",
+        "formula_sha256": "1d5535d0b7e7801ef0d3836750f16a6086b7f707e3d04926b91b5c86123fe38d",
+        "status": "reconhecida",
+        "homologacao": {
+          "aprovado_por": "Coordenação de Qualidade (sintético)",
+          "data": "2026-11-16"
+        }
+      }
+    },
+    "ice": {
+      "fonte_ids": [
+        "DOC-5"
+      ],
+      "versao": "SINTETICA-1",
+      "homologacao": {
+        "status": "declarada_no_manifesto",
+        "aprovado_por": "Coordenação (sintético)",
+        "data": "2026-11-16"
+      },
+      "codigos": {
+        "pedagogicas": 3,
+        "gestao": 2
+      }
+    }
+  },
+  "matriz": {
+    "selecao": {
+      "status": "confirmada",
+      "fonte_id": "DOC-3",
+      "unidades": [
+        "DOC-3:Integral 9h"
+      ],
+      "oferta": {
+        "modalidade": "propedeutico",
+        "modelo": "9h",
+        "etapa": "Ensino Médio em Tempo Integral"
+      },
+      "vigencia": "2026",
+      "evidencias": [
+        {
+          "fonte_id": "DOC-3",
+          "unidade": "DOC-3:Integral 9h!A1",
+          "localizacao": {
+            "tipo": "sheet_cell",
+            "aba": "Integral 9h",
+            "celula": "A1"
+          },
+          "trecho_literal": "ENSINO MÉDIO EM TEMPO INTEGRAL 9 HORAS - PROPEDÊUTICO",
+          "metodo": "citacao_conferida",
+          "verificacao": "conferida",
+          "relacao": null
+        }
+      ],
+      "confirmada_por_analista": true,
+      "confirmacao": {
+        "autor": "Analista sintético",
+        "data": "2026-11-16T00:00:00+00:00",
+        "motivo": "Conferida com a resolução sintética"
+      },
+      "candidatas_descartadas": [
+        {
+          "unidades": [
+            "DOC-3:Técnico"
+          ],
+          "motivo": "Oferta integrada ao ensino técnico"
+        }
+      ],
+      "revisar": false,
+      "motivos": []
+    },
+    "minutos_aula": {
+      "valor": 50,
+      "status": "verificado",
+      "valor_proposto": 50,
+      "evidencia": {
+        "fonte_id": "DOC-3",
+        "unidade": "DOC-3:Integral 9h!A2",
+        "localizacao": {
+          "tipo": "sheet_cell",
+          "aba": "Integral 9h",
+          "celula": "A2"
+        },
+        "trecho_literal": "Duração da hora-aula: 50 minutos",
+        "metodo": "citacao_conferida",
+        "verificacao": "conferida",
+        "relacao": null
+      },
+      "motivo": null
+    },
+    "componentes": [
+      {
+        "id": "C001",
+        "nome_original": "Língua Portuguesa",
+        "aulas_semanais": {
+          "serie1": {
+            "valor": 5,
+            "status": "verificado",
+            "valor_proposto": 5,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!B4",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "B4"
+              },
+              "trecho_literal": "5",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie2": {
+            "valor": 5,
+            "status": "verificado",
+            "valor_proposto": 5,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!C4",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "C4"
+              },
+              "trecho_literal": "5",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie3": {
+            "valor": 5,
+            "status": "verificado",
+            "valor_proposto": 5,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!D4",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "D4"
+              },
+              "trecho_literal": "5",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          }
+        },
+        "classificacao": "Formação Geral Básica",
+        "classificacao_status": "aceita",
+        "justificativa_classificacao": "Língua Portuguesa: função educacional equivalente à categoria 'Formação Geral Básica' do template.",
+        "base_classificacao": "funcao_educacional",
+        "evidencias": [
+          {
+            "fonte_id": "DOC-3",
+            "unidade": "DOC-3:Integral 9h!A4",
+            "localizacao": {
+              "tipo": "sheet_cell",
+              "aba": "Integral 9h",
+              "celula": "A4"
+            },
+            "trecho_literal": "Língua Portuguesa",
+            "metodo": "citacao_conferida",
+            "verificacao": "conferida",
+            "relacao": null
+          }
+        ],
+        "revisar": false,
+        "motivos": []
+      },
+      {
+        "id": "C002",
+        "nome_original": "Matemática",
+        "aulas_semanais": {
+          "serie1": {
+            "valor": 5,
+            "status": "verificado",
+            "valor_proposto": 5,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!B5",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "B5"
+              },
+              "trecho_literal": "5",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie2": {
+            "valor": 5,
+            "status": "verificado",
+            "valor_proposto": 5,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!C5",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "C5"
+              },
+              "trecho_literal": "5",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie3": {
+            "valor": 5,
+            "status": "verificado",
+            "valor_proposto": 5,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!D5",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "D5"
+              },
+              "trecho_literal": "5",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          }
+        },
+        "classificacao": "Formação Geral Básica",
+        "classificacao_status": "aceita",
+        "justificativa_classificacao": "Matemática: função educacional equivalente à categoria 'Formação Geral Básica' do template.",
+        "base_classificacao": "funcao_educacional",
+        "evidencias": [
+          {
+            "fonte_id": "DOC-3",
+            "unidade": "DOC-3:Integral 9h!A5",
+            "localizacao": {
+              "tipo": "sheet_cell",
+              "aba": "Integral 9h",
+              "celula": "A5"
+            },
+            "trecho_literal": "Matemática",
+            "metodo": "citacao_conferida",
+            "verificacao": "conferida",
+            "relacao": null
+          }
+        ],
+        "revisar": false,
+        "motivos": []
+      },
+      {
+        "id": "C003",
+        "nome_original": "Projeto de Vida",
+        "aulas_semanais": {
+          "serie1": {
+            "valor": 2,
+            "status": "verificado",
+            "valor_proposto": 2,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!B6",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "B6"
+              },
+              "trecho_literal": "2",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie2": {
+            "valor": 2,
+            "status": "verificado",
+            "valor_proposto": 2,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!C6",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "C6"
+              },
+              "trecho_literal": "2",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie3": {
+            "valor": 0,
+            "status": "verificado",
+            "valor_proposto": 0,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!D6",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "D6"
+              },
+              "trecho_literal": "0",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          }
+        },
+        "classificacao": "Projeto de Vida",
+        "classificacao_status": "aceita",
+        "justificativa_classificacao": "Projeto de Vida: função educacional equivalente à categoria 'Projeto de Vida' do template.",
+        "base_classificacao": "funcao_educacional",
+        "evidencias": [
+          {
+            "fonte_id": "DOC-3",
+            "unidade": "DOC-3:Integral 9h!A6",
+            "localizacao": {
+              "tipo": "sheet_cell",
+              "aba": "Integral 9h",
+              "celula": "A6"
+            },
+            "trecho_literal": "Projeto de Vida",
+            "metodo": "citacao_conferida",
+            "verificacao": "conferida",
+            "relacao": null
+          }
+        ],
+        "revisar": false,
+        "motivos": []
+      },
+      {
+        "id": "C004",
+        "nome_original": "Eletiva",
+        "aulas_semanais": {
+          "serie1": {
+            "valor": 2,
+            "status": "verificado",
+            "valor_proposto": 2,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!B7",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "B7"
+              },
+              "trecho_literal": "2",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie2": {
+            "valor": 2,
+            "status": "verificado",
+            "valor_proposto": 2,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!C7",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "C7"
+              },
+              "trecho_literal": "2",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie3": {
+            "valor": 2,
+            "status": "verificado",
+            "valor_proposto": 2,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!D7",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "D7"
+              },
+              "trecho_literal": "2",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          }
+        },
+        "classificacao": "Eletivas de Base",
+        "classificacao_status": "aceita",
+        "justificativa_classificacao": "Eletiva: função educacional equivalente à categoria 'Eletivas de Base' do template.",
+        "base_classificacao": "funcao_educacional",
+        "evidencias": [
+          {
+            "fonte_id": "DOC-3",
+            "unidade": "DOC-3:Integral 9h!A7",
+            "localizacao": {
+              "tipo": "sheet_cell",
+              "aba": "Integral 9h",
+              "celula": "A7"
+            },
+            "trecho_literal": "Eletiva",
+            "metodo": "citacao_conferida",
+            "verificacao": "conferida",
+            "relacao": null
+          }
+        ],
+        "revisar": false,
+        "motivos": []
+      },
+      {
+        "id": "C005",
+        "nome_original": "Estudo Orientado",
+        "aulas_semanais": {
+          "serie1": {
+            "valor": 4,
+            "status": "verificado",
+            "valor_proposto": 4,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!B8",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "B8"
+              },
+              "trecho_literal": "4",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie2": {
+            "valor": 4,
+            "status": "verificado",
+            "valor_proposto": 4,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!C8",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "C8"
+              },
+              "trecho_literal": "4",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie3": {
+            "valor": 4,
+            "status": "verificado",
+            "valor_proposto": 4,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!D8",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "D8"
+              },
+              "trecho_literal": "4",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          }
+        },
+        "classificacao": "Estudo Orientado e Avaliação Semanal",
+        "classificacao_status": "aceita",
+        "justificativa_classificacao": "Estudo Orientado: função educacional equivalente à categoria 'Estudo Orientado e Avaliação Semanal' do template.",
+        "base_classificacao": "funcao_educacional",
+        "evidencias": [
+          {
+            "fonte_id": "DOC-3",
+            "unidade": "DOC-3:Integral 9h!A8",
+            "localizacao": {
+              "tipo": "sheet_cell",
+              "aba": "Integral 9h",
+              "celula": "A8"
+            },
+            "trecho_literal": "Estudo Orientado",
+            "metodo": "citacao_conferida",
+            "verificacao": "conferida",
+            "relacao": null
+          }
+        ],
+        "revisar": false,
+        "motivos": []
+      },
+      {
+        "id": "C006",
+        "nome_original": "Robótica",
+        "aulas_semanais": {
+          "serie1": {
+            "valor": 0,
+            "status": "verificado",
+            "valor_proposto": 0,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!B9",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "B9"
+              },
+              "trecho_literal": "0",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie2": {
+            "valor": 2,
+            "status": "verificado",
+            "valor_proposto": 2,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!C9",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "C9"
+              },
+              "trecho_literal": "2",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          },
+          "serie3": {
+            "valor": 2,
+            "status": "verificado",
+            "valor_proposto": 2,
+            "evidencia": {
+              "fonte_id": "DOC-3",
+              "unidade": "DOC-3:Integral 9h!D9",
+              "localizacao": {
+                "tipo": "sheet_cell",
+                "aba": "Integral 9h",
+                "celula": "D9"
+              },
+              "trecho_literal": "2",
+              "metodo": "celula_conferida",
+              "verificacao": "conferida",
+              "relacao": null
+            },
+            "motivo": null
+          }
+        },
+        "classificacao": "Aprofundamento",
+        "classificacao_status": "aceita",
+        "justificativa_classificacao": "Robótica: função educacional equivalente à categoria 'Aprofundamento' do template.",
+        "base_classificacao": "funcao_educacional",
+        "evidencias": [
+          {
+            "fonte_id": "DOC-3",
+            "unidade": "DOC-3:Integral 9h!A9",
+            "localizacao": {
+              "tipo": "sheet_cell",
+              "aba": "Integral 9h",
+              "celula": "A9"
+            },
+            "trecho_literal": "Robótica",
+            "metodo": "citacao_conferida",
+            "verificacao": "conferida",
+            "relacao": null
+          }
+        ],
+        "revisar": false,
+        "motivos": []
+      }
+    ],
+    "resumo_por_elemento": {
+      "status": "calculado",
+      "regra_id": "template-revisao-matriz:1d5535d0b7e7",
+      "formula_version": "1d5535d0b7e7801ef0d3836750f16a6086b7f707e3d04926b91b5c86123fe38d",
+      "motivo": "Regra homologada por Coordenação de Qualidade (sintético) em 2026-11-16.",
+      "elementos": [
+        {
+          "elemento": "Matriz completa",
+          "serie1": 18,
+          "serie2": 20,
+          "serie3": 18,
+          "status": "calculado",
+          "entradas_contribuintes": [
+            "Formação Geral Básica",
+            "Aprofundamento",
+            "Eletivas de Base",
+            "Projeto de Vida",
+            "Estudo Orientado e Avaliação Semanal",
+            "Tutoria",
+            "Práticas Experimentais",
+            "Pós-Médio",
+            "Projeto de Corresponsabilidade Social",
+            "Protagonismo",
+            "Recomposição",
+            "Outros componentes da Parte Diversificada"
+          ],
+          "motivo": null
+        },
+        {
+          "elemento": "Formação Geral Básica",
+          "serie1": 10,
+          "serie2": 10,
+          "serie3": 10,
+          "status": "calculado",
+          "entradas_contribuintes": [
+            "C001",
+            "C002"
+          ],
+          "motivo": null
+        },
+        {
+          "elemento": "Aprofundamento",
+          "serie1": 0,
+          "serie2": 2,
+          "serie3": 2,
+          "status": "calculado",
+          "entradas_contribuintes": [
+            "C006"
+          ],
+          "motivo": null
+        },
+        {
+          "elemento": "Eletivas de Base",
+          "serie1": 2,
+          "serie2": 2,
+          "serie3": 2,
+          "status": "calculado",
+          "entradas_contribuintes": [
+            "C004"
+          ],
+          "motivo": null
+        },
+        {
+          "elemento": "Projeto de Vida",
+          "serie1": 2,
+          "serie2": 2,
+          "serie3": 0,
+          "status": "calculado",
+          "entradas_contribuintes": [
+            "C003"
+          ],
+          "motivo": null
+        },
+        {
+          "elemento": "Estudo Orientado e Avaliação Semanal",
+          "serie1": 4,
+          "serie2": 4,
+          "serie3": 4,
+          "status": "calculado",
+          "entradas_contribuintes": [
+            "C005"
+          ],
+          "motivo": null
+        },
+        {
+          "elemento": "Tutoria",
+          "serie1": 0,
+          "serie2": 0,
+          "serie3": 0,
+          "status": "calculado",
+          "entradas_contribuintes": [],
+          "motivo": null
+        },
+        {
+          "elemento": "Práticas Experimentais",
+          "serie1": 0,
+          "serie2": 0,
+          "serie3": 0,
+          "status": "calculado",
+          "entradas_contribuintes": [],
+          "motivo": null
+        },
+        {
+          "elemento": "Pós-Médio",
+          "serie1": 0,
+          "serie2": 0,
+          "serie3": 0,
+          "status": "calculado",
+          "entradas_contribuintes": [],
+          "motivo": null
+        },
+        {
+          "elemento": "Projeto de Corresponsabilidade Social",
+          "serie1": 0,
+          "serie2": 0,
+          "serie3": 0,
+          "status": "calculado",
+          "entradas_contribuintes": [],
+          "motivo": null
+        },
+        {
+          "elemento": "Protagonismo",
+          "serie1": 0,
+          "serie2": 0,
+          "serie3": 0,
+          "status": "calculado",
+          "entradas_contribuintes": [],
+          "motivo": null
+        },
+        {
+          "elemento": "Recomposição",
+          "serie1": 0,
+          "serie2": 0,
+          "serie3": 0,
+          "status": "calculado",
+          "entradas_contribuintes": [],
+          "motivo": null
+        },
+        {
+          "elemento": "Outros componentes da Parte Diversificada",
+          "serie1": 0,
+          "serie2": 0,
+          "serie3": 0,
+          "status": "calculado",
+          "entradas_contribuintes": [],
+          "motivo": null
+        },
+        {
+          "elemento": "Projeto de Vida + Pós-Médio",
+          "serie1": 2,
+          "serie2": 2,
+          "serie3": 0,
+          "status": "calculado",
+          "entradas_contribuintes": [
+            "Projeto de Vida",
+            "Pós-Médio"
+          ],
+          "motivo": null
+        },
+        {
+          "elemento": "Itinerários Formativos",
+          "serie1": 8,
+          "serie2": 10,
+          "serie3": 8,
+          "status": "calculado",
+          "entradas_contribuintes": [
+            "Matriz completa",
+            "Formação Geral Básica"
+          ],
+          "motivo": null
+        },
+        {
+          "elemento": "Parte Diversificada",
+          "serie1": 8,
+          "serie2": 8,
+          "serie3": 6,
+          "status": "calculado",
+          "entradas_contribuintes": [
+            "Itinerários Formativos",
+            "Aprofundamento"
+          ],
+          "motivo": null
+        }
+      ]
+    },
+    "completude": {
+      "status": "completa",
+      "total_linhas_fonte": 6,
+      "linhas_extraidas": 6,
+      "celulas_verificadas": 18,
+      "celulas_ausentes_na_fonte": 0,
+      "celulas_nao_verificadas": 0,
+      "classificacoes_pendentes": 0,
+      "motivos": []
+    }
+  },
+  "orientacoes": {
+    "codigos": {
+      "status": "reconciliado_por_igualdade",
+      "aplicaveis": {
+        "pedagogicas": 3,
+        "gestao": 2
+      },
+      "somente_template": [],
+      "somente_ice": [],
+      "exclusoes": [],
+      "autoridade": "Códigos iguais no ICE SINTETICA-1 (homologado por Coordenação (sintético)) e no template"
+    },
+    "pedagogicas": [
+      {
+        "codigo": "EL1",
+        "tipo": "pedagogica",
+        "texto_referencia": "Relação direta com a BNCC",
+        "presenca": "Sim",
+        "status": "decidido",
+        "justificativa": "O documento estadual afirma a prática.",
+        "evidencias": [
+          {
+            "fonte_id": "DOC-1",
+            "unidade": "DOC-1:p1",
+            "localizacao": {
+              "tipo": "pdf_page",
+              "pagina": 1
+            },
+            "trecho_literal": "As eletivas devem ter relação direta com a Base Nacional Comum Curricular e com os itinerários.",
+            "metodo": "citacao_conferida",
+            "verificacao": "conferida",
+            "relacao": "Equivalente"
+          }
+        ],
+        "fontes_verificadas": [],
+        "revisar": false,
+        "confianca": 92,
+        "origem": "ia",
+        "pendencias": [],
+        "motivos": []
+      },
+      {
+        "codigo": "EL2",
+        "tipo": "pedagogica",
+        "texto_referencia": "Uso de metodologias ativas",
+        "presenca": "Não",
+        "status": "decidido",
+        "justificativa": "Nenhum documento trata do tema.",
+        "evidencias": [],
+        "fontes_verificadas": [
+          "DOC-1",
+          "DOC-2"
+        ],
+        "revisar": false,
+        "confianca": 90,
+        "origem": "ia",
+        "pendencias": [],
+        "motivos": []
+      },
+      {
+        "codigo": "AC1",
+        "tipo": "pedagogica",
+        "texto_referencia": "Acolhimento inicial dos estudantes",
+        "presenca": "Sim",
+        "status": "decidido",
+        "justificativa": "O documento estadual afirma a prática.",
+        "evidencias": [
+          {
+            "fonte_id": "DOC-1",
+            "unidade": "DOC-1:p1",
+            "localizacao": {
+              "tipo": "pdf_page",
+              "pagina": 1
+            },
+            "trecho_literal": "O acolhimento dos estudantes acontece na primeira semana letiva com participação dos jovens protagonistas.",
+            "metodo": "citacao_conferida",
+            "verificacao": "conferida",
+            "relacao": "Equivalente"
+          }
+        ],
+        "fontes_verificadas": [],
+        "revisar": false,
+        "confianca": 92,
+        "origem": "ia",
+        "pendencias": [],
+        "motivos": []
+      }
+    ],
+    "gestao": [
+      {
+        "codigo": "PA1",
+        "tipo": "gestao",
+        "texto_referencia": "Plano de ação elaborado pela equipe gestora",
+        "presenca": "Sim",
+        "status": "decidido",
+        "justificativa": "O documento estadual afirma a prática.",
+        "evidencias": [
+          {
+            "fonte_id": "DOC-2",
+            "unidade": "DOC-2:par2",
+            "localizacao": {
+              "tipo": "paragraph",
+              "paragrafo": 2
+            },
+            "trecho_literal": "O plano de ação da escola é elaborado pela equipe gestora e revisado a cada bimestre com indicadores.",
+            "metodo": "citacao_conferida",
+            "verificacao": "conferida",
+            "relacao": "Equivalente"
+          }
+        ],
+        "fontes_verificadas": [],
+        "revisar": false,
+        "confianca": 92,
+        "origem": "ia",
+        "pendencias": [],
+        "motivos": []
+      },
+      {
+        "codigo": "PA2",
+        "tipo": "gestao",
+        "texto_referencia": "Monitoramento bimestral de indicadores",
+        "presenca": "Não",
+        "status": "decidido",
+        "justificativa": "Nenhum documento trata do tema.",
+        "evidencias": [],
+        "fontes_verificadas": [
+          "DOC-1",
+          "DOC-2"
+        ],
+        "revisar": false,
+        "confianca": 90,
+        "origem": "ia",
+        "pendencias": [],
+        "motivos": []
+      }
+    ],
+    "completude": {
+      "pedagogicas": {
+        "status": "completa",
+        "codigos_aplicaveis": 3,
+        "codigos_avaliados": 3,
+        "sim": 2,
+        "nao": 1,
+        "pendentes": 0,
+        "nao_avaliados": 0,
+        "revisar": 0,
+        "motivos": []
+      },
+      "gestao": {
+        "status": "completa",
+        "codigos_aplicaveis": 2,
+        "codigos_avaliados": 2,
+        "sim": 1,
+        "nao": 1,
+        "pendentes": 0,
+        "nao_avaliados": 0,
+        "revisar": 0,
+        "motivos": []
+      }
+    }
+  },
+  "consistencia": {
+    "status": "executada",
+    "conflitos": [],
+    "checagens": [
+      {
+        "regra": "carga_semanal",
+        "resultado": "sem_conflito",
+        "detalhe": "A001: Estudo Orientado com as mesmas aulas da matriz"
+      },
+      {
+        "regra": "oferta_x_orientacao",
+        "resultado": "sem_conflito",
+        "detalhe": "Oferta de componente com carga positiva e ausência de orientação específica são avaliações diferentes: não geram conflito (6 componente(s) com carga)."
+      }
+    ]
+  },
+  "pendencias": [],
+  "revisao_humana": {
+    "necessaria": true,
+    "status": "aguardando",
+    "itens": 0
+  },
+  "metricas": {
+    "cobertura_documental": {
+      "numerador": 52,
+      "denominador": 52,
+      "descricao": "Unidades lidas (páginas, células, parágrafos, linhas, imagens) sobre as identificadas nas fontes estaduais."
+    },
+    "cobertura_matriz": {
+      "numerador": 18,
+      "denominador": 18,
+      "descricao": "Células de aulas semanais verificadas ou comprovadamente em branco sobre linhas da fonte × 3 séries (vazio se o total de linhas não foi informado)."
+    },
+    "cobertura_orientacoes": {
+      "numerador": 5,
+      "denominador": 5,
+      "descricao": "Orientações com Sim ou Não defensável sobre códigos aplicáveis reconciliados (vazio se os códigos não foram reconciliados)."
+    },
+    "observacao": "Contagens medidas nesta execução. Não são percentual de automação do trabalho do analista nem concordância com ele; a concordância vem do relatório de paridade."
+  },
+  "gravacoes_externas": []
+}
