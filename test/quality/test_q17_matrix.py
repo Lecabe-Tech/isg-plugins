@@ -19,7 +19,12 @@ CLASS = {"Língua Portuguesa": "Formação Geral Básica", "Matemática": "Forma
          "Eletiva": "Eletivas de Base", "Estudo Orientado": "Estudo Orientado e Avaliação Semanal", "Robótica": "Aprofundamento"}
 
 
-def proposal():
+def proposal(doc="DOC-3"):
+    """Matrix proposal citing the synthetic matrix workbook; `doc` is its id in the run."""
+    return json.loads(json.dumps(_proposal()).replace('"DOC-3', '"' + doc))
+
+
+def _proposal():
     comps = []
     for i, (name, a, b, c) in enumerate(FX.MATRIX_ROWS, start=4):
         comps.append({"nome_original": name, "nome_evidencia": {"unidade": f"{SHEET}!A{i}", "trecho_literal": name},

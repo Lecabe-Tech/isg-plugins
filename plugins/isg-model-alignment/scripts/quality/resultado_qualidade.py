@@ -227,12 +227,32 @@ def cmd_orientacoes_status(args):
     return emit(args, True, "orientacoes-status", "ORIENTACOES_STATUS", _orientation_message(s), s, extra_text=extra)
 
 
+# ---------------- G4: cross-check ----------------
+
+def cmd_afirmacoes_registrar(args):
+    import cross_check as CC
+
+    r = CC.register(Path(args.pasta), read_json_file(args.afirmacoes))
+    extra = "\n".join("%s rejeitada: %s" % (x["id"], "; ".join(x["motivos"])) for x in r["rejeitadas"])
+    return emit(args, True, "afirmacoes-registrar", "AFIRMACOES_REGISTRADAS", "%d afirmação(ões) registrada(s), %d com citação conferida." % (r["afirmacoes"], r["verificadas"]), r, extra_text=extra)
+
+
+def cmd_cruzar(args):
+    import cross_check as CC
+
+    r = CC.run(Path(args.pasta))
+    extra = "\n".join("[%s] %s — %s: %s" % (c["gravidade"], c["codigo"], c["entidade"], c["detalhe"]) for c in r["conflitos"])
+    return emit(args, True, "cruzar", "CRUZAMENTO", "Cruzamento feito: %d conflito(s) para revisão humana, %d checagem(ns) sem conflito. Nenhuma das frentes foi alterada."
+                % (len(r["conflitos"]), sum(c["resultado"] == "sem_conflito" for c in r["checagens"])), r, extra_text=extra)
+
+
 HANDLERS = {
     "esquema": cmd_esquema, "manifesto-validar": cmd_manifesto_validar, "iniciar": cmd_iniciar, "inventario": cmd_inventario,
     "buscar": cmd_buscar, "unidades": cmd_unidades, "imagem-registrar": cmd_imagem_registrar,
     "matriz-candidatas": cmd_matriz_candidatas, "matriz-registrar": cmd_matriz_registrar, "matriz-confirmar": cmd_matriz_confirmar, "matriz-status": cmd_matriz_status,
     "orientacoes-codigos": cmd_orientacoes_codigos, "orientacoes-registrar": cmd_orientacoes_registrar, "orientacao-decidir": cmd_orientacao_decidir,
     "orientacoes-importar-eqv": cmd_orientacoes_importar_eqv, "orientacoes-status": cmd_orientacoes_status,
+    "afirmacoes-registrar": cmd_afirmacoes_registrar, "cruzar": cmd_cruzar,
 }
 
 
@@ -282,6 +302,8 @@ def build_parser():
     sp.add_argument("--eqv", required=True, help="pasta da execução da EQV (com celulas/)")
     sp.add_argument("--mapa", action="append", default=[], required=True, help='"Rótulo na EQV=DOC-n" (repetível)')
     add("orientacoes-status")
+    add("afirmacoes-registrar").add_argument("afirmacoes", help="JSON com afirmações tipadas (oferta, nao_oferta, carga_semanal, exigencia_normativa)")
+    add("cruzar")
     return p
 
 
@@ -290,6 +312,7 @@ def main(argv):
     if not args.comando:
         sys.stdout.write("Informe um comando: %s. Veja: resultado_qualidade.py --ajuda\n" % ", ".join(HANDLERS))
         return EXIT_USAGE
+    import cross_check as CC
     import matrix_analysis as MA
     import orientation_analysis as OA
     import quality_run as RUN
@@ -299,7 +322,7 @@ def main(argv):
         return HANDLERS[args.comando](args)
     except SR.ManifestError as e:
         return emit(args, False, args.comando, e.code, e.message, {"erros": e.errors})
-    except (RUN.RunError, MA.MatrixError, OA.OrientationError) as e:
+    except (RUN.RunError, MA.MatrixError, OA.OrientationError, CC.CrossCheckError) as e:
         return emit(args, False, args.comando, e.code, e.message)
     except json.JSONDecodeError:
         return emit(args, False, args.comando, "JSON_INVALIDO", "O arquivo JSON informado não é válido.")
