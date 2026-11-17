@@ -196,10 +196,13 @@ def template_xlsx(path: Path, uf: str = "MG", filled: bool = True, rule_variant:
                      hidden=("classificacoes",), merges={f"2.1 Revisão Matriz {uf}": ["C10:E10"]})
 
 
-def matrix_xlsx(path: Path, with_technical: bool = True, missing_cache: bool = False) -> Path:
-    """State matrix workbook: 9h propedêutico sheet (+ a technical offer sheet as a trap)."""
+def matrix_xlsx(path: Path, with_technical: bool = True, missing_cache: bool = False, range_note: bool = False) -> Path:
+    """State matrix workbook: 9h propedêutico sheet (+ a technical offer sheet as a trap). range_note adds a text cell with a
+    range ('4 ou 5 aulas'), like the CE 2026 reference matrices."""
     s = {"A1": "MATRIZ CURRICULAR - ENSINO MÉDIO EM TEMPO INTEGRAL 9 HORAS - PROPEDÊUTICO - VIGÊNCIA 2026",
          "A2": "Duração da hora-aula: 50 minutos", "A3": "Componente", "B3": "1ª série", "C3": "2ª série", "D3": "3ª série", "E3": "Total"}
+    if range_note:
+        s["F4"] = "Na 1ª série: 4 ou 5 aulas, conforme a matriz da escola"
     for i, (name, a, b, c) in enumerate(MATRIX_ROWS, start=4):
         s.update({f"A{i}": name, f"B{i}": a, f"C{i}": b, f"D{i}": c, f"E{i}": F(f"SUM(B{i}:D{i})", None if missing_cache else a + b + c)})
     last = 3 + len(MATRIX_ROWS)
@@ -231,7 +234,7 @@ def source_set(folder: Path, **kw) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     orientations_pdf(folder / "diretrizes.pdf", kw.get("image_page", False), kw.get("conflicting_eo", False))
     management_docx(folder / "gestao.docx")
-    matrix_xlsx(folder / "matriz.xlsx", missing_cache=kw.get("missing_cache", False))
+    matrix_xlsx(folder / "matriz.xlsx", missing_cache=kw.get("missing_cache", False), range_note=kw.get("range_note", False))
     template_xlsx(folder / "template.xlsx", rule_variant=kw.get("rule_variant", "padrao"))
     ice_xlsx(folder / "ice.xlsx", extra_ped=kw.get("ice_extra"))
     manifest = {

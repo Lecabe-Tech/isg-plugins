@@ -73,7 +73,7 @@ def cmd_manifesto_validar(args):
 def cmd_iniciar(args):
     import quality_run as RUN
 
-    inv = RUN.start_run(Path(args.manifesto), Path(args.pasta))
+    inv = RUN.start_run(Path(args.manifesto), Path(args.pasta), ice_dir=args.referencial or None)
     lines = []
     for f in inv["fontes"]:
         cov = f["cobertura"]
@@ -114,7 +114,11 @@ def cmd_unidades(args):
     units = RUN.load_units(Path(args.pasta), args.fonte).get(args.fonte)
     if units is None:
         return emit(args, False, "unidades", "FONTE_INEXISTENTE", "Fonte desconhecida: %s" % args.fonte)
-    sel = units[args.de - 1: args.ate] if args.ate else units[args.de - 1:]
+    if args.pagina:  # PDF page numbers, with the image units of those pages (--de/--ate count units, not pages)
+        lo, hi = args.pagina, args.ate_pagina or args.pagina
+        sel = [u for u in units if lo <= (u["localizacao"].get("pagina") or 0) <= hi]
+    else:
+        sel = units[args.de - 1: args.ate] if args.ate else units[args.de - 1:]
     text = "\n\n".join("### %s [%s]\n%s" % (u["id"], u["status"], u.get("interpretacao_ia") or u["texto"]) for u in sel)
     return emit(args, True, "unidades", "UNIDADES", "%d de %d unidade(s) de %s." % (len(sel), len(units), args.fonte), {"unidades": sel}, extra_text=text)
 
@@ -124,7 +128,8 @@ def cmd_imagem_registrar(args):
 
     text = Path(args.arquivo).read_text(encoding="utf-8")
     r = RUN.register_image_reading(Path(args.pasta), args.unidade, text, args.autor)
-    return emit(args, True, "imagem-registrar", "IMAGEM_REGISTRADA", "Leitura de imagem registrada em %s; ela fica marcada como feita por IA e precisa de conferência." % args.unidade, r)
+    copies = (" A mesma imagem estava em %s: a leitura foi copiada para lá." % ", ".join(r["copiada_para"])) if r["copiada_para"] else ""
+    return emit(args, True, "imagem-registrar", "IMAGEM_REGISTRADA", "Leitura de imagem registrada em %s; ela fica marcada como feita por IA e precisa de conferência.%s" % (args.unidade, copies), r)
 
 
 # ---------------- G2: matrix ----------------
@@ -139,8 +144,12 @@ def cmd_matriz_candidatas(args):
 
 
 def _matrix_message(s):
-    return ("Matriz registrada: %d componente(s); células verificadas %d, em branco na fonte %d, não verificadas %d; classificações pendentes %d; resumo: %s; completude: %s."
-            % (s["componentes"], s["verificadas"], s["ausentes_na_fonte"], s["nao_verificadas"], s["classificacoes_pendentes"], s["resumo"], s["completude"]))
+    msg = ("Matriz registrada: %d componente(s); células verificadas %d, em branco na fonte %d, não verificadas %d, em faixa %d; classificações pendentes %d; resumo: %s; completude: %s."
+           % (s["componentes"], s["verificadas"], s["ausentes_na_fonte"], s["nao_verificadas"], s.get("em_faixa", 0), s["classificacoes_pendentes"], s["resumo"], s["completude"]))
+    totals = s.get("totais_fonte") or []
+    if totals:
+        msg += " Totais impressos na fonte: %d fecham, %d não fecham, %d indeterminado(s)." % tuple(sum(t["estado"] == k for t in totals) for k in ("cabe", "nao_cabe", "indeterminado"))
+    return msg
 
 
 def cmd_matriz_registrar(args):
@@ -313,10 +322,12 @@ def cmd_imagens(args):
     import quality_run as RUN
 
     pend = RUN.pending_images(Path(args.pasta))
-    lines = ["%s: %s%s" % (p["unidade"], ", ".join(p["arquivos"]) or "sem arquivo exportado",
+    lines = ["%s: %s%s" % (p["unidade"], ("mesma imagem de %s (não precisa ler)" % p["mesma_imagem_que"]) if p["mesma_imagem_que"] else (", ".join(p["arquivos"]) or "sem arquivo exportado"),
                            ("; " + "; ".join(a for a in p["avisos"] if "não exportada" in a)) if not p["arquivos"] else "") for p in pend]
-    return emit(args, True, "imagens", "IMAGENS", "%d trecho(s) em imagem aguardando leitura (SIP). Leia o arquivo de cada um e registre com imagem-registrar." % len(pend),
-                {"imagens": pend}, extra_text="\n".join(lines))
+    unique = sum(1 for p in pend if not p["mesma_imagem_que"])
+    return emit(args, True, "imagens", "IMAGENS", "%d trecho(s) em imagem aguardando leitura (SIP), %d imagem(ns) diferente(s). Leia só as diferentes e registre com imagem-registrar: "
+                "a leitura é copiada para as repetidas. Muitas imagens: divida em lotes entre subagentes." % (len(pend), unique),
+                {"imagens": pend, "imagens_diferentes": unique}, extra_text="\n".join(lines))
 
 
 def cmd_tabela_pdf(args):
@@ -369,6 +380,18 @@ def cmd_revisao_fila(args):
     return emit(args, True, "revisao-fila", "FILA", "%d decisão(ões) para o analista, da mais importante para a menos importante." % len(q), {"fila": q}, extra_text="\n".join(lines))
 
 
+def cmd_ice_padrao(args):
+    import ice_config as ICE
+
+    try:
+        cfg = ICE.load(args.referencial or None)
+    except ICE.IceConfigError as e:
+        return emit(args, False, "ice-padrao", e.code, e.message)
+    hom = "homologação registrada por %s em %s" % (cfg["aprovado_por"], cfg["data"]) if cfg["homologacao"] else "aprovado por %s, sem data no manifesto_ice.json (a homologação fica pendente)" % cfg["aprovado_por"]
+    data = {**cfg, "arquivos": [str(f) for f in cfg["arquivos"]]}
+    return emit(args, True, "ice-padrao", "ICE_CONFIGURADO", "Referencial ICE configurado: versão %s, %s; %d arquivo(s). Deixe referencial_ice vazio no manifesto para usá-lo." % (cfg["versao"], hom, len(cfg["arquivos"])), data)
+
+
 def cmd_sharepoint(args):
     import sharepoint_link as SP
 
@@ -393,7 +416,7 @@ HANDLERS = {
     "afirmacoes-registrar": cmd_afirmacoes_registrar, "cruzar": cmd_cruzar,
     "resultado": cmd_resultado, "validar": cmd_validar, "resumo": cmd_resumo, "paridade": cmd_paridade,
     "imagens": cmd_imagens, "tabela-pdf": cmd_tabela_pdf, "orientacoes-lotes": cmd_orientacoes_lotes, "orientacoes-conferir": cmd_orientacoes_conferir,
-    "revisao-fila": cmd_revisao_fila, "sharepoint": cmd_sharepoint,
+    "revisao-fila": cmd_revisao_fila, "sharepoint": cmd_sharepoint, "ice-padrao": cmd_ice_padrao,
 }
 
 
@@ -412,7 +435,9 @@ def build_parser():
     sp = add("esquema", run=False)
     sp.add_argument("--tipo", choices=("manifesto", "resultado"), default="resultado")
     add("manifesto-validar", run=False).add_argument("manifesto")
-    add("iniciar").add_argument("manifesto")
+    sp = add("iniciar")
+    sp.add_argument("manifesto")
+    sp.add_argument("--referencial", default="", help="pasta do referencial ICE configurado (opção quality_ice_reference), usada se o manifesto deixar referencial_ice vazio")
     add("inventario")
     sp = add("buscar")
     sp.add_argument("--termo", required=True)
@@ -422,6 +447,8 @@ def build_parser():
     sp.add_argument("--fonte", required=True)
     sp.add_argument("--de", type=int, default=1)
     sp.add_argument("--ate", type=int, default=0)
+    sp.add_argument("--pagina", type=int, default=0, help="página do PDF (com as imagens dela); use --ate-pagina para um intervalo")
+    sp.add_argument("--ate-pagina", type=int, default=0)
     sp = add("imagem-registrar")
     sp.add_argument("--unidade", required=True)
     sp.add_argument("--arquivo", required=True, help="texto (Markdown) da leitura da imagem feita pela skill SIP")
@@ -465,6 +492,7 @@ def build_parser():
     sp.add_argument("resultado")
     sp.add_argument("--saida", default="")
     add("sharepoint", run=False).add_argument("link", help="link do SharePoint (arquivo ou pasta)")
+    add("ice-padrao", run=False).add_argument("--referencial", default="", help="pasta do referencial ICE (opção quality_ice_reference)")
     return p
 
 
@@ -474,6 +502,7 @@ def main(argv):
         sys.stdout.write("Informe um comando: %s. Veja: resultado_qualidade.py --ajuda\n" % ", ".join(HANDLERS))
         return EXIT_USAGE
     import cross_check as CC
+    import ice_config as ICE
     import matrix_analysis as MA
     import orientation_analysis as OA
     import quality_run as RUN
@@ -483,7 +512,7 @@ def main(argv):
         return HANDLERS[args.comando](args)
     except SR.ManifestError as e:
         return emit(args, False, args.comando, e.code, e.message, {"erros": e.errors})
-    except (RUN.RunError, MA.MatrixError, OA.OrientationError, CC.CrossCheckError) as e:
+    except (RUN.RunError, MA.MatrixError, OA.OrientationError, CC.CrossCheckError, ICE.IceConfigError) as e:
         return emit(args, False, args.comando, e.code, e.message)
     except json.JSONDecodeError:
         return emit(args, False, args.comando, "JSON_INVALIDO", "O arquivo JSON informado não é válido.")

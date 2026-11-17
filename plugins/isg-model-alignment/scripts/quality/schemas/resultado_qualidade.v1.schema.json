@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "execucao", "fontes", "referencias", "matriz", "orientacoes", "consistencia", "pendencias", "revisao_humana", "metricas", "gravacoes_externas"],
   "properties": {
-    "schema_version": {"enum": ["1.0", "1.1"]},
+    "schema_version": {"enum": ["1.0", "1.1", "1.2"]},
     "execucao": {
       "type": "object",
       "additionalProperties": false,
@@ -173,9 +173,45 @@
             "celulas_verificadas": {"type": "integer", "minimum": 0},
             "celulas_ausentes_na_fonte": {"type": "integer", "minimum": 0},
             "celulas_nao_verificadas": {"type": "integer", "minimum": 0},
+            "celulas_em_faixa": {"type": "integer", "minimum": 0},
             "classificacoes_pendentes": {"type": "integer", "minimum": 0},
             "motivos": {"type": "array", "items": {"type": "string"}}
           }
+        },
+        "totais_fonte": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["rotulo", "classificacao", "serie", "valor", "evidencia", "soma_min", "soma_max", "estado", "motivo"],
+            "properties": {
+              "rotulo": {"type": "string"},
+              "classificacao": {"type": ["string", "null"]},
+              "serie": {"enum": [1, 2, 3, null]},
+              "valor": {"type": ["number", "null"], "minimum": 0},
+              "evidencia": {"anyOf": [{"type": "null"}, {"$ref": "#/definitions/evidencia"}]},
+              "soma_min": {"type": ["number", "null"]},
+              "soma_max": {"type": ["number", "null"]},
+              "estado": {"enum": ["cabe", "nao_cabe", "indeterminado"]},
+              "motivo": {"type": ["string", "null"]}
+            }
+          }
+        },
+        "documento_oficial_citado": {
+          "anyOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["titulo", "evidencia", "conferido", "motivo"],
+              "properties": {
+                "titulo": {"type": ["string", "null"]},
+                "evidencia": {"anyOf": [{"type": "null"}, {"$ref": "#/definitions/evidencia"}]},
+                "conferido": {"type": "boolean"},
+                "motivo": {"type": ["string", "null"]}
+              }
+            }
+          ]
         }
       }
     },
@@ -264,7 +300,7 @@
   },
   "definitions": {
     "codigo_pendencia": {
-      "enum": ["FONTE_AUSENTE", "ACESSO_NEGADO", "FORMATO_NAO_SUPORTADO", "LEITURA_FALHOU", "VERSAO_DIVERGENTE", "REFERENCIAL_NAO_HOMOLOGADO", "MODELO_FORA_ESCOPO", "TIPO_DIVERGENTE", "FONTE_DUPLICADA", "IMAGEM_PENDENTE", "FORMULA_SEM_VALOR_EM_CACHE", "CONTEUDO_NAO_LIDO", "MATRIZ_NAO_REGISTRADA", "MATRIZ_NAO_CONFIRMADA", "OFERTA_9H_NAO_EVIDENCIADA", "VALOR_NAO_VERIFICADO", "CLASSIFICACAO_PENDENTE", "TOTAL_LINHAS_DESCONHECIDO", "LINHAS_FALTANDO", "REGRA_DESCONHECIDA", "REGRA_NAO_HOMOLOGADA", "CODIGOS_NAO_RECONCILIADOS", "CODIGOS_NAO_IDENTIFICADOS", "PENDENTE_EVIDENCIA", "COBERTURA_DOCUMENTAL_INCOMPLETA", "ORIENTACAO_NAO_AVALIADA", "CRUZAMENTO_NAO_EXECUTADO", "CONFLITO_PENDENTE"]
+      "enum": ["FONTE_AUSENTE", "ACESSO_NEGADO", "FORMATO_NAO_SUPORTADO", "LEITURA_FALHOU", "VERSAO_DIVERGENTE", "REFERENCIAL_NAO_HOMOLOGADO", "MODELO_FORA_ESCOPO", "TIPO_DIVERGENTE", "FONTE_DUPLICADA", "IMAGEM_PENDENTE", "FORMULA_SEM_VALOR_EM_CACHE", "CONTEUDO_NAO_LIDO", "MATRIZ_NAO_REGISTRADA", "MATRIZ_NAO_CONFIRMADA", "OFERTA_9H_NAO_EVIDENCIADA", "VALOR_NAO_VERIFICADO", "CLASSIFICACAO_PENDENTE", "TOTAL_LINHAS_DESCONHECIDO", "LINHAS_FALTANDO", "REGRA_DESCONHECIDA", "REGRA_NAO_HOMOLOGADA", "CODIGOS_NAO_RECONCILIADOS", "CODIGOS_NAO_IDENTIFICADOS", "PENDENTE_EVIDENCIA", "COBERTURA_DOCUMENTAL_INCOMPLETA", "ORIENTACAO_NAO_AVALIADA", "CRUZAMENTO_NAO_EXECUTADO", "CONFLITO_PENDENTE", "VALOR_EM_FAIXA", "TOTAL_FONTE_NAO_CABE"]
     },
     "contagem_codigos": {
       "type": "object",
@@ -343,10 +379,21 @@
       "required": ["valor", "status", "valor_proposto", "evidencia", "motivo"],
       "properties": {
         "valor": {"type": ["number", "null"], "minimum": 0},
-        "status": {"enum": ["verificado", "ausente_na_fonte", "nao_verificado"]},
+        "status": {"enum": ["verificado", "ausente_na_fonte", "nao_verificado", "faixa"]},
         "valor_proposto": {"type": ["number", "null"]},
         "evidencia": {"anyOf": [{"type": "null"}, {"$ref": "#/definitions/evidencia"}]},
-        "motivo": {"type": ["string", "null"]}
+        "motivo": {"type": ["string", "null"]},
+        "faixa": {
+          "anyOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["min", "max", "texto"],
+              "properties": {"min": {"type": "number", "minimum": 0}, "max": {"type": "number", "minimum": 0}, "texto": {"type": ["string", "null"]}}
+            }
+          ]
+        }
       }
     },
     "componente": {

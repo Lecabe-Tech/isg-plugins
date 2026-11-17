@@ -1,7 +1,7 @@
 {
   "name": "isg-model-alignment",
   "displayName": "ISG Model Alignment",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Apoio ao processo de qualidade do Instituto Sonho Grande",
   "author": {
     "name": "Instituto Sonho Grande"
@@ -31,7 +31,7 @@
     "quality_ice_reference": {
       "type": "directory",
       "title": "Pasta de referenciais ICE",
-      "description": "Pasta local/sincronizada com manifesto_ice.json, modelos 9h/7h, critérios e orientações aprovados; variável ISG_QUALITY_ICE_REFERENCE tem prioridade."
+      "description": "Pasta local/sincronizada (ou link do SharePoint dela) com manifesto_ice.json aprovado (versão, aprovado_por, data) e os arquivos do referencial ICE; usada em todas as análises; ISG_QUALITY_ICE_REFERENCE tem prioridade."
     },
     "quality_templates_dir": {
       "type": "directory",

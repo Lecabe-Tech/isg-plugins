@@ -6,7 +6,10 @@ Claude reads the sources and proposes; this module verifies every value against 
   * values read from images stay unverified (kept as `valor_proposto`);
   * classifications must be in the template list and be justified by educational function, not by the name;
   * element totals only with the template rule whose fingerprint was approved by Quality (no 40-week factor,
-    no hours: the 2026 template has none).
+    no hours: the 2026 template has none);
+  * a value printed as a RANGE in the source ("3 ou 4h/a", lesson of the CE 2026 pilot) is kept as a range, never
+    resolved to one number: status 'faixa', pending VALOR_EM_FAIXA, plus a check that the totals printed in the source
+    fit inside the sums of the ranges, and the official document cited for the exact values (if any).
 """
 from __future__ import annotations
 
@@ -106,9 +109,65 @@ def _layout(rec: dict, index: dict, run_dir: Path | None, comp: str | None, seri
         rec["motivo"] = f"{COLUMN_UNCHECKED}: {comp}, {serie}ª série: o número está na linha citada, mas a coluna não foi conferida ({r['motivo']})"
 
 
+RANGE_PENDING = "VALOR_EM_FAIXA"
+IMAGE_ABSENCE = "Ausência lida em imagem"
+
+
+def _num(x) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and x >= 0
+
+
+def _range_value(raw: dict, index, classes, region, label: str) -> dict:
+    """A cell printed as a range ('3 ou 4h/a'): both ends must be in the quote. The record keeps valor None and the range
+    in 'faixa'; status 'faixa' when the quote was checked, 'nao_verificado' when read from an image or not found."""
+    f = raw.get("faixa")
+    rec = {"valor": None, "status": "nao_verificado", "valor_proposto": None, "evidencia": None, "motivo": None, "faixa": None}
+    if not (isinstance(f, (list, tuple)) and len(f) == 2 and _num(f[0]) and _num(f[1]) and f[0] < f[1]):
+        rec["motivo"] = f"{label}: faixa inválida ({f!r}); use [mínimo, máximo] com mínimo menor que máximo"
+        return rec
+    lo, hi = f[0], f[1]
+    rec["faixa"] = {"min": lo, "max": hi, "texto": str(raw.get("trecho_literal") or "").strip() or None}
+    r = EC.check(raw, index, classes, ("matriz_estadual",), min_len=3, number=lo, region=region)
+    rec["evidencia"] = r["evidencia"]
+    if r["ok"] and not EC.number_in(raw.get("trecho_literal") or "", hi):
+        r = {"ok": False, "motivo": f"o número {hi} não aparece no trecho citado"}
+        rec["evidencia"]["verificacao"] = "nao_conferida"
+    if r["ok"]:
+        rec["status"] = "faixa"
+        rec["motivo"] = f"{RANGE_PENDING}: {label}: a fonte traz uma faixa ({rec['faixa']['texto'] or f'{lo} a {hi}'}), não um valor por série"
+    elif rec["evidencia"] and rec["evidencia"]["verificacao"] == "nao_verificavel":
+        rec["motivo"] = f"{RANGE_PENDING}: {label}: faixa {lo} a {hi} lida em imagem (leitura de IA, precisa de conferência)"
+    else:
+        rec["motivo"] = f"{label}: {r['motivo']}"
+    return rec
+
+
+def bounds(cell: dict):
+    """(min, max) weekly lessons of one cell, or None when unknown. Verified value v -> (v, v); range -> its ends (also
+    when read from an image); blank in the source -> (0, 0)."""
+    if cell["status"] == "verificado":
+        return (cell["valor"], cell["valor"])
+    if cell["status"] == "ausente_na_fonte":
+        return (0, 0)
+    if cell.get("faixa"):
+        return (cell["faixa"]["min"], cell["faixa"]["max"])
+    if cell["status"] == "nao_verificado" and (cell.get("motivo") or "").startswith(IMAGE_ABSENCE):
+        return (0, 0)
+    if cell["status"] == "nao_verificado" and _num(cell.get("valor_proposto")):
+        return (cell["valor_proposto"], cell["valor_proposto"])
+    return None
+
+
+def offered(cell: dict) -> bool:
+    """The source gives this cell a positive load (a value, or a range whose minimum is positive)."""
+    return (cell["valor"] or 0) > 0 or bool(cell.get("faixa") and cell["faixa"]["min"] > 0)
+
+
 def _value(raw, index, classes, region, label: str, run_dir: Path | None = None, comp: str | None = None, serie: int | None = None) -> dict:
     """One weekly-lesson or minutes cell from the proposal -> verified value record."""
     raw = raw if isinstance(raw, dict) else {"valor": raw}
+    if raw.get("faixa") is not None:
+        return _range_value(raw, index, classes, region, label)
     valor, motivo_nulo = raw.get("valor"), raw.get("motivo")
     rec = {"valor": None, "status": "nao_verificado", "valor_proposto": None, "evidencia": None, "motivo": None}
     if valor is None:
@@ -128,7 +187,7 @@ def _value(raw, index, classes, region, label: str, run_dir: Path | None = None,
                 r = EC.check(raw, index, classes, ("matriz_estadual",), min_len=3, region=region)
                 rec["evidencia"] = r["evidencia"]
                 if r["evidencia"] and r["evidencia"]["verificacao"] == "nao_verificavel":
-                    rec["status"], rec["motivo"] = "nao_verificado", "Ausência lida em imagem: precisa de conferência."
+                    rec["status"], rec["motivo"] = "nao_verificado", IMAGE_ABSENCE + ": precisa de conferência."
                 elif not r["ok"]:
                     rec["status"], rec["motivo"] = "nao_verificado", f"{label}: {r['motivo']}"
                 else:
@@ -208,7 +267,7 @@ def register(run_dir: Path, proposal: dict) -> dict:
         aulas = {s: _value((c.get("aulas_semanais") or {}).get(s), index, classes, region, f"{name}, {s[-1]}ª série", run_dir, name, i_s)
                  for i_s, s in enumerate(SERIES, start=1)}
         for s in SERIES:
-            if aulas[s]["status"] == "nao_verificado":
+            if aulas[s]["status"] in ("nao_verificado", "faixa"):
                 cm.append(aulas[s]["motivo"] or f"{s} não verificado")
             elif (aulas[s]["motivo"] or "").startswith(COLUMN_UNCHECKED):
                 cm.append(aulas[s]["motivo"].split(": ", 1)[1])
@@ -246,9 +305,62 @@ def register(run_dir: Path, proposal: dict) -> dict:
                       "evidencias": evs_name, "revisar": bool(revisar_c), "motivos": cm})
     total = proposal.get("total_linhas_fonte")
     total = total if isinstance(total, int) and not isinstance(total, bool) and total >= 0 else None
-    data = {"selecao": selecao, "minutos_aula": minutos, "componentes": comps, "total_linhas_fonte": total}
+    data = {"selecao": selecao, "minutos_aula": minutos, "componentes": comps, "total_linhas_fonte": total,
+            "totais_fonte": _source_totals(proposal.get("totais_fonte") or [], comps, index, classes, region),
+            "documento_oficial_citado": _cited_document(proposal.get("documento_oficial_citado"), index, classes)}
     SR.write_json(run_dir / "matriz.json", data)
     return summary(run_dir)
+
+
+def _source_totals(items: list, comps: list, index, classes, region) -> list:
+    """Totals printed in the source (for example 'Formação Geral Básica 24h/a' per grade). Each one is checked against
+    the sum of the transcribed components of that classification (ranges as min..max): 'cabe', 'nao_cabe' or
+    'indeterminado' (a component without value or classification). A total read from an image keeps its value as
+    proposed and says so; the check still runs, because it only compares what the source itself prints."""
+    out = []
+    for i, t in enumerate(items, start=1):
+        label = str(t.get("rotulo") or "").strip() or f"total {i}"
+        serie = t.get("serie")
+        valor = t.get("valor")
+        rec = {"rotulo": label, "classificacao": None, "serie": serie if serie in (1, 2, 3) else None, "valor": valor if _num(valor) else None,
+               "evidencia": None, "soma_min": None, "soma_max": None, "estado": "indeterminado", "motivo": None}
+        if rec["serie"] is None or rec["valor"] is None:
+            rec["motivo"] = "informe serie (1, 2 ou 3) e valor numérico"
+            out.append(rec)
+            continue
+        r = EC.check(t, index, classes, ("matriz_estadual",), min_len=2, number=valor, region=region)
+        rec["evidencia"] = r["evidencia"]
+        if not r["ok"] and not (r["evidencia"] and r["evidencia"]["verificacao"] == "nao_verificavel"):
+            rec["motivo"] = "total sem citação conferida: " + r["motivo"]
+            out.append(rec)
+            continue
+        cls = str(t.get("classificacao") or "").strip()
+        members = [c for c in comps if not cls or (c["classificacao"] and DN.fold(c["classificacao"]) == DN.fold(cls))]
+        rec["classificacao"] = cls or None
+        if cls and any(c["classificacao_status"] != "aceita" for c in comps):
+            rec["motivo"] = "há componente com classificação pendente; a soma desta classificação pode mudar"
+        b = [bounds(c["aulas_semanais"]["serie%d" % rec["serie"]]) for c in members]
+        if not members or any(x is None for x in b):
+            rec["motivo"] = rec["motivo"] or ("nenhum componente com esta classificação" if not members else "há componente sem valor nesta série")
+        else:
+            rec["soma_min"], rec["soma_max"] = sum(x[0] for x in b), sum(x[1] for x in b)
+            fits = rec["soma_min"] <= valor <= rec["soma_max"]
+            rec["estado"] = "cabe" if fits else "nao_cabe"
+            rec["motivo"] = rec["motivo"] or (None if fits else f"a soma dos componentes vai de {rec['soma_min']} a {rec['soma_max']}, e a fonte imprime {valor}")
+        if r["evidencia"] and r["evidencia"]["verificacao"] == "nao_verificavel":
+            rec["motivo"] = ((rec["motivo"] + "; ") if rec["motivo"] else "") + "total lido em imagem (leitura de IA)"
+        out.append(rec)
+    return out
+
+
+def _cited_document(ref, index, classes):
+    """The official document the source cites for the exact values (for example 'Matrizes Curriculares para EEMTIs
+    2026'). The quote must be checked in a state document: the plugin never looks for it, it only asks for it."""
+    if not ref:
+        return None
+    title = str(ref.get("titulo") or "").strip()
+    r = EC.check(ref, index, classes, ("matriz_estadual", "orientacoes_estaduais"), min_len=10)
+    return {"titulo": title or None, "evidencia": r["evidencia"], "conferido": bool(r["ok"]), "motivo": None if r["ok"] else r["motivo"]}
 
 
 def confirm(run_dir: Path, autor: str, motivo: str = "") -> dict:
@@ -293,6 +405,8 @@ def _consolidate(comps: list, refs: dict, manifest: dict) -> dict:
             res["entradas_contribuintes"] = [c["id"] for c in members]
             if pending_cls:
                 res["motivo"] = "há componente com classificação pendente: " + ", ".join(c["id"] for c in pending_cls)
+            elif any(c["aulas_semanais"][s]["status"] == "faixa" for c in members for s in SERIES):
+                res["motivo"] = "há aulas em faixa nos componentes desta classificação (valor exato pendente)"
             elif any(c["aulas_semanais"][s]["status"] == "nao_verificado" for c in members for s in SERIES):
                 res["motivo"] = "há aulas não verificadas nos componentes desta classificação"
             else:
@@ -338,7 +452,8 @@ def section(run_dir: Path) -> tuple:
                "minutos_aula": empty_val, "componentes": [],
                "resumo_por_elemento": {"status": "pendente_dados", "regra_id": None, "formula_version": None, "motivo": "Matriz não registrada.", "elementos": []},
                "completude": {"status": "nao_iniciada", "total_linhas_fonte": None, "linhas_extraidas": 0, "celulas_verificadas": 0, "celulas_ausentes_na_fonte": 0,
-                              "celulas_nao_verificadas": 0, "classificacoes_pendentes": 0, "motivos": ["Matriz não registrada."]}}
+                              "celulas_nao_verificadas": 0, "celulas_em_faixa": 0, "classificacoes_pendentes": 0, "motivos": ["Matriz não registrada."]},
+               "totais_fonte": [], "documento_oficial_citado": None}
         _rule_pend(refs, manifest, p)
         return sec, pend
     comps = data["componentes"]
@@ -347,9 +462,21 @@ def section(run_dir: Path) -> tuple:
     ver = sum(x["status"] == "verificado" for x in cells)
     absent = sum(x["status"] == "ausente_na_fonte" for x in cells)
     nver = sum(x["status"] == "nao_verificado" for x in cells)
+    in_range = sum(bool(x.get("faixa")) for x in cells)
     cls_pend = sum(c["classificacao_status"] != "aceita" for c in comps)
     motivos = []
     sel = data["selecao"]
+    totals = data.get("totais_fonte") or []
+    cited = data.get("documento_oficial_citado")
+    if in_range:
+        where = (f" Pedir o documento oficial citado pela fonte: {cited['titulo']} ({cited['evidencia']['fonte_id']} {cited['evidencia']['unidade']})."
+                 if cited and cited["conferido"] and cited["titulo"] else " Pedir o documento oficial com os valores por série ou registrar a decisão.")
+        p(RANGE_PENDING, f"{in_range} célula(s) de aulas semanais estão em faixa na fonte (por exemplo '3 ou 4h/a'); o valor exato por série não foi escolhido." + where)
+        motivos.append(f"{in_range} célula(s) em faixa")
+    bad = [t for t in totals if t["estado"] == "nao_cabe"]
+    if bad:
+        p("TOTAL_FONTE_NAO_CABE", "; ".join(f"{t['rotulo']} {t['serie']}ª série: {t['motivo']}" for t in bad) + ". Confira a transcrição ou a fonte.")
+        motivos.append("total impresso na fonte não fecha com os componentes")
     if not sel["confirmada_por_analista"]:
         p("MATRIZ_NAO_CONFIRMADA", "O analista ainda não confirmou que esta é a matriz propedêutica de 9h vigente.")
         motivos.append("seleção não confirmada pelo analista")
@@ -377,8 +504,9 @@ def section(run_dir: Path) -> tuple:
     complete = not motivos and not sel["revisar"]
     sec = {"selecao": sel, "minutos_aula": data["minutos_aula"], "componentes": comps, "resumo_por_elemento": resumo,
            "completude": {"status": "completa" if complete else "incompleta", "total_linhas_fonte": total, "linhas_extraidas": len(comps), "celulas_verificadas": ver,
-                          "celulas_ausentes_na_fonte": absent, "celulas_nao_verificadas": nver, "classificacoes_pendentes": cls_pend,
-                          "motivos": motivos + (["seleção marcada para revisão"] if sel["revisar"] else [])}}
+                          "celulas_ausentes_na_fonte": absent, "celulas_nao_verificadas": nver, "celulas_em_faixa": in_range, "classificacoes_pendentes": cls_pend,
+                          "motivos": motivos + (["seleção marcada para revisão"] if sel["revisar"] else [])},
+           "totais_fonte": totals, "documento_oficial_citado": cited}
     return sec, pend
 
 
@@ -396,6 +524,8 @@ def summary(run_dir: Path) -> dict:
     sec, pend = section(run_dir)
     c = sec["completude"]
     return {"selecao": sec["selecao"]["status"], "componentes": c["linhas_extraidas"], "verificadas": c["celulas_verificadas"],
-            "ausentes_na_fonte": c["celulas_ausentes_na_fonte"], "nao_verificadas": c["celulas_nao_verificadas"], "classificacoes_pendentes": c["classificacoes_pendentes"],
+            "ausentes_na_fonte": c["celulas_ausentes_na_fonte"], "nao_verificadas": c["celulas_nao_verificadas"], "em_faixa": c["celulas_em_faixa"],
+            "classificacoes_pendentes": c["classificacoes_pendentes"],
+            "totais_fonte": [{k: t[k] for k in ("rotulo", "serie", "valor", "soma_min", "soma_max", "estado", "motivo")} for t in sec["totais_fonte"]],
             "resumo": sec["resumo_por_elemento"]["status"], "completude": c["status"], "pendencias": pend,
             "revisar": [{"id": x["id"], "nome": x["nome_original"], "motivos": x["motivos"]} for x in sec["componentes"] if x["revisar"]]}

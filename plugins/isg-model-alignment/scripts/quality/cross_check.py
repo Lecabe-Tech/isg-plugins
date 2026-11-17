@@ -147,7 +147,7 @@ def run(run_dir: Path) -> dict:
             else:
                 chk("carga_semanal", "sem_conflito", f"{a['id']}: {comp['nome_original']} com as mesmas aulas da matriz")
         elif a["tipo"] == "exigencia_normativa":
-            offered = comp and any((comp["aulas_semanais"][s]["valor"] or 0) > 0 for s in SERIES)
+            offered = comp and any(MA.offered(comp["aulas_semanais"][s]) for s in SERIES)  # a range "1 ou 2" is an offer
             if not offered:
                 conflicts.append({"codigo": "NORMATIVO_VS_OFERTA", "gravidade": "media", "predicado": "componente exigido pelo ICE x oferta real", "entidade": a["componente"],
                                   "valores": [_val("referencial_ice", ev, "exigido"), _val("matriz", None, "ausente" if not comp else "sem aulas")],
@@ -179,7 +179,7 @@ def run(run_dir: Path) -> dict:
             conflicts.append({"codigo": "COBERTURA_DOCUMENTAL_INCOMPLETA", "gravidade": "media", "predicado": "leitura completa das fontes estaduais", "entidade": f["id"],
                               "valores": [{"origem": "inventario", "fonte_id": f["id"], "unidade": None, "valor": f["status_leitura"]}], "fontes": [f["id"]], "resolucao_pendente": True,
                               "detalhe": f"{f['nome']}: " + ("; ".join(p["detalhe"] for p in f["pendencias"]) or "leitura incompleta") + ". Nenhuma conclusão negativa é tirada só da ausência."})
-    offered = [c["nome_original"] for c in comps if any((c["aulas_semanais"][s]["valor"] or 0) > 0 for s in SERIES)]
+    offered = [c["nome_original"] for c in comps if any(MA.offered(c["aulas_semanais"][s]) for s in SERIES)]
     chk("oferta_x_orientacao", "sem_conflito", "Oferta de componente com carga positiva e ausência de orientação específica são avaliações diferentes: não geram conflito"
         + (f" ({len(offered)} componente(s) com carga)." if offered else "."))
     result = {"status": "executada", "conflitos": conflicts, "checagens": checks}
