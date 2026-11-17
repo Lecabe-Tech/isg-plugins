@@ -1,11 +1,12 @@
 ---
 name: resultado-qualidade
-description: Análise de Qualidade de um estado (UF e ano) no Ensino Médio Integral propedêutico de 9h — matriz curricular e orientações pedagógicas e de gestão, com evidências; use quando pedirem a análise de qualidade ou de alinhamento de um estado
+description: Manual técnico da análise de Qualidade (comandos, formatos das propostas e regras de cada etapa); a esteira completa para o analista é a skill analisar
+disable-model-invocation: true
 ---
 
 Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em outro idioma.
 
-Use estas instruções quando o usuário digitar `/isg-model-alignment:resultado-qualidade` **ou pedir a análise de Qualidade de um estado** (por exemplo "vamos iniciar a análise do Ceará" com os arquivos anexados). Esta skill reproduz, de forma rastreável, as duas atividades analíticas do analista de Qualidade (SPEC-017): **(A)** avaliar as orientações pedagógicas e de gestão do ICE nos documentos do estado e **(B)** transcrever e classificar a matriz curricular **propedêutica de 9h**. Depois cruza as duas frentes e entrega **um JSON validado** (`resultado_qualidade.v1.json`) e um **resumo em português** para o analista e a coordenação conferirem.
+**Para analisar um estado, use a skill `analisar`** (`/isg-model-alignment:analisar`, ou o pedido em texto livre): ela conduz a esteira inteira e usa este arquivo como manual técnico. Execute as instruções abaixo diretamente só quando o usuário digitar `/isg-model-alignment:resultado-qualidade` (uso avançado: um comando ou uma etapa específica). Esta skill reproduz, de forma rastreável, as duas atividades analíticas do analista de Qualidade (SPEC-017): **(A)** avaliar as orientações pedagógicas e de gestão do ICE nos documentos do estado e **(B)** transcrever e classificar a matriz curricular **propedêutica de 9h**. Depois cruza as duas frentes e entrega **um JSON validado** (`resultado_qualidade.v1.json`) e um **resumo em português** para o analista e a coordenação conferirem.
 Argumentos informados: $ARGUMENTS (por exemplo `iniciar "C:\Qualidade\MG-2026\manifesto.json" --pasta "C:\Qualidade\MG-2026\execucao"`, `status`, `resultado`).
 
 **Fora do escopo desta entrega:** gravar na base central (`SG_*`), no Excel, no SharePoint, no painel ou em BI; modelos de 7h, técnicos ou outras ofertas; calcular percentual de alinhamento.

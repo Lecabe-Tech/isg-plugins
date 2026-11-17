@@ -103,7 +103,7 @@ jobs:
       - name: Python tests (CFP SPEC-003, EQV SPEC-005, quality SPEC-006)
         run: |
           python3 --version
-          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test.cfp.test_cfp test.eqv.test_eqv test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates test.quality.test_q17_aprendizados test.quality.test_q17_layout test.quality.test_q17_sharepoint test.quality.test_q17_ce test.quality.test_q17_result test.quality.test_q17_crosscheck test.quality.test_q17_orientations test.quality.test_q17_matrix test.quality.test_q17_extract test.quality.test_q17_contracts -v
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test.cfp.test_cfp test.eqv.test_eqv test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates test.quality.test_q17_aprendizados test.quality.test_q17_layout test.quality.test_q17_sharepoint test.quality.test_q17_ce test.quality.test_q17_esteira test.quality.test_q17_result test.quality.test_q17_crosscheck test.quality.test_q17_orientations test.quality.test_q17_matrix test.quality.test_q17_extract test.quality.test_q17_contracts -v
 
       - name: VAL-12 scripts are non-interactive
         run: node scripts/ci/check-non-interactive.mjs

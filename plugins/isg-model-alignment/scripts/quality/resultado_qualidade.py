@@ -70,6 +70,38 @@ def cmd_manifesto_validar(args):
     return emit(args, True, "manifesto-validar", "MANIFESTO_VALIDO", msg, {"entradas": counts})
 
 
+def cmd_manifesto_montar(args):
+    import esteira as ES
+    import source_resolver as SR
+
+    if not args.estado and not args.matriz:
+        return emit(args, False, "manifesto-montar", "CLASSE_AUSENTE", "Informe ao menos um documento do estado (--estado).")
+    if not args.template:
+        return emit(args, False, "manifesto-montar", "CLASSE_AUSENTE", "Informe o template do cluster da UF (--template).")
+    m = ES.manifest(args.uf, args.ano, args.estado, args.template, args.ice, args.matriz, args.solicitacao or None)
+    SR.validate_manifest(m)
+    out = Path(args.saida)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(m, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    ice = "%d arquivo(s) enviado(s)" % len(args.ice) if args.ice else "o referencial configurado no plugin"
+    return emit(args, True, "manifesto-montar", "MANIFESTO_MONTADO", "Manifesto de %s %d gravado em %s: %d documento(s) do estado, %d template(s), referencial ICE: %s." % (
+        m["uf"], m["ano"], out, len(args.estado) + len(args.matriz), len(args.template), ice), {"arquivo": str(out), "manifesto": m})
+
+
+def cmd_esteira(args):
+    import esteira as ES
+
+    s = ES.status(Path(args.pasta))
+    mark = {"feita": "[x]", "em_andamento": "[~]", "pendente": "[ ]"}
+    lines = ["%s %d. %s — %s" % (mark[e["estado"]], i, e["titulo"], e["detalhe"]) for i, e in enumerate(s["etapas"], start=1)]
+    if s["concluida"]:
+        msg = "Esteira concluída: o resultado e a fila de revisão estão prontos. Apresente o resumo e a fila ao analista."
+    else:
+        n = [e["etapa"] for e in s["etapas"]].index(s["proxima"]) + 1
+        msg = "Próxima etapa: %d. %s. Comandos: %s." % (n, ES.TITLES[s["proxima"]], s["proximo_passo"])
+    return emit(args, True, "esteira", "ESTEIRA", msg, s, extra_text="\n".join(lines))
+
+
 def cmd_iniciar(args):
     import quality_run as RUN
 
@@ -417,6 +449,7 @@ HANDLERS = {
     "resultado": cmd_resultado, "validar": cmd_validar, "resumo": cmd_resumo, "paridade": cmd_paridade,
     "imagens": cmd_imagens, "tabela-pdf": cmd_tabela_pdf, "orientacoes-lotes": cmd_orientacoes_lotes, "orientacoes-conferir": cmd_orientacoes_conferir,
     "revisao-fila": cmd_revisao_fila, "sharepoint": cmd_sharepoint, "ice-padrao": cmd_ice_padrao,
+    "manifesto-montar": cmd_manifesto_montar, "esteira": cmd_esteira,
 }
 
 
@@ -435,6 +468,16 @@ def build_parser():
     sp = add("esquema", run=False)
     sp.add_argument("--tipo", choices=("manifesto", "resultado"), default="resultado")
     add("manifesto-validar", run=False).add_argument("manifesto")
+    sp = add("manifesto-montar", run=False)
+    sp.add_argument("--uf", required=True)
+    sp.add_argument("--ano", type=int, required=True)
+    sp.add_argument("--estado", nargs="*", default=[], help="documentos do estado (orientações e matriz): arquivos, pastas ou links do SharePoint")
+    sp.add_argument("--matriz", nargs="*", default=[], help="documentos do estado que só trazem a matriz")
+    sp.add_argument("--template", nargs="*", default=[], help="template do cluster da UF")
+    sp.add_argument("--ice", nargs="*", default=[], help="referencial ICE enviado (vazio = o configurado no plugin)")
+    sp.add_argument("--solicitacao", default="", help="identificador da solicitação (padrão: UF-ANO-01)")
+    sp.add_argument("--saida", required=True, help="arquivo manifesto.json a gravar")
+    add("esteira")
     sp = add("iniciar")
     sp.add_argument("manifesto")
     sp.add_argument("--referencial", default="", help="pasta do referencial ICE configurado (opção quality_ice_reference), usada se o manifesto deixar referencial_ice vazio")

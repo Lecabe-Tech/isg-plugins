@@ -11,6 +11,22 @@ Plugin do Instituto Sonho Grande para apoiar processos de qualidade com o Claude
 
 Use `--check` depois do comando para apenas consultar, sem alterar nada.
 
+### Analisar um estado
+
+| Comando | O que faz |
+|---|---|
+| `/isg-model-alignment:analisar` | Esteira completa da análise de Qualidade de um estado (propedêutico 9h): anexe os documentos do estado e o template do cluster e peça, por exemplo, "analisar Ceará 2026". O Claude executa todas as etapas e entrega o resultado com a fila de revisão. Funciona no Claude Code (terminal ou aba Código do app Desktop). |
+
+As etapas da esteira:
+1. Entradas
+2. Imagens
+3. Matriz
+4. Orientações
+5. Cruzamento
+6. Resultado e fila de revisão
+
+O referencial ICE vem da pasta configurada em "Pasta de referenciais ICE" (com `manifesto_ice.json` aprovado), a menos que seja enviado junto.
+
 ## Onde funciona
 
 Claude Code (terminal, aba Código do app Desktop e Claude Code na web), chat do claude.ai, chat do app Desktop e Cowork.

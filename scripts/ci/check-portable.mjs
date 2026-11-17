@@ -45,11 +45,12 @@ for (const [key, cfg] of Object.entries(plugin.userConfig ?? {})) {
 
 const ROOT_TOKEN = '${CLAUDE_PLUGIN_ROOT}';
 // Skills that run a script (SPEC-001 REQ-SRF-02 exceptions). `cfp` is the declared exception of SPEC-003 (C1).
-const SHELL_SKILLS = new Set(['configure', 'upgrade', 'cfp', 'sip', 'eqv', 'resultado-qualidade']);
+const SHELL_SKILLS = new Set(['configure', 'upgrade', 'cfp', 'sip', 'eqv', 'resultado-qualidade', 'analisar']);
 // Only the commands that must never run on their own need disable-model-invocation (REQ-CMD-14). `cfp` is
-// meant to be used when the analyst mentions a PDF, and `resultado-qualidade` when the analyst asks for the analysis of
-// a state (lesson of the CE 2026 pilot: a plain request never reached the documented flow), so they stay invocable.
-const MANUAL_ONLY = new Set(['configure', 'upgrade', 'eqv']);
+// meant to be used when the analyst mentions a PDF, and `analisar` (the whole analysis pipeline) when the analyst asks
+// for the analysis of a state (lesson of the CE 2026 pilot: a plain request never reached the documented flow), so they
+// stay invocable. `resultado-qualidade` is the technical manual that `analisar` reads: manual-only.
+const MANUAL_ONLY = new Set(['configure', 'upgrade', 'eqv', 'resultado-qualidade']);
 for (const file of walk(SKILLS_DIR)) {
   const skill = path.basename(path.dirname(file));
   const text = readText(file);

@@ -31,7 +31,15 @@ Referências originais no Scripta: **NOTA-009**, **NOTA-016**, **NOTA-019**, **N
 
 ### 2.1 Implementação da entrega 1 (marcos G0 a G5)
 
-O motor da SPEC-017 está em `plugins/isg-model-alignment/scripts/quality/` e é usado pela skill `/isg-model-alignment:resultado-qualidade`. Ele foi testado só com **dados sintéticos** (`test/quality/test_q17_*.py`).
+O motor da SPEC-017 está em `plugins/isg-model-alignment/scripts/quality/`. O analista usa a skill **`/isg-model-alignment:analisar`**, que conduz a esteira inteira:
+1. entradas;
+2. imagens;
+3. matriz;
+4. orientações;
+5. cruzamento;
+6. resultado e fila de revisão.
+
+O comando `esteira` mostra a etapa atual. A skill `/isg-model-alignment:resultado-qualidade` é o manual técnico de cada etapa. O motor foi testado só com **dados sintéticos** (`test/quality/test_q17_*.py`).
 
 | Marco | O que existe | Ainda não comprovado |
 |---|---|---|

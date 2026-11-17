@@ -2,6 +2,16 @@
 
 Todas as mudanças relevantes deste plugin são registradas aqui.
 
+## [0.1.4] - 2026-11-17
+
+### Adicionado
+- **`/isg-model-alignment:analisar`**: a esteira completa da análise de Qualidade de um estado em um só pedido. O analista anexa os arquivos (ou informa a pasta ou o link do SharePoint) e pede "analisar <estado> <ano>"; o Claude prepara as entradas, lê as imagens, transcreve a matriz, avalia as orientações em lotes paralelos, cruza as frentes e entrega o resultado com a fila de revisão. Só para antes de começar se faltar entrada. Se for interrompida, continua de onde parou.
+- Comando `esteira`: mostra as seis etapas da análise (feita, em andamento ou pendente) e o próximo passo.
+- Comando `manifesto-montar`: monta o manifesto a partir dos arquivos enviados (documentos do estado, template e, se houver, ICE).
+
+### Alterado
+- `/isg-model-alignment:resultado-qualidade` volta a ser só por comando e passa a ser o manual técnico usado pela `analisar`.
+
 ## [0.1.3] - 2026-11-17
 
 ### Alterado
