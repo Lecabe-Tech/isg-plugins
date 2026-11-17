@@ -5,7 +5,7 @@ Todas as mudanças relevantes deste plugin são registradas aqui.
 ## [0.1.2] - 2026-11-17
 
 ### Alterado
-- Análise de Qualidade (`/isg-model-alignment:resultado-qualidade`) com **entradas fechadas**: roda só com os arquivos enviados ou com a pasta informada (a pasta entra com todos os arquivos dentro dela). Endereços da internet no manifesto são recusados e o plugin não pesquisa nem baixa documentos; se faltar um documento, a frente fica pendente e o plugin pede o arquivo.
+- Análise de Qualidade (`/isg-model-alignment:resultado-qualidade`) com **entradas fechadas**: roda só com os arquivos enviados, a pasta informada (a pasta entra com todos os arquivos dentro dela) ou o **link do SharePoint** informado. O link é lido da cópia que o OneDrive mantém no computador (biblioteca sincronizada ou atalho em "Meus arquivos") ou de uma cópia baixada pelo analista; o comando `sharepoint` mostra se a cópia existe. Outros endereços da internet são recusados e o plugin não pesquisa nem baixa documentos; se faltar um documento, a frente fica pendente e o plugin pede o arquivo.
 - Tabelas de matriz em PDF: o programa remonta linhas e colunas pela posição do texto (também em páginas deitadas) e confere em que **série** está cada número. Série declarada que não bate com a tabela fica não verificada; tabela ilegível fica marcada para o analista. Novo comando `tabela-pdf` mostra a grade reconstruída. O resultado passa para a versão de conteúdo 1.1 (novo método de evidência `celula_layout_conferida`); resultados 1.0 continuam válidos.
 - Imagens: os trechos em imagem saem exportados para a pasta da execução, ligados ao trecho, para a leitura de imagem ser feita na figura exata (comando `imagens`). Avisos internos da biblioteca de PDF não aparecem mais na tela.
 

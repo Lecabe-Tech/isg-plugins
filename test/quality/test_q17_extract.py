@@ -128,7 +128,8 @@ class ExtractTest(unittest.TestCase):
 
     def test_internet_addresses_are_refused(self):  # closed inputs: only files sent or folders informed
         FX.ice_xlsx(self.src / "ice.xlsx")
-        for uri in ("https://educacao.exemplo.gov.br/diretrizes.pdf", "http://exemplo.gov.br/matriz.pdf", "https://exemplo.sharepoint.com/sites/x/doc.pdf"):
+        for uri in ("https://educacao.exemplo.gov.br/diretrizes.pdf", "http://exemplo.gov.br/matriz.pdf", "http://exemplo.sharepoint.com/sites/x/doc.pdf",
+                    "https://sharepoint.com.exemplo.invalid/sites/x/doc.pdf"):  # SharePoint only over https on *.sharepoint.com
             with self.subTest(uri=uri):
                 with self.assertRaises(SR.ManifestError) as e:
                     self.start({"matriz_estadual": [{"uri": uri}]})

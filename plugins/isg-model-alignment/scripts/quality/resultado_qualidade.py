@@ -369,6 +369,21 @@ def cmd_revisao_fila(args):
     return emit(args, True, "revisao-fila", "FILA", "%d decisão(ões) para o analista, da mais importante para a menos importante." % len(q), {"fila": q}, extra_text="\n".join(lines))
 
 
+def cmd_sharepoint(args):
+    import sharepoint_link as SP
+
+    if not SP.is_sharepoint(args.link):
+        return emit(args, False, "sharepoint", "NAO_E_SHAREPOINT", "Informe um link https de *.sharepoint.com. Outros endereços da internet não entram na análise.")
+    r = SP.local_copy(args.link)
+    link = r["link"]
+    data = {"caminho_local": str(r["caminho"]) if r["caminho"] else None, "metodo": r["metodo"], "tipo_link": link["tipo"],
+            "caminho_sharepoint": link["caminho"], "nome": link["nome"], "motivo": r["motivo"]}
+    if r["caminho"]:
+        how = "biblioteca sincronizada pelo OneDrive" if r["metodo"] == "biblioteca_sincronizada" else "atalho do OneDrive"
+        return emit(args, True, "sharepoint", "COPIA_LOCAL", f"Cópia local encontrada ({how}): {r['caminho']}. Use o link no manifesto; o programa lê essa cópia.", data)
+    return emit(args, False, "sharepoint", "SEM_COPIA_LOCAL", SP.missing_message(args.link, r["motivo"]), data)
+
+
 HANDLERS = {
     "esquema": cmd_esquema, "manifesto-validar": cmd_manifesto_validar, "iniciar": cmd_iniciar, "inventario": cmd_inventario,
     "buscar": cmd_buscar, "unidades": cmd_unidades, "imagem-registrar": cmd_imagem_registrar,
@@ -378,7 +393,7 @@ HANDLERS = {
     "afirmacoes-registrar": cmd_afirmacoes_registrar, "cruzar": cmd_cruzar,
     "resultado": cmd_resultado, "validar": cmd_validar, "resumo": cmd_resumo, "paridade": cmd_paridade,
     "imagens": cmd_imagens, "tabela-pdf": cmd_tabela_pdf, "orientacoes-lotes": cmd_orientacoes_lotes, "orientacoes-conferir": cmd_orientacoes_conferir,
-    "revisao-fila": cmd_revisao_fila,
+    "revisao-fila": cmd_revisao_fila, "sharepoint": cmd_sharepoint,
 }
 
 
@@ -449,6 +464,7 @@ def build_parser():
     sp = add("revisao-fila", run=False)
     sp.add_argument("resultado")
     sp.add_argument("--saida", default="")
+    add("sharepoint", run=False).add_argument("link", help="link do SharePoint (arquivo ou pasta)")
     return p
 
 

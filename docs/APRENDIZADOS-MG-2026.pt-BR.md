@@ -15,6 +15,7 @@ Na comparação feita depois com o preenchimento dos analistas, 85 de 96 orienta
 | Dificuldade no piloto | Decisão | O que mudou |
 |---|---|---|
 | A matriz oficial não estava nos arquivos enviados; ela foi buscada na web | O plugin roda **só com os arquivos enviados ou com a pasta informada** | Endereço da internet no manifesto é recusado (`ORIGEM_NAO_PERMITIDA`); o código de download saiu; uma pasta informada entra com todos os arquivos dentro dela |
+| Parte dos arquivos chegou como link do SharePoint | Link do SharePoint é **local informado**: vale como entrada, porque o SharePoint estará conectado | O link entra no manifesto e fica como origem; o programa lê a cópia que o OneDrive mantém no computador (biblioteca sincronizada ou atalho), sem acessar a rede. O comando `sharepoint` mostra se a cópia existe. Sem cópia, o conector identifica o arquivo e o analista sincroniza a biblioteca ou baixa o arquivo (`copia_local`). O texto do conector não é evidência, porque não tem página nem célula para conferir |
 | A busca na web indicou errado uma resolução como alteração da matriz | O plugin **não avalia se a matriz ou as orientações mudaram fora do que foi enviado**. O alinhamento ao modelo é decidido por pessoas | A skill proíbe pesquisa e conhecimento externo; documento faltante vira pendência e pedido ao analista |
 | O ICE de 2024 usa itens PADI e o template 2026 usa outros códigos | Tabela de correspondência é decisão da Qualidade | Sem mudança de código: a reconciliação formal continua exigindo códigos iguais ou mapeamento aprovado |
 

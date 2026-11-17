@@ -21,6 +21,16 @@ NS_PKG = "http://schemas.openxmlformats.org/package/2006/relationships"
 NS_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
 
+class _FixedZip(zipfile.ZipFile):
+    """Zip with a fixed entry date: the same fixture always has the same bytes (and SHA-256), whatever the clock says."""
+
+    def writestr(self, name, data, *args, **kwargs):
+        if isinstance(name, str):
+            name = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
+            name.compress_type = zipfile.ZIP_DEFLATED
+        return super().writestr(name, data, *args, **kwargs)
+
+
 class F:
     """A formula cell: F("SUM(B2:B3)", cached=7) or F("SUM(B2:B3)") (no cached value), shared=(si, ref) for masters."""
 
@@ -47,7 +57,7 @@ def _cell_xml(ref: str, v) -> str:
 def make_xlsx(path: Path, sheets: dict, hidden: tuple = (), merges: dict | None = None) -> Path:
     """sheets: {name: {"B12": value}}; value = str | int | float | F."""
     merges = merges or {}
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+    with _FixedZip(path, "w", zipfile.ZIP_DEFLATED) as z:
         names = list(sheets)
         z.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/></Types>')
         z.writestr("xl/workbook.xml", '<?xml version="1.0"?><workbook xmlns="%s" xmlns:r="%s"><sheets>%s</sheets></workbook>' % (
@@ -83,7 +93,7 @@ def make_docx(path: Path, blocks: list) -> Path:
             body += "<w:tbl>%s</w:tbl>" % "".join("<w:tr>%s</w:tr>" % "".join("<w:tc>%s</w:tc>" % para(str(c)) for c in row) for row in value)
         elif kind == "img":
             body += '<w:p><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:docPr id="1" name="%s" descr="%s"/></wp:inline></w:drawing></w:r></w:p>' % (escape(value), escape(value))
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+    with _FixedZip(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/></Types>')
         z.writestr("word/document.xml", '<?xml version="1.0"?><w:document xmlns:w="%s"><w:body>%s</w:body></w:document>' % (NS_W, body))
     return path
