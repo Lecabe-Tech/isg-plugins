@@ -2,6 +2,17 @@
 
 Todas as mudanças relevantes deste plugin são registradas aqui.
 
+## [0.1.2] - 2026-11-17
+
+### Alterado
+- Análise de Qualidade (`/isg-model-alignment:resultado-qualidade`) com **entradas fechadas**: roda só com os arquivos enviados ou com a pasta informada (a pasta entra com todos os arquivos dentro dela). Endereços da internet no manifesto são recusados e o plugin não pesquisa nem baixa documentos; se faltar um documento, a frente fica pendente e o plugin pede o arquivo.
+- Tabelas de matriz em PDF: o programa remonta linhas e colunas pela posição do texto (também em páginas deitadas) e confere em que **série** está cada número. Série declarada que não bate com a tabela fica não verificada; tabela ilegível fica marcada para o analista. Novo comando `tabela-pdf` mostra a grade reconstruída. O resultado passa para a versão de conteúdo 1.1 (novo método de evidência `celula_layout_conferida`); resultados 1.0 continuam válidos.
+- Imagens: os trechos em imagem saem exportados para a pasta da execução, ligados ao trecho, para a leitura de imagem ser feita na figura exata (comando `imagens`). Avisos internos da biblioteca de PDF não aparecem mais na tela.
+
+### Adicionado
+- **Fila de revisão** no resumo e no comando `revisao-fila`: as decisões do analista em ordem de importância, cada uma com o que decidir e onde está a evidência.
+- Avaliação das orientações **em lotes**, que podem ser feitos em paralelo: `orientacoes-lotes` prepara o texto dos documentos, os lotes de orientações e as instruções, sem nada do preenchimento dos analistas; `orientacoes-conferir` confere um lote antes de registrar.
+
 ## [0.1.1] - 2026-11-16
 
 ### Adicionado

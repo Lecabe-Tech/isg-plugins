@@ -307,6 +307,68 @@ def cmd_paridade(args):
     return emit(args, True, "paridade", "PARIDADE", msg, rep, extra_text=extra)
 
 
+# ---------------- lessons of the MG 2026 pilot ----------------
+
+def cmd_imagens(args):
+    import quality_run as RUN
+
+    pend = RUN.pending_images(Path(args.pasta))
+    lines = ["%s: %s%s" % (p["unidade"], ", ".join(p["arquivos"]) or "sem arquivo exportado",
+                           ("; " + "; ".join(a for a in p["avisos"] if "não exportada" in a)) if not p["arquivos"] else "") for p in pend]
+    return emit(args, True, "imagens", "IMAGENS", "%d trecho(s) em imagem aguardando leitura (SIP). Leia o arquivo de cada um e registre com imagem-registrar." % len(pend),
+                {"imagens": pend}, extra_text="\n".join(lines))
+
+
+def cmd_tabela_pdf(args):
+    import pdf_layout as PL
+    import quality_run as RUN
+
+    run = Path(args.pasta)
+    idx = RUN.unit_index(run)
+    if args.unidade not in idx or idx[args.unidade][1]["tipo"] != "pdf_page":
+        return emit(args, False, "tabela-pdf", "UNIDADE_INVALIDA", "Informe uma página de PDF da execução (por exemplo DOC-2:p146).")
+    doc_id, unit = idx[args.unidade]
+    t = PL.page_table(next((run / "originais").glob(doc_id + ".pdf")), unit["localizacao"]["pagina"], args.colunas)
+    lines = ["%-60s %s%s" % (r["rotulo"][:60], " | ".join(" ".join(g) if g else "·" for g in r["grupos"]), "  (incerta)" if r["incerta"] else "") for r in t["linhas"]]
+    msg = "Tabela reconstruída pela posição do texto (%s, %d coluna(s) achada(s), grupo de %s número(s))%s. '·' = célula em branco." % (
+        t["orientacao"], len(t["colunas"]), t["grupo"], (": " + "; ".join(t["avisos"])) if t["avisos"] else "")
+    return emit(args, True, "tabela-pdf", "TABELA_PDF", msg, t, extra_text="\n".join(lines))
+
+
+def cmd_orientacoes_lotes(args):
+    import orientation_analysis as OA
+
+    r = OA.export_batches(Path(args.pasta), Path(args.saida), args.tamanho)
+    msg = "%d lote(s) gravado(s) em %s (%s). Cada avaliador lê documentos.md, INSTRUCOES.md e o seu lote; nada do preenchimento dos analistas foi exportado.%s" % (
+        len(r["lotes"]), r["pasta"], ", ".join("%s: %s a %s" % (b["lote"], b["de"], b["ate"]) for b in r["lotes"]),
+        "" if r["cobertura_completa"] else " Atenção: leitura incompleta em %s; nenhum Não será aceito até completar." % ", ".join(r["incompletos"]))
+    return emit(args, True, "orientacoes-lotes", "LOTES", msg, r)
+
+
+def cmd_orientacoes_conferir(args):
+    import orientation_analysis as OA
+
+    r = OA.check_proposals(Path(args.pasta), read_json_file(args.propostas))
+    extra = "\n".join("%s: %s" % (p["codigo"], p["problema"]) for p in r["problemas"])
+    msg = "%d orientação(ões) conferida(s), %d problema(s). Resultaria em Sim %d, Não %d, pendente %d. Nada foi registrado." % (
+        r["orientacoes"], len(r["problemas"]), r["resultaria"]["sim"], r["resultaria"]["nao"], r["resultaria"]["pendente"])
+    return emit(args, not r["problemas"], "orientacoes-conferir", "CONFERIDO" if not r["problemas"] else "PROBLEMAS", msg, r, extra_text=extra)
+
+
+def cmd_revisao_fila(args):
+    import quality_result as QR
+
+    data = read_json_file(args.resultado)
+    v = QR.validate(data)
+    if not v["valido"]:
+        return emit(args, False, "revisao-fila", "RESULTADO_INVALIDO", "A fila só é gerada de um resultado válido. Rode o comando validar para ver os erros.", v)
+    q = QR.review_queue(data)
+    if args.saida:
+        Path(args.saida).write_text(json.dumps(q, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    lines = ["%d. %s (%s) — %s" % (i["ordem"], i["referencia"], i["tipo"], i["decisao"]) for i in q]
+    return emit(args, True, "revisao-fila", "FILA", "%d decisão(ões) para o analista, da mais importante para a menos importante." % len(q), {"fila": q}, extra_text="\n".join(lines))
+
+
 HANDLERS = {
     "esquema": cmd_esquema, "manifesto-validar": cmd_manifesto_validar, "iniciar": cmd_iniciar, "inventario": cmd_inventario,
     "buscar": cmd_buscar, "unidades": cmd_unidades, "imagem-registrar": cmd_imagem_registrar,
@@ -315,6 +377,8 @@ HANDLERS = {
     "orientacoes-importar-eqv": cmd_orientacoes_importar_eqv, "orientacoes-status": cmd_orientacoes_status,
     "afirmacoes-registrar": cmd_afirmacoes_registrar, "cruzar": cmd_cruzar,
     "resultado": cmd_resultado, "validar": cmd_validar, "resumo": cmd_resumo, "paridade": cmd_paridade,
+    "imagens": cmd_imagens, "tabela-pdf": cmd_tabela_pdf, "orientacoes-lotes": cmd_orientacoes_lotes, "orientacoes-conferir": cmd_orientacoes_conferir,
+    "revisao-fila": cmd_revisao_fila,
 }
 
 
@@ -373,6 +437,17 @@ def build_parser():
     sp.add_argument("resultado")
     sp.add_argument("--gabarito-template", default="", help="template do cluster preenchido pelos analistas (cópia local)")
     sp.add_argument("--gabarito", default="", help="gabarito em JSON")
+    sp.add_argument("--saida", default="")
+    add("imagens")
+    sp = add("tabela-pdf")
+    sp.add_argument("--unidade", required=True, help="página de PDF, por exemplo DOC-2:p146")
+    sp.add_argument("--colunas", type=int, default=3, help="número de séries da tabela (padrão 3)")
+    sp = add("orientacoes-lotes")
+    sp.add_argument("--saida", required=True, help="pasta onde gravar os lotes")
+    sp.add_argument("--tamanho", type=int, default=35, help="orientações por lote (padrão 35)")
+    add("orientacoes-conferir").add_argument("propostas")
+    sp = add("revisao-fila", run=False)
+    sp.add_argument("resultado")
     sp.add_argument("--saida", default="")
     return p
 

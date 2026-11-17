@@ -21,7 +21,8 @@ import schema_check
 import source_resolver as SR
 import template_rules as TR
 
-ENGINE_VERSION = "spec017-1.0.0"
+ENGINE_VERSION = "spec017-1.1.0"
+RESULT_SCHEMA_VERSION = "1.1"  # 1.1: evidence method celula_layout_conferida (grade column confirmed from the PDF layout)
 SERIES = MA.SERIES
 NON_BLOCKING = {"TIPO_DIVERGENTE", "FONTE_DUPLICADA"}
 RESULT_FILE = "resultado_qualidade.v1.json"
@@ -74,7 +75,7 @@ def build(run_dir: Path) -> dict:
     cells_total = (matrix["completude"]["total_linhas_fonte"] * 3) if matrix["completude"]["total_linhas_fonte"] is not None else None
     applicable = [orient["completude"][k]["codigos_aplicaveis"] for k in OA.TYPES]
     result = {
-        "schema_version": "1.0",
+        "schema_version": RESULT_SCHEMA_VERSION,
         "execucao": {"id": f"{manifest['solicitacao_id']}-r{manifest.get('revisao', 1)}", "solicitacao_id": manifest["solicitacao_id"], "revisao": manifest.get("revisao", 1),
                      "uf": manifest["uf"], "ano": manifest["ano"], "modalidade": "propedeutico", "modelo": "9h", "versao_referencia_ice": refs["ice"]["versao"],
                      "motor_versao": ENGINE_VERSION, "gerado_em": RUN.now(), "status": "parcial", "conteudo_sha256": "0" * 64},
@@ -242,6 +243,14 @@ def summary_md(r: dict) -> str:
         L += [f"- [{c['gravidade']}] **{c['codigo']}** — {c['entidade']}: {c['detalhe']}" for c in r["consistencia"]["conflitos"]]
     else:
         L.append("Nenhum conflito encontrado.")
+    queue = review_queue(r)
+    L += ["", "## Fila de revisão", "", f"{len(queue)} decisão(ões) para o analista, da mais importante para a menos importante. "
+          "Cada item diz o que decidir e onde está a evidência; nada aqui foi aprovado.", ""]
+    for q in queue[:40]:
+        L.append(f"{q['ordem']}. **{q['referencia']}** ({q['tipo']}) — {q['decisao']}" + (f" Evidência: {'; '.join(q['onde'][:3])}." if q["onde"] else "")
+                 + (f" Motivo: {'; '.join(q['motivos'][:2])}." if q["motivos"] else ""))
+    if len(queue) > 40:
+        L.append(f"… e mais {len(queue) - 40} item(ns) no comando `revisao-fila`.")
     L += ["", "## Pendências", ""]
     L += [f"- {'**' if p['bloqueia_completude'] else ''}{p['codigo']}{'**' if p['bloqueia_completude'] else ''} ({p['frente']}): {p['detalhe']}" for p in r["pendencias"]] or ["Nenhuma."]
     mt = r["metricas"]
@@ -250,6 +259,60 @@ def summary_md(r: dict) -> str:
         L.append(f"- {label}: {mt[key]['numerador']} de {_fmt(mt[key]['denominador'])} — {mt[key]['descricao']}")
     L += [f"- {mt['observacao']}", "", "Nada foi gravado no Excel, no SharePoint, na base central nem no painel."]
     return "\n".join(L) + "\n"
+
+
+DECISION_PENDING = {
+    "MATRIZ_NAO_CONFIRMADA": "Confirmar se a matriz selecionada é a propedêutica de 9h vigente (comando matriz-confirmar).",
+    "REGRA_NAO_HOMOLOGADA": "A Qualidade decide se aprova a regra de consolidação do template (registrar a impressão digital em regras_homologadas).",
+    "REGRA_DESCONHECIDA": "A Qualidade decide como tratar fórmulas do template fora do padrão conhecido.",
+    "REFERENCIAL_NAO_HOMOLOGADO": "A Qualidade registra a homologação do referencial ICE usado (versão, quem aprovou, data).",
+    "CODIGOS_NAO_RECONCILIADOS": "A Qualidade define os códigos de orientação aplicáveis (aplicabilidade_codigos).",
+    "FONTE_AUSENTE": "Enviar o documento que falta ou confirmar que ele não existe.",
+    "ACESSO_NEGADO": "Enviar uma cópia legível do documento.",
+    "FORMATO_NAO_SUPORTADO": "Converter o documento para PDF, DOCX, XLSX ou imagem e enviar de novo.",
+}
+
+
+def _where(evs: list) -> list:
+    return [f"{e['fonte_id']} {_loc(e['localizacao'])}" + (" (leitura de IA)" if e["metodo"] == "interpretacao_ia" else "") for e in evs]
+
+
+def review_queue(r: dict) -> list:
+    """Decisions the analyst has to make, most important first, each with the data that supports it:
+    high conflicts, process decisions, medium conflicts, pending orientations, flagged components and selection,
+    flagged orientations (lowest confidence first), low conflicts. Derived from the result only."""
+    items = []
+
+    def add(prio, tipo, ref, decisao, onde=(), motivos=()):
+        items.append({"prioridade": prio, "tipo": tipo, "referencia": ref, "decisao": decisao, "onde": list(onde), "motivos": list(motivos)})
+    sev = {"alta": 1, "media": 3, "baixa": 7}
+    for c in r["consistencia"]["conflitos"]:
+        if c["resolucao_pendente"]:
+            vals = "; ".join(f"{v['origem']} {v['unidade'] or v['fonte_id'] or ''}: {v['valor']}" for v in c["valores"])
+            add(sev[c["gravidade"]], "conflito", f"{c['codigo']} — {c['entidade']}", f"Decidir qual valor vale ou registrar a explicação ({vals}).",
+                [v["unidade"] for v in c["valores"] if v["unidade"]], [c["detalhe"]])
+    seen = set()
+    for p in r["pendencias"]:
+        if p["codigo"] in DECISION_PENDING and (p["codigo"], p["fonte_id"]) not in seen:
+            seen.add((p["codigo"], p["fonte_id"]))
+            add(2, "decisao", p["codigo"] + (f" ({p['fonte_id']})" if p["fonte_id"] else ""), DECISION_PENDING[p["codigo"]], (), [p["detalhe"]])
+    sel = r["matriz"]["selecao"]
+    if sel["revisar"] and not sel["confirmada_por_analista"]:
+        add(5, "matriz", "Seleção da matriz", "Conferir a escolha da matriz.", _where(sel["evidencias"]), sel["motivos"])
+    for c in r["matriz"]["componentes"]:
+        if c["revisar"]:
+            evs = [c["aulas_semanais"][s]["evidencia"] for s in SERIES if c["aulas_semanais"][s]["evidencia"]]
+            add(5, "componente", f"{c['id']} {c['nome_original']}", "Conferir as aulas e a classificação deste componente.", _where(evs[:1]), c["motivos"])
+    oris = [o for k in ("pedagogicas", "gestao") for o in r["orientacoes"][k]]
+    for o in oris:
+        if o["status"] == "pendente":
+            add(4, "orientacao", o["codigo"], "Decidir Sim ou Não: a evidência registrada não basta.", _where(o["evidencias"]), [o["justificativa"]] + o["motivos"][:1])
+    for o in sorted((o for o in oris if o["status"] == "decidido_revisar"), key=lambda o: (o["confianca"] if o["confianca"] is not None else 0)):
+        add(6, "orientacao", o["codigo"], f"Confirmar {o['presenca']} (confiança {o['confianca']}%).", _where(o["evidencias"]), [o["justificativa"]])
+    items.sort(key=lambda i: i["prioridade"])
+    for n, i in enumerate(items, start=1):
+        i["ordem"] = n
+    return items
 
 
 def _loc(loc: dict) -> str:

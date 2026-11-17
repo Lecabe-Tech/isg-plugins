@@ -53,7 +53,7 @@ O motor da SPEC-017 está em `plugins/isg-model-alignment/scripts/quality/` e é
 
 O Notion poderá receber os quatro documentos (ou conjuntos de arquivos); templates/ICE podem ter padrões cadastrados, mas **os arquivos/versões usados devem constar da solicitação**. Um arquivo físico pode servir a dois campos. Primeiro demonstramos o motor com arquivos locais ou URLs legitimamente acessíveis; o formulário e disparo automático ficam para depois.
 
-**Acesso a fontes:** materiais das Secretarias podem ser públicos e localizáveis em sites oficiais. Isso não significa que todo arquivo em SharePoint seja público: links com permissão/rótulo exigem acesso legítimo ou uma cópia fornecida pelo usuário. **Pesquisar fonte pública é permitido; contornar controle de acesso não é.**
+**Acesso a fontes (decisão de 17/11/2026, depois do piloto de MG):** a análise roda **somente com os arquivos enviados ou com a pasta informada**. O plugin não pesquisa na web, não baixa documentos (endereço da internet no manifesto é recusado com `ORIGEM_NAO_PERMITIDA`) e não avalia se a matriz ou as orientações mudaram fora do que foi enviado: decidir o que vale é trabalho humano. Se faltar um documento, a frente fica pendente e o plugin pede o arquivo. Ver [aprendizados do piloto MG 2026](APRENDIZADOS-MG-2026.pt-BR.md).
 
 **Tipos de documento:** PDF, DOCX, XLSX, imagens JPG/PNG e arquivos textuais, com adaptadores adequados. Documentos antigos DOC/XLS e tabelas que não puderem ser lidas geram pendência/conversão controlada. **Nunca converter erro de leitura em `Não`.**
 
