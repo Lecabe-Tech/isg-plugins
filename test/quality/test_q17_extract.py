@@ -150,7 +150,8 @@ class ExtractTest(unittest.TestCase):
         self.assertNotIn("~$b.docx", names)
         empty = next(f for f in inv["fontes"] if f["uri"] == "vazia")
         self.assertEqual([p["codigo"] for p in empty["pendencias"]], ["FONTE_AUSENTE"])
-        self.assertEqual(Path(inv["fontes"][0]["uri"]).parent, docs)  # each file keeps its real path inside the informed folder
+        self.assertTrue(Path(inv["fontes"][0]["uri"]).parent.samefile(docs))  # each file keeps its real path inside the informed folder
+        # (samefile, not ==: on Windows the temp folder may come as a short 8.3 name on one side and a long name on the other)
 
     def test_images_are_exported_and_linked(self):
         FX.orientations_pdf(self.src / "a.pdf", with_image_page=True)
