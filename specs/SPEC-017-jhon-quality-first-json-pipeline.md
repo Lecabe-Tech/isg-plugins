@@ -104,6 +104,14 @@ Adapter contract: `file bytes → verified document version + normalised units` 
 
 **Closed inputs (decision of 2026-11-17, after the MG 2026 pilot; supersedes the earlier public-search allowance).** The plugin analyses **only the files the requester sent or the folders they pointed to**. It does not search the web, does not download documents (an http(s) address in the manifest is refused with `ORIGEM_NAO_PERMITIDA`) and does not judge whether the official matrix or the orientations changed outside the documents sent: deciding what is valid and the alignment to the model are human work. A missing document is a pending item and a request to the analyst, never a search. A folder entry is expanded into its files. **SharePoint links are informed locations** (the Institute's libraries, with the SharePoint connector available to Claude): the manifest accepts an `https://*.sharepoint.com` link, keeps it as the origin and reads the copy that the OneDrive client keeps on the analyst's computer (synced library mapped through the OneDrive registry, or a shortcut found by the end of the link path), or the copy given in `copia_local`; the program itself never goes to the network. The connector is used only to identify the file; its converted text is not evidence (no page, cell or position the program can check). Without a local copy the entry is `FONTE_AUSENTE` with what to do. **Never bypass access controls** and never write to SharePoint. See `docs/APRENDIZADOS-MG-2026.pt-BR.md`.
 
+**CE 2026 pilot decisions (2026-11-17, `docs/APRENDIZADOS-CE-2026.pt-BR.md`).**
+- The ICE reference is configured once (plugin option `quality_ice_reference`, a folder with an approved `manifesto_ice.json`) and used when the manifest leaves `referencial_ice` empty. The engine never picks a reference, and test or unapproved copies are refused.
+- A matrix value printed as a range ("3 ou 4h/a") is kept as a range (`status: faixa`, pending `VALOR_EM_FAIXA`), never resolved to one number. The official document cited for the exact values is requested, never searched.
+- Totals printed in the source are checked against the min..max sums of the transcribed components (`TOTAL_FONTE_NAO_CABE`).
+- A cluster template without the UF tab stops the run before reading (`TEMPLATE_SEM_UF`).
+- The skill may be invoked from a plain request and runs to the result: human decisions become pending items in the review queue.
+- Result content version 1.2.
+
 **Run-level preflight** inventories each input class, detects unavailable/locked/wrong-year material, and emits `FONTE_AUSENTE`, `ACESSO_NEGADO`, `FORMATO_NAO_SUPORTADO`, `VERSAO_DIVERGENTE`, `REFERENCIAL_NAO_HOMOLOGADO`, `MODELO_FORA_ESCOPO`. Failing one front must not fabricate negative conclusions on that front.
 
 ### 3.2 Input contract (illustrative, not an implemented validator)

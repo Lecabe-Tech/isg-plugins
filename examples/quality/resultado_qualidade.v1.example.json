@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "execucao": {
     "id": "EXEMPLO-SINTETICO-001-r1",
     "solicitacao_id": "EXEMPLO-SINTETICO-001",
@@ -9,10 +9,10 @@
     "modalidade": "propedeutico",
     "modelo": "9h",
     "versao_referencia_ice": "SINTETICA-1",
-    "motor_versao": "spec017-1.1.0",
+    "motor_versao": "spec017-1.2.0",
     "gerado_em": "2026-11-16T00:00:00+00:00",
     "status": "completo",
-    "conteudo_sha256": "8fa5c2f0b9de14410aedaacbf399474bca39c118c20e42c008ded8813c7e24e6"
+    "conteudo_sha256": "8c90ddefe4630a57fb0d6cbce29a35353a49efb6371a37c8c252c5d045055a58"
   },
   "fontes": [
     {
@@ -50,7 +50,7 @@
       ],
       "nome": "gestao.docx",
       "uri": "gestao.docx",
-      "sha256": "a51697ac4d4270296473238c889c439676cd438ced537d146e434c6291e12ab0",
+      "sha256": "dabc151d13f090fa8660a5ba46ee7d9371fdd6c115ccd20a42f953aea6a13dd8",
       "media_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "tamanho_bytes": 751,
       "extrator": "q17-normalizer-1/docx",
@@ -78,7 +78,7 @@
       ],
       "nome": "matriz.xlsx",
       "uri": "matriz.xlsx",
-      "sha256": "971f4869f1f2557641fa08fa9be7767efd0ceea3ee40a8eff58fe0e5157ae13c",
+      "sha256": "5879dec59914252bb659a5ca960ec6e0c3b09436ba6150b61618ff3c11f616e0",
       "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "tamanho_bytes": 1976,
       "extrator": "q17-normalizer-1/xlsx",
@@ -106,7 +106,7 @@
       ],
       "nome": "template.xlsx",
       "uri": "template.xlsx",
-      "sha256": "6a2045f3ff823d097184f02eb7522e6f197c456c77d1d4100cbf8c25db260aa8",
+      "sha256": "42339e1ca4b2a07432f75e9f5c3d9f81ac6f1a068f4a9cf911b9fb725defc177",
       "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "tamanho_bytes": 3930,
       "extrator": "q17-normalizer-1/xlsx",
@@ -134,7 +134,7 @@
       ],
       "nome": "ice.xlsx",
       "uri": "ice.xlsx",
-      "sha256": "8118d14af6423f1338a37bd023e174da13a16ed6b69718d4dbf796a9b87667a0",
+      "sha256": "00b6a2bc12776608c675bf86c27cdf615a89c750d6bf3c7210e248a531444fca",
       "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "tamanho_bytes": 2198,
       "extrator": "q17-normalizer-1/xlsx",
@@ -235,7 +235,7 @@
       "confirmada_por_analista": true,
       "confirmacao": {
         "autor": "Analista sintético",
-        "data": "2026-11-16T00:00:00+00:00",
+        "data": "2026-11-17T19:09:56+00:00",
         "motivo": "Conferida com a resolução sintética"
       },
       "candidatas_descartadas": [
@@ -966,9 +966,12 @@
       "celulas_verificadas": 18,
       "celulas_ausentes_na_fonte": 0,
       "celulas_nao_verificadas": 0,
+      "celulas_em_faixa": 0,
       "classificacoes_pendentes": 0,
       "motivos": []
-    }
+    },
+    "totais_fonte": [],
+    "documento_oficial_citado": null
   },
   "orientacoes": {
     "codigos": {
@@ -1135,11 +1138,6 @@
     "status": "executada",
     "conflitos": [],
     "checagens": [
-      {
-        "regra": "carga_semanal",
-        "resultado": "sem_conflito",
-        "detalhe": "A001: Estudo Orientado com as mesmas aulas da matriz"
-      },
       {
         "regra": "oferta_x_orientacao",
         "resultado": "sem_conflito",

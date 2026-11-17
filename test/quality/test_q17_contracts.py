@@ -33,6 +33,9 @@ class ManifestContractTest(unittest.TestCase):
                 self.assertEqual(e.exception.code, "CLASSE_AUSENTE")
                 m = manifest()
                 m["entradas"][cls] = []
+                if cls == "referencial_ice":  # empty = use the configured ICE reference (checked when the run starts)
+                    SR.validate_manifest(m)
+                    continue
                 with self.assertRaises(SR.ManifestError) as e:
                     SR.validate_manifest(m)
                 self.assertEqual(e.exception.code, "CLASSE_AUSENTE")

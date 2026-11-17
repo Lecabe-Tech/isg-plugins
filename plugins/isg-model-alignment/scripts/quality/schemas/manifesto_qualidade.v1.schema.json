@@ -21,7 +21,7 @@
         "orientacoes_estaduais": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/entrada"}},
         "matriz_estadual": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/entrada"}},
         "template_cluster": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/entrada"}},
-        "referencial_ice": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/entrada"}}
+        "referencial_ice": {"type": "array", "minItems": 0, "items": {"$ref": "#/definitions/entrada"}, "description": "Vazio = usar o referencial ICE configurado no plugin (manifesto_ice.json aprovado)."}
       }
     },
     "homologacao_ice": {

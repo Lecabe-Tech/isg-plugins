@@ -21,8 +21,8 @@ import schema_check
 import source_resolver as SR
 import template_rules as TR
 
-ENGINE_VERSION = "spec017-1.1.0"
-RESULT_SCHEMA_VERSION = "1.1"  # 1.1: evidence method celula_layout_conferida (grade column confirmed from the PDF layout)
+ENGINE_VERSION = "spec017-1.2.0"
+RESULT_SCHEMA_VERSION = "1.2"  # 1.1: evidence method celula_layout_conferida; 1.2: values in range (faixa), source totals, cited official document
 SERIES = MA.SERIES
 NON_BLOCKING = {"TIPO_DIVERGENTE", "FONTE_DUPLICADA"}
 RESULT_FILE = "resultado_qualidade.v1.json"
@@ -143,6 +143,8 @@ def semantic_errors(result: dict) -> list:
                 errors.append(f"{c['id']} {s}: verificado sem evidência conferida")
             if v["status"] != "verificado" and v["valor"] is not None:
                 errors.append(f"{c['id']} {s}: valor sem verificação")
+            if v["status"] == "faixa" and not (v.get("faixa") and v["evidencia"] and v["evidencia"]["verificacao"] == "conferida"):
+                errors.append(f"{c['id']} {s}: faixa sem evidência conferida")
     resumo = result["matriz"]["resumo_por_elemento"]
     regra = result["referencias"]["template"]["regra"]
     if any(e["status"] == "calculado" for e in resumo["elementos"]) and not (regra and regra["homologacao"] and regra["formula_sha256"] == resumo["formula_version"]):
@@ -193,6 +195,14 @@ def _fmt(v):
     return "—" if v is None else (str(int(v)) if isinstance(v, float) and v.is_integer() else str(v))
 
 
+def _cell(v: dict) -> str:
+    if v.get("faixa"):
+        return f"{_fmt(v['faixa']['min'])}–{_fmt(v['faixa']['max'])}" + ("*" if v["status"] == "nao_verificado" else "")
+    if v["status"] == "nao_verificado" and v.get("valor_proposto") is not None:  # value read but not verified (for example from an image)
+        return _fmt(v["valor_proposto"]) + "*"
+    return _fmt(v["valor"]) + ("*" if v["status"] == "nao_verificado" else "")
+
+
 def summary_md(r: dict) -> str:
     """PT-BR review summary built ONLY from the result object (for Jhon and the Quality coordinator)."""
     e, m, o = r["execucao"], r["matriz"], r["orientacoes"]
@@ -213,14 +223,20 @@ def summary_md(r: dict) -> str:
                  + (" Seleção marcada para revisão: " + "; ".join(s["motivos"]) + "." if s["revisar"] else ""))
         c = m["completude"]
         L.append(f"Componentes transcritos: {c['linhas_extraidas']} (linhas na fonte: {_fmt(c['total_linhas_fonte'])}). Células: {c['celulas_verificadas']} verificadas, "
-                 f"{c['celulas_ausentes_na_fonte']} em branco na fonte, {c['celulas_nao_verificadas']} não verificadas. Hora-aula: {_fmt(m['minutos_aula']['valor'])} min.")
+                 f"{c['celulas_ausentes_na_fonte']} em branco na fonte, {c['celulas_nao_verificadas']} não verificadas, {c.get('celulas_em_faixa', 0)} em faixa. Hora-aula: {_fmt(m['minutos_aula']['valor'])} min.")
         L += ["", "| Componente (como na fonte) | 1ª | 2ª | 3ª | Classificação | Revisar |", "|---|---|---|---|---|---|"]
         for comp in m["componentes"]:
-            cells = [(_fmt(comp["aulas_semanais"][x]["valor"]) + ("*" if comp["aulas_semanais"][x]["status"] == "nao_verificado" else "")) for x in SERIES]
+            cells = [_cell(comp["aulas_semanais"][x]) for x in SERIES]
             cls = comp["classificacao"] or "pendente"
             L.append(f"| {comp['nome_original']} | {' | '.join(cells)} | {cls}{' (pendente)' if comp['classificacao_status'] != 'aceita' and comp['classificacao'] else ''} | {'sim' if comp['revisar'] else '—'} |")
         L.append("")
-        L.append("`*` = valor não verificado na fonte (por exemplo, lido de imagem); `—` = vazio (em branco na fonte ou não verificado).")
+        L.append("`4*` = valor lido mas não verificado na fonte (por exemplo, lido de imagem); `3–4` = faixa impressa na fonte, sem valor exato; `—` = vazio (em branco na fonte ou não verificado).")
+        for t in m.get("totais_fonte") or []:
+            L.append(f"- Total impresso na fonte — {t['rotulo']}, {t['serie']}ª série: {_fmt(t['valor'])}; soma dos componentes {_fmt(t['soma_min'])} a {_fmt(t['soma_max'])} → "
+                     + {"cabe": "cabe", "nao_cabe": "**não cabe**", "indeterminado": "indeterminado"}[t["estado"]] + (f" ({t['motivo']})" if t["motivo"] else "") + ".")
+        doc = m.get("documento_oficial_citado")
+        if doc:
+            L.append(f"- Documento oficial citado pela fonte para os valores exatos: {doc['titulo'] or '—'}" + ("" if doc["conferido"] else " (citação não conferida)") + ".")
         rs = m["resumo_por_elemento"]
         L += ["", f"**Resumo por elemento:** {rs['status'].replace('_', ' ')}. {rs['motivo'] or ''}"]
         if rs["elementos"]:
@@ -270,6 +286,8 @@ DECISION_PENDING = {
     "FONTE_AUSENTE": "Enviar o documento que falta ou confirmar que ele não existe.",
     "ACESSO_NEGADO": "Enviar uma cópia legível do documento.",
     "FORMATO_NAO_SUPORTADO": "Converter o documento para PDF, DOCX, XLSX ou imagem e enviar de novo.",
+    "VALOR_EM_FAIXA": "Enviar o documento oficial com o valor exato por série (o detalhe diz qual a fonte cita) ou registrar a decisão sobre o valor.",
+    "TOTAL_FONTE_NAO_CABE": "Conferir a transcrição: o total impresso na fonte não fecha com a soma dos componentes.",
 }
 
 
@@ -319,6 +337,8 @@ def _loc(loc: dict) -> str:
     t = loc.get("tipo")
     if t == "pdf_page":
         return f"pág. {loc['pagina']}"
+    if t == "image_region" and loc.get("pagina"):
+        return f"pág. {loc['pagina']}, imagem {loc.get('imagem', 1)}"
     if t == "sheet_cell":
         return f"{loc['aba']}!{loc['celula']}"
     if t == "paragraph":
@@ -360,7 +380,7 @@ def parity(result: dict, key: dict) -> dict:
             kv, pv = kr.get(s), c["aulas_semanais"][s]
             if kv is None and pv["status"] != "verificado":
                 continue
-            if pv["status"] == "nao_verificado":
+            if pv["status"] in ("nao_verificado", "faixa"):
                 fields["sem_valor_no_plugin"] += 1
                 continue
             fields["comparados"] += 1

@@ -2,6 +2,18 @@
 
 Todas as mudanças relevantes deste plugin são registradas aqui.
 
+## [0.1.3] - 2026-11-17
+
+### Alterado
+- Análise de Qualidade (`resultado-qualidade`): começa também quando o analista **pede a análise de um estado** em texto livre, sem digitar o comando, e segue um roteiro **até o resultado**. Ela só para antes de começar se faltar entrada (documento do estado, template da UF ou referencial ICE); faixas, classificações duvidosas, conflitos e homologações viram pendências na fila de revisão, sem interromper a análise.
+- Referencial ICE em **local fixo**: deixe `referencial_ice` vazio no manifesto para usar o referencial configurado no plugin (pasta ou link do SharePoint, com `manifesto_ice.json` aprovado). O plugin nunca escolhe um referencial por conta própria; cópia de teste ou não aprovada é recusada. A homologação vem do `manifesto_ice.json` quando ele tem a data. Novo comando `ice-padrao`.
+- Template de outro cluster: a análise para logo no início e diz quais UFs o template enviado cobre, em vez de ler tudo para depois falhar.
+
+### Adicionado
+- Matriz com **valores em faixa** (por exemplo "3 ou 4h/a"): a faixa é registrada como está, sem escolher um valor, e fica pendente com o pedido do documento oficial que a fonte cita. Os **totais impressos na fonte** são conferidos contra a soma dos componentes; um total que não fecha aponta linha faltando na transcrição.
+- Imagens repetidas: a mesma figura em várias páginas é lida uma vez só, e a leitura é copiada para as repetidas.
+- `unidades --pagina N`: lê pelas páginas do PDF, com as imagens delas.
+
 ## [0.1.2] - 2026-11-17
 
 ### Alterado

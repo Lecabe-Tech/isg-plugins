@@ -1,12 +1,11 @@
 ---
 name: resultado-qualidade
-description: Faz as duas análises do analista de Qualidade para o Ensino Médio Integral propedêutico de 9h (matriz curricular e orientações pedagógicas e de gestão), cruza as duas e gera o resultado_qualidade.v1.json validado, com evidências e pendências
-disable-model-invocation: true
+description: Análise de Qualidade de um estado (UF e ano) no Ensino Médio Integral propedêutico de 9h — matriz curricular e orientações pedagógicas e de gestão, com evidências; use quando pedirem a análise de qualidade ou de alinhamento de um estado
 ---
 
 Responda sempre em português do Brasil (PT-BR), mesmo que o usuário escreva em outro idioma.
 
-Execute estas instruções somente porque o usuário digitou `/isg-model-alignment:resultado-qualidade`. Esta skill reproduz, de forma rastreável, as duas atividades analíticas do analista de Qualidade (SPEC-017): **(A)** avaliar as orientações pedagógicas e de gestão do ICE nos documentos do estado e **(B)** transcrever e classificar a matriz curricular **propedêutica de 9h**. Depois cruza as duas frentes e entrega **um JSON validado** (`resultado_qualidade.v1.json`) e um **resumo em português** para o analista e a coordenação conferirem.
+Use estas instruções quando o usuário digitar `/isg-model-alignment:resultado-qualidade` **ou pedir a análise de Qualidade de um estado** (por exemplo "vamos iniciar a análise do Ceará" com os arquivos anexados). Esta skill reproduz, de forma rastreável, as duas atividades analíticas do analista de Qualidade (SPEC-017): **(A)** avaliar as orientações pedagógicas e de gestão do ICE nos documentos do estado e **(B)** transcrever e classificar a matriz curricular **propedêutica de 9h**. Depois cruza as duas frentes e entrega **um JSON validado** (`resultado_qualidade.v1.json`) e um **resumo em português** para o analista e a coordenação conferirem.
 Argumentos informados: $ARGUMENTS (por exemplo `iniciar "C:\Qualidade\MG-2026\manifesto.json" --pasta "C:\Qualidade\MG-2026\execucao"`, `status`, `resultado`).
 
 **Fora do escopo desta entrega:** gravar na base central (`SG_*`), no Excel, no SharePoint, no painel ou em BI; modelos de 7h, técnicos ou outras ofertas; calcular percentual de alinhamento.
@@ -18,6 +17,16 @@ Argumentos informados: $ARGUMENTS (por exemplo `iniciar "C:\Qualidade\MG-2026\ma
 - Não diga que executou, verificou ou gravou algo que você não executou. A execução na aba Código do Desktop segue o mesmo contrato, mas ainda não foi testada nessa superfície: se algo falhar lá, diga exatamente o que falhou.
 
 ## 2. Com terminal
+
+### 2.0 Roteiro: vá até o resultado
+
+A interação do analista é **na revisão do resultado**, não em cada passo. Lição do piloto do CE: a análise parou no meio esperando respostas e nunca chegou ao resultado.
+- **Pare antes de começar só se faltar entrada que o programa não supre:** documento do estado, template do cluster com a aba da UF (`TEMPLATE_SEM_UF`) ou referencial ICE (não enviado e não configurado: `ICE_NAO_CONFIGURADO`). Pergunte tudo de uma vez, numa só pergunta.
+- **Depois de iniciar, não pare para perguntar.** Faixa de valores, classificação duvidosa, conflito entre fontes, homologação, confirmação da matriz e documento citado que não veio **não são motivo para parar**: o programa registra cada um como pendência e eles vão para a fila de revisão.
+- Faça todos os passos no mesmo turno: (1) manifesto e `iniciar`; (2) imagens; (3) matriz; (4) orientações em lotes; (5) afirmações e `cruzar`; (6) `resultado` e `revisao-fila`; (7) apresente o resumo e a fila.
+- Se o contexto ou o tempo acabar, diga qual é o próximo passo e o comando exato. A pasta da execução guarda tudo; continue com a mesma `--pasta`.
+- Use **só o programa do plugin instalado** (`${CLAUDE_PLUGIN_ROOT}`), nunca uma cópia de desenvolvimento do repositório nem bibliotecas do sistema (openpyxl, pypdf, poppler): o programa já lê PDF, Word, Excel e imagens.
+- Escreva propostas e leituras com a ferramenta de criar arquivos, não com comandos de terminal com texto longo entre aspas.
 
 ### 2.1 Achar o Python e rodar
 
@@ -35,7 +44,7 @@ Peça ou monte com o analista um `manifesto.json` (modelo em `examples/quality/m
 1. `orientacoes_estaduais` — documentos pedagógicos, de gestão e complementares;
 2. `matriz_estadual` — a matriz oficial vigente (ou o documento onde ela está);
 3. `template_cluster` — o template do cluster da UF/ano (estrutura, classificações, fórmulas);
-4. `referencial_ice` — o referencial ICE aprovado.
+4. `referencial_ice` — o referencial ICE aprovado. **Deixe vazio (`[]`) para usar o referencial configurado no plugin**, que vale para todos os estados: rode `ice-padrao --referencial "${user_config.quality_ice_reference}" --json` para ver versão e homologação, e passe a mesma opção `--referencial` no `iniciar` (se o valor aparecer vazio ou literalmente como `${user_config...}`, omita a opção). **Nunca escolha um referencial por conta própria**: nada de cópia de teste, planilha de outra execução ou arquivo achado no computador. Só entra o configurado ou o arquivo que o analista enviou.
 
 Um mesmo arquivo pode servir a duas classes (declare nas duas). A homologação do ICE (`homologacao_ice`: versão, quem aprovou, data), as regras de consolidação aprovadas (`regras_homologadas`) e o mapeamento de códigos aplicáveis (`aplicabilidade_codigos`) vêm **da Qualidade**: nunca invente esses registros. Link de site que não seja do SharePoint não entra: peça o arquivo.
 
@@ -48,9 +57,9 @@ Um mesmo arquivo pode servir a duas classes (declare nas duas). A homologação 
 
 `manifesto-validar "<manifesto.json>"` confere o contrato; `iniciar "<manifesto.json>" --pasta "<pasta>"` lê as quatro classes (PDF, DOCX, XLSX, PNG/JPEG, TXT/CSV, HTML), registra hash e localização de cada unidade (página, célula, parágrafo, linha, imagem) e lista as pendências de leitura.
 
-Trechos em **imagem** ficam pendentes. `imagens` lista cada um com o arquivo de imagem já exportado para a pasta da execução: abra esse arquivo, leia com as regras da skill `sip` e registre com `imagem-registrar --unidade <id> --arquivo <leitura.md>` (continua marcado como leitura de IA, nunca como valor verificado). Imagem decorativa também é registrada, como decorativa. Se a imagem não pôde ser exportada, o motivo aparece: peça ao analista um print da página. Sem ler todas as imagens, nenhum "Não" é aceito nas orientações.
+Trechos em **imagem** ficam pendentes. `imagens` lista cada um com o arquivo de imagem já exportado para a pasta da execução: abra esse arquivo, leia com as regras da skill `sip` e registre com `imagem-registrar --unidade <id> --arquivo <leitura.md>` (continua marcado como leitura de IA, nunca como valor verificado). **Leia só as imagens diferentes:** a mesma figura em várias páginas aparece com `mesma_imagem_que`, e a leitura registrada é copiada para as repetidas. Com muitas imagens, divida a lista em lotes entre subagentes, cada um gravando um `.md` por imagem; depois registre cada leitura. Imagem decorativa (logotipo, faixa, foto sem conteúdo) também é registrada, em uma linha, como decorativa. Se a imagem não pôde ser exportada, o motivo aparece: peça ao analista um print da página. Sem ler todas as imagens, nenhum "Não" é aceito nas orientações.
 
-Para ler as fontes use `buscar --termo "..." [--classe ...]` e `unidades --fonte DOC-n [--de N --ate M]`. Cite sempre o **id da unidade** (por exemplo `DOC-3:p27`, `DOC-2:Integral 9h!B5`, `DOC-1:par12`) e copie o trecho **exatamente** como está.
+Para ler as fontes use `buscar --termo "..." [--classe ...]` e `unidades --fonte DOC-n --pagina N [--ate-pagina M]` (páginas do PDF, com as imagens delas; `--de/--ate` contam unidades, não páginas). Cite sempre o **id da unidade** (por exemplo `DOC-3:p27`, `DOC-2:Integral 9h!B5`, `DOC-1:par12`) e copie o trecho **exatamente** como está.
 
 ### 2.3 Frente B — matriz curricular
 
@@ -69,6 +78,7 @@ Para ler as fontes use `buscar --termo "..." [--classe ...]` e `unidades --fonte
                   "classificacao": "Formação Geral Básica", "base_classificacao": "funcao_educacional", "confianca_classificacao": 90,
                   "justificativa_classificacao": "Por que a função educacional do componente corresponde a esta categoria"}]}
 ```
+   **Valor em faixa** (por exemplo "3 ou 4h/a"): registre a faixa como está, `{"faixa": [3, 4], "unidade": "...", "trecho_literal": "3 ou 4h/a"}`. **Nunca escolha um dos valores.** A célula fica em faixa, com a pendência `VALOR_EM_FAIXA`. Registre também os **totais impressos** na fonte, para o programa conferir se a soma dos componentes fecha: `"totais_fonte": [{"rotulo": "Formação Geral Básica", "classificacao": "Formação Geral Básica", "serie": 1, "valor": 24, "unidade": "...", "trecho_literal": "24h/a"}]` (sem `classificacao` = total da série). Um total que **não fecha** costuma ser linha que faltou na transcrição: releia a fonte. Se a fonte citar outro documento com os valores exatos, registre `"documento_oficial_citado": {"titulo": "...", "unidade": "...", "trecho_literal": "..."}`: o pedido desse documento vai para a fila de revisão. Não procure o documento.
    Regras: **um registro por linha da fonte**, com o nome **como está**; `0` só quando a fonte mostra zero; em branco ou traço é `null` com `ausente_na_fonte`; o que você não conseguiu conferir é `null` com `nao_verificado`. Em PDF, cite a linha da tabela com os números; em planilha, cite a célula. A classificação tem de estar na lista do template e ser justificada pela **função educacional**, nunca só pelo nome. `total_linhas_fonte` é a contagem de linhas de componentes da tabela oficial. Em PDF, o programa confere também a **coluna** (série) de cada número pela posição na tabela: se a série declarada não bater, a célula fica não verificada; se o layout não for legível, a célula fica marcada como "coluna não conferida" para o analista.
 3. O analista confirma a escolha: `matriz-confirmar --autor "<nome>"`. Sem confirmação a matriz não fica completa.
 4. Os totais por elemento só são calculados com a regra do template **homologada** (impressão digital `formula_sha256` aprovada no manifesto). Nunca calcule horas nem use 40 semanas. `matriz-status` mostra o que falta.
@@ -112,6 +122,8 @@ Você **não consegue** ler os arquivos, conferir citações nem gravar o result
 
 - `MODELO_FORA_ESCOPO`: o manifesto ou a seleção não é propedêutico 9h; não prossiga com outra oferta.
 - `CLASSE_AUSENTE` / `MANIFESTO_INVALIDO` / `UF_INVALIDA`: corrija o manifesto com o analista.
+- `TEMPLATE_SEM_UF`: o template enviado é de outro cluster (a mensagem diz quais UFs ele tem); peça o template do cluster da UF. Nada foi analisado.
+- `ICE_NAO_CONFIGURADO`, `ICE_NAO_APROVADO`, `ICE_DE_TESTE`, `ICE_CONFIG_INVALIDA`: o referencial padrão não pode ser usado; peça o arquivo do referencial ou que a Qualidade configure a pasta com o `manifesto_ice.json` aprovado (versão, `aprovado: true`, `aprovado_por`, `data`).
 - `ORIGEM_NAO_PERMITIDA`: o manifesto tem um endereço da internet que não é do SharePoint; peça o arquivo ou a pasta onde ele está. Não baixe por conta própria.
 - `SEM_COPIA_LOCAL` (comando `sharepoint`) ou `FONTE_AUSENTE` com link do SharePoint: a biblioteca não está sincronizada neste computador; siga os passos de **Link do SharePoint**. Se o arquivo sincronizado está só na nuvem e não abre, peça para marcar "Sempre manter neste dispositivo".
 - `FONTE_AUSENTE`, `ACESSO_NEGADO`, `FORMATO_NAO_SUPORTADO`, `LEITURA_FALHOU`: peça outra cópia (por exemplo DOC/XLS antigos convertidos para DOCX/XLSX ou PDF); as outras partes seguem.
