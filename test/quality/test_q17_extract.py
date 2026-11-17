@@ -1,10 +1,8 @@
 """SPEC-017 G1: multi-format extraction with traceability (synthetic files only)."""
-import io
 import json
 import sys
 import tempfile
 import unittest
-import urllib.error
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,21 +22,6 @@ def manifest_for(folder: Path, entries: dict) -> Path:
     return p
 
 
-class FakeResponse(io.BytesIO):
-    def __init__(self, data: bytes, url: str):
-        super().__init__(data)
-        self._url = url
-
-    def geturl(self):
-        return self._url
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        return False
-
-
 class ExtractTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -50,8 +33,8 @@ class ExtractTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def start(self, entries, opener=None):
-        return RUN.start_run(manifest_for(self.src, entries), self.run, opener)
+    def start(self, entries):
+        return RUN.start_run(manifest_for(self.src, entries), self.run)
 
     def doc(self, inv, doc_id):
         return next(f for f in inv["fontes"] if f["id"] == doc_id)
@@ -143,30 +126,49 @@ class ExtractTest(unittest.TestCase):
         self.assertIn("FONTE_DUPLICADA", codes("ice.xlsx"))
         self.assertNotIn("copia.xlsx", by_name)  # same bytes: one document, the repetition is recorded
 
-    def test_urls_without_credentials(self):
+    def test_internet_addresses_are_refused(self):  # closed inputs: only files sent or folders informed
         FX.ice_xlsx(self.src / "ice.xlsx")
-        pdf = FX.orientations_pdf(self.src / "pub.pdf").read_bytes()
+        for uri in ("https://educacao.exemplo.gov.br/diretrizes.pdf", "http://exemplo.gov.br/matriz.pdf", "http://exemplo.sharepoint.com/sites/x/doc.pdf",
+                    "https://sharepoint.com.exemplo.invalid/sites/x/doc.pdf"):  # SharePoint only over https on *.sharepoint.com
+            with self.subTest(uri=uri):
+                with self.assertRaises(SR.ManifestError) as e:
+                    self.start({"matriz_estadual": [{"uri": uri}]})
+                self.assertEqual(e.exception.code, "ORIGEM_NAO_PERMITIDA")
+        self.assertFalse(self.run.exists())  # refused before anything is read or written
 
-        def opener(req, timeout=60):
-            self.assertNotIn("Authorization", req.headers)
-            url = req.full_url
-            if "negado" in url:
-                raise urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
-            if "sumiu" in url:
-                raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
-            if "sharepoint" in url:
-                return FakeResponse(b"<html>login</html>", "https://login.microsoftonline.com/common/oauth2")
-            return FakeResponse(pdf, url)
-        inv = self.start({"orientacoes_estaduais": [{"uri": "https://educacao.exemplo.gov.br/diretrizes.pdf"}, {"uri": "https://exemplo.gov.br/negado.pdf"},
-                                                    {"uri": "https://exemplo.gov.br/sumiu.pdf"}, {"uri": "https://exemplo.sharepoint.com/sites/x/doc.pdf"}],
-                          "referencial_ice": [{"uri": "ice.xlsx"}]}, opener)
-        f = inv["fontes"]
-        self.assertEqual(f[0]["media_type"], "application/pdf")
-        self.assertEqual(f[0]["status_leitura"], "lida")
-        self.assertEqual([p["codigo"] for p in f[1]["pendencias"]], ["ACESSO_NEGADO"])
-        self.assertEqual([p["codigo"] for p in f[2]["pendencias"]], ["FONTE_AUSENTE"])
-        self.assertEqual([p["codigo"] for p in f[3]["pendencias"]], ["ACESSO_NEGADO"])
-        self.assertEqual(f[3]["status_leitura"], "nao_lida")
+    def test_folder_entry_is_expanded(self):
+        FX.ice_xlsx(self.src / "ice.xlsx")
+        docs = self.src / "orientacoes"
+        (docs / "sub").mkdir(parents=True)
+        FX.orientations_pdf(docs / "a.pdf")
+        FX.management_docx(docs / "sub" / "b.docx")
+        (docs / "~$b.docx").write_bytes(b"lock")  # Office lock file: skipped
+        (self.src / "vazia").mkdir()
+        inv = self.start({"orientacoes_estaduais": [{"uri": "orientacoes", "papel": "orientacao"}, {"uri": "vazia"}]})
+        names = [f["nome"] for f in inv["fontes"] if "orientacoes_estaduais" in f["classes"]]
+        self.assertEqual(names[:2], ["a.pdf", "b.docx"])
+        self.assertNotIn("~$b.docx", names)
+        empty = next(f for f in inv["fontes"] if f["uri"] == "vazia")
+        self.assertEqual([p["codigo"] for p in empty["pendencias"]], ["FONTE_AUSENTE"])
+        self.assertEqual(Path(inv["fontes"][0]["uri"]).parent, docs)  # each file keeps its real path inside the informed folder
+
+    def test_images_are_exported_and_linked(self):
+        FX.orientations_pdf(self.src / "a.pdf", with_image_page=True)
+        FX.management_docx(self.src / "b.docx")
+        (self.src / "c.png").write_bytes(FX.png_bytes(4, 3))
+        FX.ice_xlsx(self.src / "ice.xlsx")
+        self.start({"orientacoes_estaduais": [{"uri": "a.pdf"}, {"uri": "b.docx"}, {"uri": "c.png"}]})
+        pend = {p["unidade"]: p for p in RUN.pending_images(self.run)}
+        self.assertEqual(sorted(pend), ["DOC-1:p3", "DOC-2:img1", "DOC-3:img1"])
+        png = pend["DOC-3:img1"]["arquivos"]
+        self.assertEqual(len(png), 1)
+        self.assertEqual(Path(png[0]).read_bytes(), (self.src / "c.png").read_bytes())
+        pdf = pend["DOC-1:p3"]
+        self.assertTrue(pdf["arquivos"] or any("não exportada" in a for a in pdf["avisos"]))  # exported, or the reason is recorded
+        docx = pend["DOC-2:img1"]  # the synthetic DOCX has a drawing without a picture part: the gap is recorded, not hidden
+        self.assertTrue(docx["arquivos"] or any("não exportada" in a for a in docx["avisos"]))
+        unit = RUN.unit_index(self.run)["DOC-3:img1"][1]
+        self.assertNotIn("_imagens", unit)  # bytes never go into the unit JSON
 
     def test_version_mismatch_and_missing_approval(self):
         FX.ice_xlsx(self.src / "ice.xlsx")

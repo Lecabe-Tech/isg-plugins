@@ -88,6 +88,7 @@
       "required": ["uri"],
       "properties": {
         "uri": {"type": "string", "minLength": 1},
+        "copia_local": {"type": ["string", "null"], "description": "Só para link do SharePoint: arquivo ou pasta local com a cópia (baixada ou sincronizada)."},
         "papel": {"type": ["string", "null"]},
         "titulo": {"type": ["string", "null"]},
         "emissor": {"type": ["string", "null"]},

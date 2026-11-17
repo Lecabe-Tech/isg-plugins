@@ -11,10 +11,12 @@ from __future__ import annotations
 import csv
 import html
 import io
+import logging
 import re
 import struct
 import sys
 import unicodedata
+import warnings
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -52,10 +54,32 @@ def _unit(doc_id, suffix, tipo, loc, texto="", status="lida", avisos=None, **ext
 
 # ---------------- PDF (reuses the CFP reader) ----------------
 
-def _pdf_units(doc_id: str, path: Path) -> tuple:
+def quiet_pdf_library() -> None:
+    """pypdf logs font-encoding warnings for many official PDFs; they are noise for the analyst (the text is still
+    extracted and the page quality is judged by the units themselves)."""
+    logging.getLogger("pypdf").setLevel(logging.ERROR)
+    warnings.filterwarnings("ignore", module=r"pypdf.*")
+
+
+def _cfp_path() -> None:
     for p in (str(CFP_DIR / "vendor"), str(CFP_DIR)):
         if p not in sys.path:
             sys.path.insert(0, p)
+
+
+def _pdf_image(im) -> dict:
+    """Bytes of one embedded PDF image (CFP extractor) or the reason it cannot be exported."""
+    from isg_cfp.images import extract_image
+
+    if im.obj is None:
+        return {"motivo": "imagem desenhada direto no conteúdo da página (inline): não pode ser exportada; envie um print da página"}
+    r = extract_image(im.obj)
+    return {"ext": r["ext"], "data": r["data"]} if r.get("ok") else {"motivo": r.get("motivo", "imagem não exportável") + "; envie um print da página"}
+
+
+def _pdf_units(doc_id: str, path: Path) -> tuple:
+    _cfp_path()
+    quiet_pdf_library()
     from isg_cfp.extract import extract_page, normalize_text, open_reader
     from isg_cfp.organize import _recurring_images
 
@@ -81,7 +105,8 @@ def _pdf_units(doc_id: str, path: Path) -> tuple:
         images = [im for im in (raw.images if raw else []) if im.sig not in decorative]
         if len(squash(text)) < MIN_TEXT and images:
             units.append(_unit(doc_id, f"p{n}", "pdf_page", {"pagina": n}, text, "requer_interpretacao",
-                               ["Página só com imagem (digitalizada ou tabela em figura): precisa de leitura de imagem (SIP) e revisão."]))
+                               ["Página só com imagem (digitalizada ou tabela em figura): precisa de leitura de imagem (SIP) e revisão."],
+                               _imagens=[_pdf_image(im) for im in images]))
             continue
         status = "lida" if squash(text) else "vazia"
         units.append(_unit(doc_id, f"p{n}", "pdf_page", {"pagina": n}, text, status))
@@ -89,7 +114,7 @@ def _pdf_units(doc_id: str, path: Path) -> tuple:
         for k, im in enumerate(images, start=1):
             if area and (im.w * im.h) / area >= BIG_IMAGE:
                 units.append(_unit(doc_id, f"p{n}-img{k}", "image_region", {"pagina": n, "imagem": k}, "", "requer_interpretacao",
-                                   ["Imagem grande na página: pode conter tabela ou gráfico; precisa de leitura de imagem (SIP)."]))
+                                   ["Imagem grande na página: pode conter tabela ou gráfico; precisa de leitura de imagem (SIP)."], _imagens=[_pdf_image(im)]))
     return units, []
 
 
@@ -111,13 +136,40 @@ def _has_image(el) -> bool:
     return any(n.tag.endswith("}drawing") or n.tag.endswith("}pict") for n in el.iter())
 
 
+def _docx_images(el, z, rels: dict) -> list:
+    """Bytes of the pictures referenced inside one DOCX element (a:blip r:embed / v:imagedata r:id)."""
+    out = []
+    for n in el.iter():
+        rid = n.get("{%s}embed" % NS_REL) or (n.get("{%s}id" % NS_REL) if n.tag.endswith("}imagedata") else None)
+        if not rid:
+            continue
+        target = rels.get(rid)
+        if not target:
+            out.append({"motivo": "imagem sem arquivo correspondente no DOCX"})
+            continue
+        name = "word/" + target.lstrip("/").replace("word/", "", 1) if not target.startswith("/") else target.lstrip("/")
+        try:
+            out.append({"ext": Path(name).suffix.lstrip(".").lower() or "bin", "data": z.read(name)})
+        except KeyError:
+            out.append({"motivo": "imagem vinculada fora do arquivo (link externo)"})
+    return out or [{"motivo": "imagem sem arquivo correspondente no DOCX"}]
+
+
 def _docx_units(doc_id: str, path: Path) -> tuple:
     try:
-        with zipfile.ZipFile(path) as z:
-            root = ET.fromstring(z.read("word/document.xml"))
-            extra_parts = [n for n in z.namelist() if re.match(r"word/(header|footer)\d*\.xml$", n)]
+        z = zipfile.ZipFile(path)
+        root = ET.fromstring(z.read("word/document.xml"))
+        extra_parts = [n for n in z.namelist() if re.match(r"word/(header|footer)\d*\.xml$", n)]
+        rels = {}
+        if "word/_rels/document.xml.rels" in z.namelist():
+            rels = {r.get("Id"): r.get("Target") for r in ET.fromstring(z.read("word/_rels/document.xml.rels"))}
     except (zipfile.BadZipFile, KeyError, ET.ParseError):
         return [], [{"codigo": "LEITURA_FALHOU", "detalhe": "O DOCX está corrompido ou incompleto."}]
+    with z:
+        return _docx_body(doc_id, root, extra_parts, z, rels)
+
+
+def _docx_body(doc_id: str, root, extra_parts: list, z, rels: dict) -> tuple:
     body = root.find(W + "body")
     units, p_idx, t_idx, img_idx = [], 0, 0, 0
     for el in list(body) if body is not None else []:
@@ -130,7 +182,8 @@ def _docx_units(doc_id: str, path: Path) -> tuple:
                 img_idx += 1
                 descr = " ".join(filter(None, (n.get("descr") or n.get("name") for n in el.iter() if n.tag.endswith("}docPr"))))
                 units.append(_unit(doc_id, f"img{img_idx}", "image_region", {"paragrafo": p_idx, "imagem": img_idx}, "", "requer_interpretacao",
-                                   ["Imagem no documento" + (f" ({descr})" if descr else "") + ": precisa de leitura de imagem (SIP)."]))
+                                   ["Imagem no documento" + (f" ({descr})" if descr else "") + ": precisa de leitura de imagem (SIP)."],
+                                   _imagens=_docx_images(el, z, rels)))
         elif el.tag == W + "tbl":
             t_idx += 1
             for r_idx, tr in enumerate(el.iter(W + "tr"), start=1):
@@ -139,7 +192,7 @@ def _docx_units(doc_id: str, path: Path) -> tuple:
             if _has_image(el):
                 img_idx += 1
                 units.append(_unit(doc_id, f"img{img_idx}", "image_region", {"tabela": t_idx, "imagem": img_idx}, "", "requer_interpretacao",
-                                   ["Imagem dentro de tabela: precisa de leitura de imagem (SIP)."]))
+                                   ["Imagem dentro de tabela: precisa de leitura de imagem (SIP)."], _imagens=_docx_images(el, z, rels)))
     warnings = []
     if extra_parts:
         warnings.append({"codigo": "CONTEUDO_NAO_LIDO", "detalhe": "Cabeçalhos e rodapés do DOCX não foram lidos (costumam repetir título e paginação)."})
@@ -265,9 +318,14 @@ def _xlsx_units(doc_id: str, path: Path, evidence_class: bool) -> tuple:
             units.append(_unit(doc_id, f"{sh['nome']}!{ref}", "sheet_cell", {"aba": sh["nome"], "celula": ref}, c["texto"], status, avisos, **extra))
     if no_cache:
         warnings.append({"codigo": "FORMULA_SEM_VALOR_EM_CACHE", "detalhe": f"{no_cache} fórmula(s) sem valor salvo; abra e salve no Excel para gravar os resultados, ou confirme os valores."})
+    media = []
+    if wb["imagens"] and evidence_class:
+        with zipfile.ZipFile(path) as z:
+            media = [{"ext": Path(n).suffix.lstrip(".").lower() or "bin", "data": z.read(n)} for n in sorted(x for x in z.namelist() if x.startswith("xl/media/"))]
     for k in range(1, wb["imagens"] + 1):
         if evidence_class:
-            units.append(_unit(doc_id, f"img{k}", "image_region", {"imagem": k}, "", "requer_interpretacao", ["Imagem na planilha: precisa de leitura de imagem (SIP)."]))
+            units.append(_unit(doc_id, f"img{k}", "image_region", {"imagem": k}, "", "requer_interpretacao", ["Imagem na planilha: precisa de leitura de imagem (SIP)."],
+                               _imagens=[media[k - 1]] if k <= len(media) else [{"motivo": "imagem não encontrada no arquivo"}]))
         else:
             units.append(_unit(doc_id, f"img{k}", "image_region", {"imagem": k}, "", "ignorada", ["Imagem em planilha de referência: não é usada como evidência."]))
     return units, warnings
@@ -357,7 +415,8 @@ def normalize(doc: dict) -> dict:
         data = path.read_bytes()
         w, h = image_size(data)
         units = [_unit(doc_id, "img1", "image_region", {"imagem": 1, "largura": w, "altura": h}, "", "requer_interpretacao",
-                       ["Arquivo de imagem: o conteúdo precisa de leitura de imagem (SIP) e revisão; nenhum valor é dado como verificado."])]
+                       ["Arquivo de imagem: o conteúdo precisa de leitura de imagem (SIP) e revisão; nenhum valor é dado como verificado."],
+                       _imagens=[{"ext": "png" if media == "image/png" else "jpg", "data": data}])]
         pend, kind = [], "imagem"
     elif media == "text/csv":
         units, pend, kind = _csv_units(doc_id, _decode(path.read_bytes())), [], "csv"

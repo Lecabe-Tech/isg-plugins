@@ -78,7 +78,35 @@ def candidates(run_dir: Path) -> list:
     return out
 
 
-def _value(raw, index, classes, region, label: str) -> dict:
+COLUMN_UNCHECKED = "COLUNA_NAO_CONFERIDA"
+
+
+def _layout(rec: dict, index: dict, run_dir: Path | None, comp: str | None, serie: int | None, value) -> None:
+    """For a value quoted from a PDF page, confirm the grade COLUMN from the text positions (pdf_layout). The quote proves
+    the number is in the row; the layout proves it is under the right grade. Divergence = not verified; an unreadable
+    layout keeps the quote but says the column was not confirmed."""
+    ev = rec.get("evidencia")
+    if not (run_dir and comp and serie and ev and ev["unidade"] in index):
+        return
+    doc_id, unit = index[ev["unidade"]]
+    if unit["tipo"] != "pdf_page":
+        return
+    pdf = next(iter(sorted((run_dir / "originais").glob(doc_id + ".pdf"))), None)
+    if pdf is None:
+        return
+    import pdf_layout as PL
+
+    r = PL.check_cell(pdf, unit["localizacao"]["pagina"], comp, serie, value)
+    if r["estado"] == "confere":
+        ev["metodo"] = "celula_layout_conferida"
+    elif r["estado"] == "diverge":
+        rec.update(valor=None, status="nao_verificado", motivo=f"{comp}, {serie}ª série: o trecho confere, mas pela posição na tabela {r['motivo']}")
+        ev["verificacao"] = "nao_conferida"
+    else:
+        rec["motivo"] = f"{COLUMN_UNCHECKED}: {comp}, {serie}ª série: o número está na linha citada, mas a coluna não foi conferida ({r['motivo']})"
+
+
+def _value(raw, index, classes, region, label: str, run_dir: Path | None = None, comp: str | None = None, serie: int | None = None) -> dict:
     """One weekly-lesson or minutes cell from the proposal -> verified value record."""
     raw = raw if isinstance(raw, dict) else {"valor": raw}
     valor, motivo_nulo = raw.get("valor"), raw.get("motivo")
@@ -103,6 +131,8 @@ def _value(raw, index, classes, region, label: str) -> dict:
                     rec["status"], rec["motivo"] = "nao_verificado", "Ausência lida em imagem: precisa de conferência."
                 elif not r["ok"]:
                     rec["status"], rec["motivo"] = "nao_verificado", f"{label}: {r['motivo']}"
+                else:
+                    _layout(rec, index, run_dir, comp, serie, None)
             else:
                 rec["status"], rec["motivo"] = "nao_verificado", f"{label}: ausência declarada sem localização na fonte."
         else:
@@ -116,6 +146,7 @@ def _value(raw, index, classes, region, label: str) -> dict:
     rec["evidencia"] = r["evidencia"]
     if r["ok"]:
         rec.update(valor=valor, status="verificado")
+        _layout(rec, index, run_dir, comp, serie, valor)
     else:
         rec["motivo"] = f"{label}: {r['motivo']}"
     return rec
@@ -174,10 +205,13 @@ def register(run_dir: Path, proposal: dict) -> dict:
         if not name:
             raise MatrixError("COMPONENTE_INVALIDO", f"O componente {i} está sem o nome original.")
         cm = []
-        aulas = {s: _value((c.get("aulas_semanais") or {}).get(s), index, classes, region, f"{name}, {s[-1]}ª série") for s in SERIES}
+        aulas = {s: _value((c.get("aulas_semanais") or {}).get(s), index, classes, region, f"{name}, {s[-1]}ª série", run_dir, name, i_s)
+                 for i_s, s in enumerate(SERIES, start=1)}
         for s in SERIES:
             if aulas[s]["status"] == "nao_verificado":
                 cm.append(aulas[s]["motivo"] or f"{s} não verificado")
+            elif (aulas[s]["motivo"] or "").startswith(COLUMN_UNCHECKED):
+                cm.append(aulas[s]["motivo"].split(": ", 1)[1])
         evs_name = []
         if c.get("nome_evidencia"):
             r = EC.check(c["nome_evidencia"], index, classes, ("matriz_estadual",), min_len=3, region=region)

@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "execucao": {
     "id": "EXEMPLO-SINTETICO-001-r1",
     "solicitacao_id": "EXEMPLO-SINTETICO-001",
@@ -9,10 +9,10 @@
     "modalidade": "propedeutico",
     "modelo": "9h",
     "versao_referencia_ice": "SINTETICA-1",
-    "motor_versao": "spec017-1.0.0",
+    "motor_versao": "spec017-1.1.0",
     "gerado_em": "2026-11-16T00:00:00+00:00",
     "status": "completo",
-    "conteudo_sha256": "4b69e8ec3d3dbe3cdba8f9faedfd668fcaacc7861ff6ffb4883e21b743f3338f"
+    "conteudo_sha256": "8fa5c2f0b9de14410aedaacbf399474bca39c118c20e42c008ded8813c7e24e6"
   },
   "fontes": [
     {
@@ -50,7 +50,7 @@
       ],
       "nome": "gestao.docx",
       "uri": "gestao.docx",
-      "sha256": "2c8f954ea6e5a29b127f9e5e53be94270eef2c8aa335d6335684b03d21d18dc8",
+      "sha256": "a51697ac4d4270296473238c889c439676cd438ced537d146e434c6291e12ab0",
       "media_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "tamanho_bytes": 751,
       "extrator": "q17-normalizer-1/docx",
@@ -78,7 +78,7 @@
       ],
       "nome": "matriz.xlsx",
       "uri": "matriz.xlsx",
-      "sha256": "0d44e9660efaf9acff87415472058a3773cacfbdebe8d8855a3cbff9244f63f7",
+      "sha256": "971f4869f1f2557641fa08fa9be7767efd0ceea3ee40a8eff58fe0e5157ae13c",
       "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "tamanho_bytes": 1976,
       "extrator": "q17-normalizer-1/xlsx",
@@ -106,7 +106,7 @@
       ],
       "nome": "template.xlsx",
       "uri": "template.xlsx",
-      "sha256": "69acc9cc58c2e725fda304510e91d008395ff6db49396913043fd8be926175f7",
+      "sha256": "6a2045f3ff823d097184f02eb7522e6f197c456c77d1d4100cbf8c25db260aa8",
       "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "tamanho_bytes": 3930,
       "extrator": "q17-normalizer-1/xlsx",
@@ -134,7 +134,7 @@
       ],
       "nome": "ice.xlsx",
       "uri": "ice.xlsx",
-      "sha256": "beb1d5de1ec9cb42ce27e24f806ffed4c23b2932155dd456da8d9b510d38d1de",
+      "sha256": "8118d14af6423f1338a37bd023e174da13a16ed6b69718d4dbf796a9b87667a0",
       "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "tamanho_bytes": 2198,
       "extrator": "q17-normalizer-1/xlsx",

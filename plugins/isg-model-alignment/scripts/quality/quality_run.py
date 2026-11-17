@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import re
 from pathlib import Path
 
 import document_normalizer as DN
@@ -34,7 +35,39 @@ def _status(units: list, pend: list) -> str:
     return "lida"
 
 
-def start_run(manifest_path: Path, run_dir: Path, opener=None, references=None) -> dict:
+def export_images(run_dir: Path, units: list) -> None:
+    """Writes the pictures of every pending image unit to imagens/ and links them to the unit (`arquivos_imagem`), so the
+    SIP reading is done on the exact picture and the link is recorded; a picture that cannot be exported keeps its reason."""
+    for u in units:
+        items = u.pop("_imagens", None)
+        if items is None:
+            continue
+        files, reasons = [], []
+        for k, it in enumerate(items, start=1):
+            if "data" in it:
+                name = re.sub(r"[^A-Za-z0-9._-]", "_", u["id"].replace(":", "_")) + (f"-{k}" if len(items) > 1 else "") + "." + it["ext"]
+                (run_dir / "imagens").mkdir(parents=True, exist_ok=True)
+                (run_dir / "imagens" / name).write_bytes(it["data"])
+                files.append("imagens/" + name)
+            else:
+                reasons.append(it["motivo"])
+        u["arquivos_imagem"] = files
+        if reasons:
+            u["avisos"] = u["avisos"] + ["Imagem não exportada: " + r for r in reasons]
+
+
+def pending_images(run_dir: Path) -> list:
+    """Image units still waiting for a SIP reading, with the exported files."""
+    out = []
+    for doc_id, units in load_units(run_dir).items():
+        for u in units:
+            if u["status"] == "requer_interpretacao":
+                out.append({"unidade": u["id"], "localizacao": u["localizacao"], "arquivos": [str(run_dir / f) for f in u.get("arquivos_imagem", [])],
+                            "avisos": u["avisos"]})
+    return out
+
+
+def start_run(manifest_path: Path, run_dir: Path, references=None) -> dict:
     """G0 + G1. `references(run_dir, manifest, inventory)` is called at the end when given (template/ICE analysis)."""
     try:
         raw = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
@@ -47,11 +80,12 @@ def start_run(manifest_path: Path, run_dir: Path, opener=None, references=None) 
         if old and (old.get("solicitacao_id"), old.get("uf"), old.get("ano")) != (manifest["solicitacao_id"], manifest["uf"], manifest["ano"]):
             raise RunError("PASTA_EM_USO", "A pasta já contém outra execução (outra solicitação, UF ou ano). Use uma pasta nova.")
     SR.write_json(run_dir / "manifesto.json", manifest)
-    docs = SR.resolve_sources(manifest, Path(manifest_path).resolve().parent, run_dir, opener)
+    docs = SR.resolve_sources(manifest, Path(manifest_path).resolve().parent, run_dir)
     inventory = []
     for d in docs:
         result = DN.normalize(d)
         units = result["unidades"]
+        export_images(run_dir, units)
         pend = d["pendencias"] + result["pendencias"]
         for e in d["entradas"]:
             vig = (e.get("vigencia") or "").strip()

@@ -1,8 +1,12 @@
-"""SPEC-017 G0/G1: four-class input manifest and source resolution (local files, file:// and public https URLs).
+"""SPEC-017 G0/G1: four-class input manifest and source resolution.
 
-Never bypasses access control: https requests carry no credentials and a redirect to a sign-in page counts as
-ACESSO_NEGADO. The real type comes from the bytes, not from the extension. Original bytes are copied to the run folder
-so the same run can be reproduced and every quote checked again.
+Closed inputs (decision of 2026-11-17, after the MG pilot): the analysis runs ONLY on the files the requester sent or on
+the folders they pointed to. The plugin never searches the web nor downloads documents; an http(s) address in the
+manifest is refused with ORIGEM_NAO_PERMITIDA. A SharePoint link is an informed location: it is read from the copy the
+OneDrive client keeps on this computer, or from `copia_local` (see sharepoint_link.py); without a copy it becomes
+FONTE_AUSENTE with what to do. A folder entry is expanded into the files inside it. The real type comes
+from the bytes, not from the extension. Original bytes are copied to the run folder so the same run can be reproduced
+and every quote checked again.
 """
 from __future__ import annotations
 
@@ -11,13 +15,12 @@ import json
 import re
 import shutil
 import unicodedata
-import urllib.error
-import urllib.request
 import zipfile
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 import schema_check
+import sharepoint_link as SP
 from quality_templates import is_uf
 
 CLASSES = ("orientacoes_estaduais", "matriz_estadual", "template_cluster", "referencial_ice")
@@ -42,7 +45,7 @@ EXT_TYPES = {".pdf": "application/pdf", ".docx": "application/vnd.openxmlformats
              ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsm": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
              ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".txt": "text/plain", ".md": "text/plain",
              ".csv": "text/csv", ".htm": "text/html", ".html": "text/html"}
-LOGIN_HOSTS = re.compile(r"(^|\.)(login\.microsoftonline\.com|login\.live\.com|accounts\.google\.com)$", re.I)
+SKIP_IN_FOLDER = re.compile(r"^(~\$|\.|desktop\.ini$|thumbs\.db$)", re.I)  # Office lock files, hidden and system files
 
 
 class ManifestError(Exception):
@@ -89,9 +92,49 @@ def validate_manifest(manifest) -> dict:
     for cls in CLASSES:
         for e in m["entradas"][cls]:
             scheme = urlparse(e["uri"]).scheme.lower()
-            if scheme not in ("", "file", "https") and not re.fullmatch(r"[a-z]", scheme):
-                raise ManifestError("URI_NAO_PERMITIDA", f"Endereço não permitido em {CLASS_LABEL[cls]}: {e['uri']}. Use um arquivo local, um endereço file ou um endereço https público.")
+            if SP.is_sharepoint(e["uri"]):
+                continue
+            if e.get("copia_local"):
+                raise ManifestError("MANIFESTO_INVALIDO", f"copia_local só vale para link do SharePoint ({CLASS_LABEL[cls]}: {e['uri']}).")
+            if scheme in ("http", "https", "ftp", "ftps"):
+                raise ManifestError("ORIGEM_NAO_PERMITIDA", f"Endereço da internet em {CLASS_LABEL[cls]}: {e['uri']}. O plugin analisa só os arquivos enviados, "
+                                    "a pasta informada ou links do SharePoint do Instituto; ele não baixa documentos. Envie o arquivo ou informe a pasta onde ele está.")
+            if scheme not in ("", "file") and not re.fullmatch(r"[a-z]", scheme):
+                raise ManifestError("URI_NAO_PERMITIDA", f"Endereço não permitido em {CLASS_LABEL[cls]}: {e['uri']}. Informe o caminho de um arquivo ou de uma pasta.")
     return m
+
+
+def _note(entry: dict, text: str) -> str:
+    return ((entry.get("observacao") or "") + " " + text).strip()
+
+
+def expand_entry(entry: dict, base: Path) -> list:
+    """[(entry, path, motivo)] for one manifest entry: a file stays one entry; a folder becomes one entry per file inside
+    it (subfolders included, sorted, Office lock and hidden files skipped). A SharePoint link is read from its local copy.
+    A missing path, an empty folder or a link without copy returns [(entry, None, motivo)] so the gap is reported."""
+    uri = entry["uri"]
+    if SP.is_sharepoint(uri):
+        if entry.get("copia_local"):
+            src, how = _local_path(entry["copia_local"], base), "cópia informada"
+        else:
+            found = SP.local_copy(uri)
+            if found["caminho"] is None:
+                return [(entry, None, SP.missing_message(uri, found["motivo"]))]
+            src = found["caminho"]
+            how = "biblioteca sincronizada pelo OneDrive" if found["metodo"] == "biblioteca_sincronizada" else "atalho do OneDrive"
+        if src.is_dir():
+            files = sorted((p for p in src.rglob("*") if p.is_file() and not SKIP_IN_FOLDER.search(p.name)), key=lambda p: str(p).lower())
+            if not files:
+                return [(entry, None, f"A pasta do SharePoint está vazia na cópia local ({src}): {uri}")]
+            return [({**entry, "uri": str(p), "observacao": _note(entry, f"(da pasta do SharePoint {uri}; {how})")}, p, "") for p in files]
+        return [({**entry, "observacao": _note(entry, f"(cópia local: {src}; {how})")}, src, "")]
+    src = _local_path(uri, base)
+    if src.is_dir():
+        files = sorted((p for p in src.rglob("*") if p.is_file() and not SKIP_IN_FOLDER.search(p.name)), key=lambda p: str(p).lower())
+        if not files:
+            return [(entry, None, f"A pasta informada está vazia: {src}")]
+        return [({**entry, "uri": str(p), "observacao": _note(entry, f"(da pasta informada {src})")}, p, "") for p in files]
+    return [(entry, src, "")]
 
 
 def sniff(head: bytes, name: str = "", zip_names: list | None = None) -> str | None:
@@ -140,37 +183,7 @@ def _local_path(uri: str, base: Path) -> Path:
     return path if path.is_absolute() else (base / path)
 
 
-def _download(uri: str, dest: Path, opener=None) -> dict:
-    """Public https only, no credentials. {'ok', 'codigo', 'detalhe', 'nome'}."""
-    req = urllib.request.Request(uri, headers={"User-Agent": "isg-model-alignment-quality/1"})
-    open_ = opener or urllib.request.urlopen
-    try:
-        with open_(req, timeout=60) as resp:
-            final = urlparse(resp.geturl() if hasattr(resp, "geturl") else uri)
-            if LOGIN_HOSTS.search(final.hostname or "") or "/_forms/" in final.path.lower() or "authenticate" in final.path.lower():
-                return {"ok": False, "codigo": "ACESSO_NEGADO", "detalhe": "O endereço pede login. Use uma cópia legítima do arquivo ou um acesso autorizado."}
-            total = 0
-            with open(dest, "wb") as out:
-                while True:
-                    block = resp.read(1 << 20)
-                    if not block:
-                        break
-                    total += len(block)
-                    if total > MAX_BYTES:
-                        out.close()
-                        dest.unlink(missing_ok=True)
-                        return {"ok": False, "codigo": "LEITURA_FALHOU", "detalhe": "Arquivo maior que 200 MB."}
-                    out.write(block)
-            name = Path(unquote(final.path)).name or "download"
-            return {"ok": True, "nome": name}
-    except urllib.error.HTTPError as e:
-        code = "ACESSO_NEGADO" if e.code in (401, 403) else "FONTE_AUSENTE"
-        return {"ok": False, "codigo": code, "detalhe": f"O servidor respondeu {e.code}."}
-    except (urllib.error.URLError, OSError, ValueError) as e:
-        return {"ok": False, "codigo": "FONTE_AUSENTE", "detalhe": "Não foi possível acessar o endereço (%s)." % re.sub(r"\s+", " ", str(getattr(e, "reason", e)))[:120]}
-
-
-def resolve_sources(manifest: dict, base_dir: Path, run_dir: Path, opener=None) -> list:
+def resolve_sources(manifest: dict, base_dir: Path, run_dir: Path) -> list:
     """One record per physical document (same bytes declared twice = one document with several classes).
 
     Record: id, classes, entradas (the manifest entries), nome, uri, caminho (copy in the run folder or None),
@@ -181,19 +194,13 @@ def resolve_sources(manifest: dict, base_dir: Path, run_dir: Path, opener=None) 
     by_hash: dict = {}
     seq = 0
     for cls in CLASSES:
-        for entry in manifest["entradas"][cls]:
+        for entry, src, motivo in (t for e in manifest["entradas"][cls] for t in expand_entry(e, base_dir)):
             uri = entry["uri"]
             pend: list = []
-            tmp = originals / f".download-{seq + 1}"
             path, name = None, None
-            if urlparse(uri).scheme == "https":
-                r = _download(uri, tmp, opener)
-                if r["ok"]:
-                    path, name = tmp, r["nome"]
-                else:
-                    pend.append({"codigo": r["codigo"], "detalhe": r["detalhe"]})
+            if src is None:
+                pend.append({"codigo": "FONTE_AUSENTE", "detalhe": motivo})
             else:
-                src = _local_path(uri, base_dir)
                 name = src.name
                 if not src.is_file():
                     pend.append({"codigo": "FONTE_AUSENTE", "detalhe": f"Arquivo não encontrado: {src}"})
@@ -205,7 +212,9 @@ def resolve_sources(manifest: dict, base_dir: Path, run_dir: Path, opener=None) 
                             pass
                         path = src
                     except OSError as e:
-                        pend.append({"codigo": "ACESSO_NEGADO", "detalhe": f"Sem permissão para ler o arquivo ({e.strerror})."})
+                        hint = (" Se o arquivo do SharePoint está só na nuvem, abra o OneDrive com internet ou marque "
+                                "'Sempre manter neste dispositivo'.") if "SharePoint" in (entry.get("observacao") or "") else ""
+                        pend.append({"codigo": "ACESSO_NEGADO", "detalhe": f"Sem permissão para ler o arquivo ({e.strerror}).{hint}"})
             digest = sha256_file(path) if path else None
             if digest and digest in by_hash:
                 doc = by_hash[digest]
@@ -214,8 +223,6 @@ def resolve_sources(manifest: dict, base_dir: Path, run_dir: Path, opener=None) 
                 else:
                     doc["classes"].append(cls)
                 doc["entradas"].append({"classe": cls, **entry})
-                if path == tmp:
-                    tmp.unlink(missing_ok=True)
                 continue
             seq += 1
             doc = {"id": f"DOC-{seq}", "classes": [cls], "entradas": [{"classe": cls, **entry}], "nome": name or uri, "uri": uri,
@@ -239,10 +246,7 @@ def resolve_sources(manifest: dict, base_dir: Path, run_dir: Path, opener=None) 
                 doc["media_type"] = media
                 doc["tamanho_bytes"] = path.stat().st_size
                 copy = originals / f"{doc['id']}{SUPPORTED.get(media, Path(name or '').suffix.lower() or '.bin')}"
-                if path == tmp:
-                    tmp.replace(copy)
-                else:
-                    shutil.copyfile(path, copy)
+                shutil.copyfile(path, copy)
                 doc["caminho"] = str(copy)
                 by_hash[digest] = doc
             docs.append(doc)

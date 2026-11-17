@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "execucao", "fontes", "referencias", "matriz", "orientacoes", "consistencia", "pendencias", "revisao_humana", "metricas", "gravacoes_externas"],
   "properties": {
-    "schema_version": {"const": "1.0"},
+    "schema_version": {"enum": ["1.0", "1.1"]},
     "execucao": {
       "type": "object",
       "additionalProperties": false,
@@ -332,7 +332,7 @@
         "unidade": {"type": "string", "minLength": 1},
         "localizacao": {"type": "object"},
         "trecho_literal": {"type": "string"},
-        "metodo": {"enum": ["citacao_conferida", "celula_conferida", "interpretacao_ia", "eqv_citacao_conferida"]},
+        "metodo": {"enum": ["citacao_conferida", "celula_conferida", "celula_layout_conferida", "interpretacao_ia", "eqv_citacao_conferida"]},
         "verificacao": {"enum": ["conferida", "nao_conferida", "nao_verificavel"]},
         "relacao": {"enum": ["Equivalente", "Parte de", "Cobre", "Indireta", "Distinto", null]}
       }
