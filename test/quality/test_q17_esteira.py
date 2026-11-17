@@ -18,6 +18,7 @@ import matrix_analysis as MA  # noqa: E402
 import quality_result as QR  # noqa: E402
 import quality_run as RUN  # noqa: E402
 import source_resolver as SR  # noqa: E402
+import template_fill as TF  # noqa: E402
 from test.quality import q17_fixtures as FX  # noqa: E402
 from test.quality.test_q17_matrix import proposal  # noqa: E402
 from test.quality.test_q17_result import full_cycle  # noqa: E402
@@ -91,6 +92,9 @@ class StatusTest(unittest.TestCase):
         run = full_cycle(self.dir)
         CC.run(run)
         self.assertTrue(QR.write(run)["ok"])
+        self.assertEqual(ES.status(run)["proxima"], "template")  # the filled template is the last stage
+        time.sleep(0.05)
+        TF.fill(run)
         s = ES.status(run)
         self.assertTrue(s["concluida"], s)
         code, r = cli("esteira", "--pasta", str(run))
