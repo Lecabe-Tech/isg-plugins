@@ -88,6 +88,18 @@ def cmd_manifesto_montar(args):
         m["uf"], m["ano"], out, len(args.estado) + len(args.matriz), len(args.template), ice), {"arquivo": str(out), "manifesto": m})
 
 
+def cmd_template_preencher(args):
+    import template_fill as TF
+
+    r = TF.fill(Path(args.pasta), Path(args.saida) if args.saida else None)
+    o = r["orientacoes"]
+    msg = ("Template preenchido (cópia): %s. Pedagógicas: %d Sim, %d Não, %d Pendente; gestão: %d Sim, %d Não, %d Pendente; matriz: %d linha(s). "
+           "Células em amarelo pedem decisão do analista. O template original não foi alterado." % (
+               r["arquivo"], o["pedagogicas"]["Sim"], o["pedagogicas"]["Não"], o["pedagogicas"]["Pendente"], o["gestao"]["Sim"], o["gestao"]["Não"],
+               o["gestao"]["Pendente"], r["linhas_matriz"])) + ("" if not r["avisos"] else " Avisos: " + " ".join(r["avisos"]))
+    return emit(args, True, "template-preencher", "TEMPLATE_PREENCHIDO", msg, r)
+
+
 def cmd_esteira(args):
     import esteira as ES
 
@@ -95,7 +107,7 @@ def cmd_esteira(args):
     mark = {"feita": "[x]", "em_andamento": "[~]", "pendente": "[ ]"}
     lines = ["%s %d. %s — %s" % (mark[e["estado"]], i, e["titulo"], e["detalhe"]) for i, e in enumerate(s["etapas"], start=1)]
     if s["concluida"]:
-        msg = "Esteira concluída: o resultado e a fila de revisão estão prontos. Apresente o resumo e a fila ao analista."
+        msg = "Esteira concluída: o template preenchido, o resultado e a fila de revisão estão prontos. Entregue primeiro o template preenchido, depois a fila."
     else:
         n = [e["etapa"] for e in s["etapas"]].index(s["proxima"]) + 1
         msg = "Próxima etapa: %d. %s. Comandos: %s." % (n, ES.TITLES[s["proxima"]], s["proximo_passo"])
@@ -449,7 +461,7 @@ HANDLERS = {
     "resultado": cmd_resultado, "validar": cmd_validar, "resumo": cmd_resumo, "paridade": cmd_paridade,
     "imagens": cmd_imagens, "tabela-pdf": cmd_tabela_pdf, "orientacoes-lotes": cmd_orientacoes_lotes, "orientacoes-conferir": cmd_orientacoes_conferir,
     "revisao-fila": cmd_revisao_fila, "sharepoint": cmd_sharepoint, "ice-padrao": cmd_ice_padrao,
-    "manifesto-montar": cmd_manifesto_montar, "esteira": cmd_esteira,
+    "manifesto-montar": cmd_manifesto_montar, "esteira": cmd_esteira, "template-preencher": cmd_template_preencher,
 }
 
 
@@ -478,6 +490,7 @@ def build_parser():
     sp.add_argument("--solicitacao", default="", help="identificador da solicitação (padrão: UF-ANO-01)")
     sp.add_argument("--saida", required=True, help="arquivo manifesto.json a gravar")
     add("esteira")
+    add("template-preencher").add_argument("--saida", default="", help="arquivo .xlsx a gravar (padrão: ao lado da pasta da execução)")
     sp = add("iniciar")
     sp.add_argument("manifesto")
     sp.add_argument("--referencial", default="", help="pasta do referencial ICE configurado (opção quality_ice_reference), usada se o manifesto deixar referencial_ice vazio")
@@ -547,6 +560,7 @@ def main(argv):
     import cross_check as CC
     import ice_config as ICE
     import matrix_analysis as MA
+    import template_fill as TF
     import orientation_analysis as OA
     import quality_run as RUN
     import source_resolver as SR
@@ -555,7 +569,7 @@ def main(argv):
         return HANDLERS[args.comando](args)
     except SR.ManifestError as e:
         return emit(args, False, args.comando, e.code, e.message, {"erros": e.errors})
-    except (RUN.RunError, MA.MatrixError, OA.OrientationError, CC.CrossCheckError, ICE.IceConfigError) as e:
+    except (RUN.RunError, MA.MatrixError, OA.OrientationError, CC.CrossCheckError, ICE.IceConfigError, TF.FillError) as e:
         return emit(args, False, args.comando, e.code, e.message)
     except json.JSONDecodeError:
         return emit(args, False, args.comando, "JSON_INVALIDO", "O arquivo JSON informado não é válido.")

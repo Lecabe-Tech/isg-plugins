@@ -159,8 +159,11 @@ def bounds(cell: dict):
 
 
 def offered(cell: dict) -> bool:
-    """The source gives this cell a positive load (a value, or a range whose minimum is positive)."""
-    return (cell["valor"] or 0) > 0 or bool(cell.get("faixa") and cell["faixa"]["min"] > 0)
+    """The source gives this cell a positive load: a value, a range whose minimum is positive or a value read from an
+    image (not verified, but the matrix does show the component: lesson of the CE 2026 pilot, where image-only matrices
+    produced false 'required by ICE x no lessons' conflicts)."""
+    return ((cell["valor"] or 0) > 0 or bool(cell.get("faixa") and cell["faixa"]["min"] > 0)
+            or (cell["status"] == "nao_verificado" and _num(cell.get("valor_proposto")) and cell["valor_proposto"] > 0))
 
 
 def _value(raw, index, classes, region, label: str, run_dir: Path | None = None, comp: str | None = None, serie: int | None = None) -> dict:
@@ -228,7 +231,12 @@ def register(run_dir: Path, proposal: dict) -> dict:
         raise MatrixError("SELECAO_INVALIDA", "Informe as unidades (páginas, abas ou tabelas) da matriz selecionada, todas do mesmo documento.")
     motivos, evs = [], []
     for e in sel_in.get("evidencias") or []:
-        r = EC.check(e, index, classes, ("matriz_estadual",), min_len=10, region=region)
+        # the title or the text that names the offer may sit outside the table (CE 2026: the matrix is an image and the
+        # "45 horas semanais ... jornada diária de 9h/a" text is on the page before): any unit of the SAME document counts
+        if not str(e.get("unidade") or "").startswith(fonte + ":"):
+            motivos.append(f"evidência da seleção: {e.get('unidade')} não é do documento da matriz ({fonte})")
+            continue
+        r = EC.check(e, index, classes, ("matriz_estadual",), min_len=10)
         if r["evidencia"]:
             evs.append(r["evidencia"])
         if not r["ok"]:

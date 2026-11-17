@@ -36,8 +36,24 @@ Uma sessão do Claude Code recebeu os arquivos do Ceará e o pedido "vamos inici
 - Matriz em faixa: 25 células ficaram em faixa, com o pedido do documento "Matrizes Curriculares para EEMTIs 2026".
 - Totais: a conferência da 1ª série apontou que a soma lida da imagem da p.89 vai de 34 a 43h, e a fonte imprime 45h. A leitura de IA da outra sessão perdeu linhas; a p.88 cita Clubes Estudantis na 1ª série.
 
+## Segunda rodada: esteira `analisar` (versão 0.1.4)
+
+A análise do CE rodou de ponta a ponta em cerca de 6 minutos:
+- 40 imagens diferentes, lidas por 5 subagentes;
+- 99 orientações, avaliadas em 3 lotes paralelos;
+- matriz de 45h com 34 componentes e 25 células em faixa; os 6 totais impressos fecham;
+- resultado parcial com 103 itens na fila de revisão.
+
+| Retorno do analista | Decisão | O que mudou (0.1.5) |
+|---|---|---|
+| "O número 11 não significa nada sem contexto: o template usa Sim ou Não por linha" | A entrega é o **template preenchido**, no formato em que o analista trabalha | Etapa 7 da esteira, `template-preencher`: cópia do template com Sim/Não/Pendente por linha, observação "Pág. X (documento): trecho", aba de matriz da UF e amarelo no que pede decisão. A sessão tinha montado isso por conta própria, editando o XML e instalando a biblioteca openpyxl; agora é do programa e só usa a biblioteca padrão |
+| Alerta "oferta de 9h não comprovada" com a frase da p.88 | O título fora da tabela prova a oferta | Citação da seleção aceita em qualquer página do mesmo documento da matriz |
+| Conflitos "exigido pelo ICE × sem aulas" em Eletivas, Projeto de Vida e Estudo Orientado, que estão na matriz | Valor lido de imagem mostra a oferta | O cruzamento conta o valor lido de imagem; só Práticas Experimentais segue como conflito real |
+
+Observação dos analistas no template do CE: na Formação Geral Básica, "aqui foi considerado o máximo" da faixa, totalizando 24 horas-aula. O plugin mantém a faixa, como decidido. Se a Qualidade quiser adotar essa convenção, ela precisa ser registrada como regra.
+
 ## Ainda pendente
 
-- A Qualidade configurar a pasta do referencial ICE oficial, com `manifesto_ice.json` aprovado (versão, `aprovado: true`, `aprovado_por`, `data`). A cópia de teste indica que o referencial vem da "Base do painel_v3.xlsx", no SharePoint PortalSG/Qualidade.
+- A Qualidade configurar a pasta do referencial ICE oficial, com `manifesto_ice.json` aprovado (versão, `aprovado: true`, `aprovado_por`, `data`). A cópia de teste indica que o referencial vem da "Base do painel_v3.xlsx", no SharePoint PortalSG/Qualidade. Sem a planilha do ICE, os códigos das orientações ficam sem reconciliação.
 - O documento "Matrizes Curriculares para EEMTIs 2026" (Coeti/SEDUC), para os valores exatos do CE.
-- Rodar a análise do CE de novo, de ponta a ponta, com a versão 0.1.3.
+- A duração da hora-aula do CE, que o documento não informa.

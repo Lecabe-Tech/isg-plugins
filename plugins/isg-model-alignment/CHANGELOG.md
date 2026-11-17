@@ -2,6 +2,19 @@
 
 Todas as mudanças relevantes deste plugin são registradas aqui.
 
+## [0.1.5] - 2026-11-17
+
+### Adicionado
+- **Template preenchido** como etapa final da esteira `analisar` (comando `template-preencher`). O plugin grava uma cópia do template do cluster com o resultado:
+  - abas 1.1 e 1.2 com Sim, Não ou Pendente em cada linha da UF e do ano, e a observação "Pág. X (documento): trecho";
+  - aba de matriz da UF com as faixas como texto e as linhas de mesmo nome somadas;
+  - em amarelo, o que precisa de decisão do analista.
+  As outras abas, as colunas de outros estados e as fórmulas ficam como estão, e o Excel recalcula ao abrir. O template enviado não é alterado. A entrega da `analisar` passa a começar por esse arquivo.
+
+### Corrigido
+- Seleção da matriz: o texto que nomeia a oferta (por exemplo "jornada diária de 9h/a") vale como prova quando está fora da tabela, desde que no mesmo documento. Antes, uma matriz em imagem gerava o alerta falso "oferta de 9h não comprovada".
+- Cruzamento: um componente com aulas lidas de imagem conta como oferecido. Antes, aparecia como conflito falso "exigido pelo ICE × sem aulas na matriz".
+
 ## [0.1.4] - 2026-11-17
 
 ### Adicionado

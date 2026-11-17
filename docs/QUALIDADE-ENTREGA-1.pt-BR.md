@@ -37,7 +37,8 @@ O motor da SPEC-017 está em `plugins/isg-model-alignment/scripts/quality/`. O a
 3. matriz;
 4. orientações;
 5. cruzamento;
-6. resultado e fila de revisão.
+6. resultado e fila de revisão;
+7. template preenchido (cópia do template do cluster com Sim ou Não por linha e a matriz da UF).
 
 O comando `esteira` mostra a etapa atual. A skill `/isg-model-alignment:resultado-qualidade` é o manual técnico de cada etapa. O motor foi testado só com **dados sintéticos** (`test/quality/test_q17_*.py`).
 
