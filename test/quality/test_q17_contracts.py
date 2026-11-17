@@ -69,8 +69,14 @@ class ManifestContractTest(unittest.TestCase):
         m["entradas"]["outra_classe"] = [{"uri": "x.pdf"}]
         with self.assertRaises(SR.ManifestError):
             SR.validate_manifest(m)
+        for uri in ("http://exemplo.invalid/matriz.pdf", "https://exemplo.invalid/matriz.pdf"):  # closed inputs: nothing from the internet
+            m = manifest()
+            m["entradas"]["matriz_estadual"][0]["uri"] = uri
+            with self.assertRaises(SR.ManifestError) as e:
+                SR.validate_manifest(m)
+            self.assertEqual(e.exception.code, "ORIGEM_NAO_PERMITIDA")
         m = manifest()
-        m["entradas"]["matriz_estadual"][0]["uri"] = "http://exemplo.invalid/matriz.pdf"
+        m["entradas"]["matriz_estadual"][0]["uri"] = "smb://servidor/matriz.pdf"
         with self.assertRaises(SR.ManifestError) as e:
             SR.validate_manifest(m)
         self.assertEqual(e.exception.code, "URI_NAO_PERMITIDA")

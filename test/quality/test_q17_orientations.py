@@ -128,7 +128,7 @@ class DecisionTest(Base):
 
 
 class InaccessibleTest(Base):
-    fixture = {"extra_entries": {"orientacoes_estaduais": [{"uri": "https://exemplo.gov.br/caderno-que-nao-abre.pdf"}]}}
+    fixture = {"extra_entries": {"orientacoes_estaduais": [{"uri": "caderno-que-nao-abre.pdf"}]}}  # informed but not sent
 
     def test_inaccessible_document_blocks_nao_not_sim(self):  # AC-017-08
         RUN.register_image_reading(self.run, "DOC-2:img1", "Organograma")
