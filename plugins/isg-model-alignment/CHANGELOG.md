@@ -2,6 +2,20 @@
 
 Todas as mudanças relevantes deste plugin são registradas aqui.
 
+## [0.1.6] - 2026-11-19
+
+### Corrigido
+- **Template preenchido sem sobras do preenchimento anterior.** Quando o template chega já preenchido pelos analistas, nada desse preenchimento fica na cópia:
+  - o bloco inteiro da UF e do ano é apagado antes de gravar, inclusive a segunda coluna de observações (no Cluster 2, a K de MG 2026);
+  - a observação do plugin vai para a primeira coluna **visível** do bloco. A J, que ficou com a evidência do plugin na versão anterior, é oculta no template;
+  - na aba de matriz, as notas digitadas ao lado da tabela também são apagadas.
+- Aba de matriz: as fórmulas do template na coluna "Observações" voltam a ser mantidas. Elas mostram a nota geral e a lista de "Outros componentes" e tinham sido trocadas por observações de componente. As notas do plugin vão para a célula de observações gerais, abaixo de "Observações": fonte, classificações pela função educacional, faixas, linhas somadas e o que revisar.
+- Os valores calculados antigos das fórmulas não aparecem mais em quem abre o arquivo sem recalcular.
+
+### Alterado
+- A cópia mostra só a UF analisada. As abas de matriz e as colunas das outras UFs ficam ocultas, não apagadas. `template-preencher --todas-ufs` mantém todas visíveis.
+- `template-preencher` avisa quando o template já tinha respostas da UF e do ano. A `analisar` então roda a `paridade`, que compara linha a linha, como evidência, sem mudar o resultado.
+
 ## [0.1.5] - 2026-11-17
 
 ### Adicionado

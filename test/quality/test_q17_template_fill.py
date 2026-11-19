@@ -120,6 +120,73 @@ class FillTest(unittest.TestCase):
         self.assertTrue(ES.status(run)["concluida"])
 
 
+class PrefilledTemplateTest(unittest.TestCase):
+    """MG 2026 rerun: the template arrived filled by the analysts; nothing of that fill may stay in the copy."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        self.run = full_cycle(self.dir, real_layout=True)
+        CC.run(self.run)
+        self.assertTrue(QR.write(self.run)["ok"])
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def sheets(self, path):
+        return {s["nome"]: TR._cells(s) for s in DN.read_workbook(Path(path))["abas"]}
+
+    def text(self, cells, ref):
+        return TR._text(cells.get(DN.split_ref(ref)))
+
+    def test_whole_uf_block_is_replaced(self):
+        r = TF.fill(self.run)
+        self.assertGreater(r["preenchimento_anterior"]["orientacoes"], 0)
+        self.assertTrue(any("paridade" in a for a in r["avisos"]))
+        s = self.sheets(r["arquivo"])["1.1 Base orient. pedagógicas"]
+        for row in range(10, 10 + len(FX.ICE_PED)):
+            self.assertIn(self.text(s, f"G{row}"), ("Sim", "Não", "Pendente"))
+            self.assertNotIn("antigo", self.text(s, f"H{row}"))
+            self.assertEqual(self.text(s, f"I{row}"), "")  # the second observation column of the block is emptied
+            self.assertEqual((self.text(s, f"J{row}"), self.text(s, f"K{row}")), ("Sim", "comentário de SP"))  # other UF untouched
+        g = self.sheets(r["arquivo"])["1.2 Base orient. gestão"]
+        self.assertNotIn("antigo", self.text(g, "H10"))
+
+    def test_matrix_notes_replaced_and_template_formulas_kept(self):
+        out = TF.fill(self.run)["arquivo"]
+        m = self.sheets(out)["2.1 Revisão Matriz MG"]
+        self.assertTrue(self.text(m, "F5").startswith("Preenchido pelo plugin de Qualidade"))
+        self.assertEqual(self.text(m, "N15"), "")  # analysts' note beside the table
+        i12 = m.get(DN.split_ref("I12")) or {}
+        self.assertTrue(i12.get("formula"))
+        self.assertNotIn("antiga", str(i12.get("valor") or ""))  # no stale cached text of the old note
+
+    def test_only_the_analysed_uf_is_visible(self):
+        out = TF.fill(self.run)["arquivo"]
+        with zipfile.ZipFile(out) as z:
+            wb = z.read("xl/workbook.xml").decode("utf-8")
+            sheet11 = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertRegex(wb, r'<sheet state="hidden" name="2\.2 Revisão Matriz SP"')
+        hidden = TF.Sheet(sheet11, TF.Styles(None)).hidden_columns()
+        self.assertEqual(hidden, {10, 11})  # SP 2026 columns J and K
+        out2 = TF.fill(self.run, self.dir / "todas.xlsx", somente_uf=False)["arquivo"]
+        with zipfile.ZipFile(out2) as z:
+            self.assertNotIn('state="hidden" name="2.2', z.read("xl/workbook.xml").decode("utf-8"))
+
+
+class SheetColumnsTest(unittest.TestCase):
+    def test_hidden_and_hiding_columns(self):
+        xml = ('<worksheet><cols><col min="1" max="3" width="5" customWidth="1"/><col min="9" max="9" width="7" hidden="1" customWidth="1"/></cols>'
+               '<sheetData/></worksheet>')
+        sh = TF.Sheet(xml, TF.Styles(None))
+        self.assertEqual(sh.hidden_columns(), {9})
+        sh.hide_columns({2, 10})
+        self.assertEqual(sh.hidden_columns(), {2, 9, 10})
+        cols = re.findall(r"<col [^>]*/>", sh.xml)
+        self.assertEqual([tuple(map(int, re.search(r'min="(\d+)"[^>]*max="(\d+)"', c).groups())) for c in cols], [(1, 1), (2, 2), (3, 3), (9, 9), (10, 10)])
+        self.assertTrue(all('width="5"' in c for c in cols[:3]))  # the split keeps the width of the original span
+
+
 class CeFixesTest(unittest.TestCase):
     def test_selection_quote_outside_the_table_but_same_document(self):
         with tempfile.TemporaryDirectory() as t:

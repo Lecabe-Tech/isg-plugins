@@ -153,8 +153,10 @@ def ice_xlsx(path: Path, extra_ped: list | None = None) -> Path:
     return make_xlsx(path, {"orientações_referenciais_ICE": ped, "orientações_modelo_gestão": ges, "matriz_referencial_ICE": mat})
 
 
-def template_xlsx(path: Path, uf: str = "MG", filled: bool = True, rule_variant: str = "padrao") -> Path:
-    """Cluster template: tabs 1.1/1.2 (codes), '2.1 Revisão Matriz <UF>' (matrix + formulas), hidden 'classificacoes'."""
+def template_xlsx(path: Path, uf: str = "MG", filled: bool = True, rule_variant: str = "padrao", real_layout: bool = False) -> Path:
+    """Cluster template: tabs 1.1/1.2 (codes), '2.1 Revisão Matriz <UF>' (matrix + formulas), hidden 'classificacoes'.
+    real_layout: like the Cluster 2 template (MG 2026 rerun): a second observation column in the UF block, a general note
+    under "Observações" shown by a template formula, a note beside the table and a second UF (SP)."""
     t11 = {"B9": "Componente e/ou prática educativa (1º nível)", "C9": "Componente e/ou prática educativa (2º nível)", "D9": "Código da orientação",
            "E9": "Orientação", "F9": "Classificação", "G8": uf, "G9": "2026", "H9": "Observações/comentários"}
     for k, (code, text, elem) in enumerate(ICE_PED):
@@ -191,8 +193,19 @@ def template_xlsx(path: Path, uf: str = "MG", filled: bool = True, rule_variant:
         m["K27"], m["L27"], m["M27"] = F("K26-K14-K15"), F("L26-L14-L15"), F("M26-M14-M15")
     elif rule_variant == "inconsistente":  # only the 1st series changed: the rule is not the same across series
         m["K27"] = F("K26-K14-K15")
+    extra = {}
+    if real_layout:
+        t11.update({"I9": "Observações/comentários", "J8": "SP", "J9": "2026", "K9": "Observações/comentários"})
+        for k in range(len(ICE_PED)):
+            t11.update({f"H{10 + k}": "comentário antigo H", f"I{10 + k}": "comentário antigo dos analistas", f"J{10 + k}": "Sim", f"K{10 + k}": "comentário de SP"})
+        t12.update({"I8": "SP", "I9": "2026", "J9": "Observações/comentários"})
+        for k in range(len(ICE_GES)):
+            t12.update({f"H{10 + k}": "comentário antigo de gestão", f"I{10 + k}": "Não", f"J{10 + k}": "comentário de SP"})
+        m.update({"F4": "Observações", "F5": "NTPPS = Projeto de Vida (nota antiga dos analistas)", "I11": "Observações",
+                  "I12": F('IF($F$5="","-",$F$5)', cached="NTPPS = Projeto de Vida (nota antiga dos analistas)"), "N15": "Se manteve"})
+        extra = {"2.2 Revisão Matriz SP": {"B4": "Estado (sigla UF)", "C4": "SP", "B11": "Componente Curricular", "C11": "1ª série", "B12": "Matemática", "C12": 5}}
     cls_sheet = {"B9": "Classificações", **{f"B{10 + i}": c for i, c in enumerate(CLASSES)}}
-    return make_xlsx(path, {"1.1 Base orient. pedagógicas": t11, "1.2 Base orient. gestão": t12, f"2.1 Revisão Matriz {uf}": m, "classificacoes": cls_sheet},
+    return make_xlsx(path, {"1.1 Base orient. pedagógicas": t11, "1.2 Base orient. gestão": t12, f"2.1 Revisão Matriz {uf}": m, **extra, "classificacoes": cls_sheet},
                      hidden=("classificacoes",), merges={f"2.1 Revisão Matriz {uf}": ["C10:E10"]})
 
 
@@ -235,7 +248,7 @@ def source_set(folder: Path, **kw) -> Path:
     orientations_pdf(folder / "diretrizes.pdf", kw.get("image_page", False), kw.get("conflicting_eo", False))
     management_docx(folder / "gestao.docx")
     matrix_xlsx(folder / "matriz.xlsx", missing_cache=kw.get("missing_cache", False), range_note=kw.get("range_note", False))
-    template_xlsx(folder / "template.xlsx", rule_variant=kw.get("rule_variant", "padrao"))
+    template_xlsx(folder / "template.xlsx", rule_variant=kw.get("rule_variant", "padrao"), real_layout=kw.get("real_layout", False))
     ice_xlsx(folder / "ice.xlsx", extra_ped=kw.get("ice_extra"))
     manifest = {
         "schema_version": "1.0", "solicitacao_id": "SINTETICO-001", "revisao": 1, "uf": "MG", "ano": 2026, "modelo": "9h", "modalidade": "propedeutico",

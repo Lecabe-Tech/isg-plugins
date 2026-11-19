@@ -91,12 +91,12 @@ def cmd_manifesto_montar(args):
 def cmd_template_preencher(args):
     import template_fill as TF
 
-    r = TF.fill(Path(args.pasta), Path(args.saida) if args.saida else None)
+    r = TF.fill(Path(args.pasta), Path(args.saida) if args.saida else None, somente_uf=not args.todas_ufs)
     o = r["orientacoes"]
     msg = ("Template preenchido (cópia): %s. Pedagógicas: %d Sim, %d Não, %d Pendente; gestão: %d Sim, %d Não, %d Pendente; matriz: %d linha(s). "
-           "Células em amarelo pedem decisão do analista. O template original não foi alterado." % (
+           "Células em amarelo pedem decisão do analista. %sO template original não foi alterado." % (
                r["arquivo"], o["pedagogicas"]["Sim"], o["pedagogicas"]["Não"], o["pedagogicas"]["Pendente"], o["gestao"]["Sim"], o["gestao"]["Não"],
-               o["gestao"]["Pendente"], r["linhas_matriz"])) + ("" if not r["avisos"] else " Avisos: " + " ".join(r["avisos"]))
+               o["gestao"]["Pendente"], r["linhas_matriz"], "" if args.todas_ufs else "Só a UF analisada fica visível; as outras UFs estão ocultas, não apagadas. ")) + ("" if not r["avisos"] else " Avisos: " + " ".join(r["avisos"]))
     return emit(args, True, "template-preencher", "TEMPLATE_PREENCHIDO", msg, r)
 
 
@@ -490,7 +490,9 @@ def build_parser():
     sp.add_argument("--solicitacao", default="", help="identificador da solicitação (padrão: UF-ANO-01)")
     sp.add_argument("--saida", required=True, help="arquivo manifesto.json a gravar")
     add("esteira")
-    add("template-preencher").add_argument("--saida", default="", help="arquivo .xlsx a gravar (padrão: ao lado da pasta da execução)")
+    sp = add("template-preencher")
+    sp.add_argument("--saida", default="", help="arquivo .xlsx a gravar (padrão: ao lado da pasta da execução)")
+    sp.add_argument("--todas-ufs", action="store_true", help="mantém visíveis as abas e colunas das outras UFs (padrão: só a UF analisada fica visível)")
     sp = add("iniciar")
     sp.add_argument("manifesto")
     sp.add_argument("--referencial", default="", help="pasta do referencial ICE configurado (opção quality_ice_reference), usada se o manifesto deixar referencial_ice vazio")

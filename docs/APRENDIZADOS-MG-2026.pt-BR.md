@@ -72,7 +72,28 @@ Confiança, justificativa, citações e prova de ausência já seguem no JSON co
 
 O fluxo fica como está: PR para `main` e o workflow **release** disparado na `main`, que publica a tag e move a `stable`. O seletor do "Run workflow" abre na `stable` e precisa ser trocado para `main`. Nenhuma PR da `main` para a `stable`.
 
-## 5. Ainda pendente
+## 5. Segunda rodada de MG com a esteira `analisar` (19/11/2026, versão 0.1.5)
+
+A esteira rodou de ponta a ponta com o Documento Orientador e a Resolução 5.212/2025:
+- matriz do Anexo XVIII com 22 componentes, 54 números conferidos e os 6 totais fechando;
+- orientações pedagógicas: 51 Sim, 15 Não e 4 pendentes;
+- orientações de gestão: 21 Sim, 7 Não e 1 pendente.
+
+O template enviado já vinha preenchido pelos analistas para MG 2026, e **a cópia entregue misturou as respostas do plugin com os comentários dos analistas**.
+
+| O que aconteceu | Causa | O que mudou (0.1.6) |
+|---|---|---|
+| Comentários dos analistas visíveis ao lado das respostas do plugin (aba 1.1, coluna K) | O bloco MG 2026 tem duas colunas de observações. O preenchimento escrevia só na primeira (J), que é **oculta** no template, e deixava a K | O bloco inteiro da UF e do ano é apagado; a observação vai para a primeira coluna visível |
+| Observações por componente na coluna I da aba de matriz | A coluna I pertence ao bloco de elementos: as fórmulas do template mostram a nota geral (F5) e a lista de "Outros componentes" | Fórmulas mantidas; as notas do plugin vão para a nota geral (F5) |
+| Abas e colunas de MS, MA e AL na entrega | A cópia mantinha o template inteiro visível | Só a UF analisada fica visível; o resto fica oculto, não apagado |
+| O template servia de gabarito, mas isso não foi aproveitado | Nada avisava que o template vinha preenchido | `template-preencher` avisa, e a `analisar` roda a `paridade` como evidência |
+
+Comparação com o preenchimento dos analistas, feita depois do resultado gravado:
+- orientações: 82 de 94 iguais e 12 diferentes;
+- matriz: 63 de 68 campos iguais.
+Cada diferença vai para o analista decidir.
+
+## 6. Ainda pendente
 
 - Homologação do ICE 2026 e decisão sobre os códigos PADI de 2024.
 - Homologação da regra de consolidação do template (impressão digital `1d5535d0…` para o Cluster 2).
