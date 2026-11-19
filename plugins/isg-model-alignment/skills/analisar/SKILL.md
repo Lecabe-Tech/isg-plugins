@@ -94,7 +94,11 @@ Quando `concluida` for verdadeiro, vá para a entrega (item 2.4). **Não pare no
    - Quando o ICE exigir um componente, registre também.
    - Rode `cruzar`.
 6. **Resultado:** rode `resultado` e depois `revisao-fila "<pasta>/execucao/resultado_qualidade.v1.json"`.
-7. **Template preenchido:** rode `template-preencher`. A cópia vai para a pasta da análise; o template original não muda. Não monte o template por conta própria, nem com outras bibliotecas ou editando o Excel à mão: use só este comando.
+7. **Template preenchido:** rode `template-preencher`. A cópia vai para a pasta da análise; o template original não muda.
+   - Na cópia, só a UF analisada fica visível; as abas e colunas das outras UFs ficam ocultas, não apagadas. Use `--todas-ufs` só se o analista pedir as outras visíveis.
+   - O bloco inteiro da UF e do ano é apagado antes de gravar: todas as colunas de observação e todo texto digitado na aba de matriz. **Nada do preenchimento anterior dos analistas fica na cópia.**
+   - Não monte nem corrija o template por conta própria, nem com outras bibliotecas ou editando o Excel à mão: use só este comando. Se algo sair errado no arquivo, é defeito do plugin; diga ao analista em vez de contornar.
+   - Se a mensagem disser que o template **já tinha preenchimento** da UF e do ano, rode também `paridade "<pasta>/execucao/resultado_qualidade.v1.json" --gabarito-template "<arquivo do template enviado>" --saida "<pasta>/paridade.json"`. Essa comparação é só evidência, feita depois do resultado gravado; **nunca mude o resultado por causa dela**.
 
 ### 2.4 Entrega
 
@@ -102,7 +106,8 @@ Mostre ao analista, nesta ordem:
 1. **O template preenchido**, com link para o arquivo. Explique em uma frase que ele está no formato do template: uma linha por orientação com Sim, Não ou Pendente e a página que comprova, a aba de matriz da UF e, em amarelo, o que precisa da decisão dele.
 2. A situação (`parcial` ou `completo`; nunca diga que está aprovado).
 3. As **10 primeiras decisões da fila de revisão**, cada uma com o que decidir e onde está a evidência. Fale por linha e por código (por exemplo "EL2: pendente, porque..."), não por totais soltos: um "11 Sim" sem a lista não ajuda o analista.
-4. Os caminhos do `resultado_qualidade.v1.json` e do `resumo.md`, como evidência.
+4. Se houve paridade: quantas linhas coincidem com o preenchimento anterior dos analistas e a lista das diferenças, cada uma com a evidência do plugin. Diga que as diferenças são para o analista decidir, não erros de um lado só.
+5. Os caminhos do `resultado_qualidade.v1.json` e do `resumo.md`, como evidência.
 
 Termine dizendo que o template original e a base central não foram alterados: só foi gravada uma cópia na pasta da análise. Nada foi para o SharePoint nem para o painel.
 
