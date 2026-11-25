@@ -1,0 +1,3 @@
+# Falso positivo do gitleaks (generic-api-key): chave sintética de linha de teste, não é segredo.
+# Variável renomeada para 'chave' no PR de release da 0.1.8; o commit antigo continua no histórico.
+876e22780e453af0f2ad72fcb39dc26b87e870db:test/quality/test_q19_notion_saida.py:generic-api-key:120

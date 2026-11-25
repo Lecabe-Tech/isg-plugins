@@ -2,7 +2,11 @@
 
 Todas as mudanças relevantes deste plugin são registradas aqui.
 
-## [0.1.8] - não lançada
+## [0.1.8] - 2026-11-25
+
+### Quebra de compatibilidade
+- `manifesto-montar` exige `--solicitacao` (o ID da solicitação no Notion); o padrão `UF-ANO-01` deixou de existir.
+- O `resultado_qualidade.v1.json` e o `resumo.md` deixaram de ser entregas: a saída é o Notion. Quem lia esses arquivos deve ler as bases "Resultados — …".
 
 ### Alterado
 - **O Notion é a única saída da análise.** O próprio plugin grava e confere as bases "Resultados — Execuções", "Orientações", "Matriz (componentes)", "Matriz (elementos)" e "Fila de revisão", e anexa o template preenchido na solicitação. O `resultado_qualidade.v1.json` e o `resumo.md` viram estado interno da execução: não são mais anexados nem linkados ("Resultado JSON" deixa de ser preenchido). O conteúdo do resumo vai para o corpo da página da execução.
@@ -10,6 +14,7 @@ Todas as mudanças relevantes deste plugin são registradas aqui.
 - **`manifesto-montar` exige `--solicitacao`** (o ID da solicitação no Notion). Acabou o padrão `UF-ANO-01`. Novas opções: `--revisao` e `--origem "<arquivo>=<link>"`.
 - **Contagem da fila:** `revisao_humana.itens` passa a ser exatamente o número de itens da fila detalhada. Uma regra semântica confere isso. A seleção da matriz não conta mais duas vezes (`MATRIZ_NAO_CONFIRMADA` + "Seleção da matriz").
 - A etapa 9 da esteira passa a ser a saída no Notion (bases + template).
+- A gravação real nas bases e o upload na solicitação ainda não foram comprovados no Notion: os testes usam um Notion simulado. A primeira execução real serve de validação.
 - A skill `analisar` lê o `page_id` do gatilho, baixa os anexos da solicitação pelo conector, avança o Status sem regredir, proíbe agendamentos e espera, e proíbe busca na web.
 
 ### Adicionado
@@ -27,9 +32,6 @@ Todas as mudanças relevantes deste plugin são registradas aqui.
   - `equivalencias_componentes`: nova base de classificação `equivalencia_aprovada`.
 - A versão do plugin aparece na `esteira` e na linha da execução ("Motor").
 - `docs/notion/ROTINA.md`: rotina na nuvem, webhook do Notion com o `page_id` e prompt-modelo.
-
-### Pendências
-- A gravação real nas bases e o upload numa solicitação de teste do Notion ainda não foram comprovados. Os testes usam um Notion simulado.
 
 ## [0.1.7] - 2026-11-25
 

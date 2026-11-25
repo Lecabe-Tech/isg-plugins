@@ -117,8 +117,8 @@ class NotionOutputTest(Tmp):
 
     def test_human_fields_are_never_written(self):
         self.deliver()
-        key = "MG-2026-SINTETICO001r1-EL1"
-        row = self.bases.by_key("orientacoes", key)
+        chave = "MG-2026-SINTETICO001r1-EL1"
+        row = self.bases.by_key("orientacoes", chave)
         row["propriedades"].update({"Decisão humana": "Não", "Comentário analista": "Conferido com a coordenação."})
         exe = self.bases.rows["execucao"][0]
         exe["propriedades"]["Validação humana"] = "Validado"
@@ -131,8 +131,8 @@ class NotionOutputTest(Tmp):
         for b in ("execucao", "orientacoes"):
             for u in plans[b]["atualizar"] + plans[b]["criar"]:
                 self.assertFalse(set(u["propriedades"]) & (NR.HUMAN[b] - ({"Validação humana"} if u in plans[b]["criar"] else set())))
-        self.assertEqual(self.bases.by_key("orientacoes", key)["propriedades"]["Decisão humana"], "Não")
-        self.assertEqual(self.bases.by_key("orientacoes", key)["propriedades"]["Comentário analista"], "Conferido com a coordenação.")
+        self.assertEqual(self.bases.by_key("orientacoes", chave)["propriedades"]["Decisão humana"], "Não")
+        self.assertEqual(self.bases.by_key("orientacoes", chave)["propriedades"]["Comentário analista"], "Conferido com a coordenação.")
         self.assertEqual(self.bases.rows["execucao"][0]["propriedades"]["Validação humana"], "Validado")
         self.assertEqual(self.bases.by_key("orientacoes", "MG-2026-SINTETICO001r1-EL2")["propriedades"]["Presença (Claude)"], "Sim")
 
