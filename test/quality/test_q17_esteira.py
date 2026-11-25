@@ -38,21 +38,36 @@ def states(s):
 
 class ManifestTest(unittest.TestCase):
     def test_state_documents_feed_both_fronts_and_empty_ice_means_configured(self):
-        m = ES.manifest("ce", 2026, ["diretrizes.pdf"], ["cluster4.xlsx"], [], matriz=["matriz.xlsx"])
+        m = ES.manifest("ce", 2026, ["diretrizes.pdf"], ["cluster4.xlsx"], [], matriz=["matriz.xlsx"], solicitacao="QUA-13")
         SR.validate_manifest(m)
-        self.assertEqual((m["uf"], m["solicitacao_id"]), ("CE", "CE-2026-01"))
+        self.assertEqual((m["uf"], m["solicitacao_id"], m["revisao"]), ("CE", "QUA-13", 1))
         self.assertEqual([e["uri"] for e in m["entradas"]["matriz_estadual"]], ["diretrizes.pdf", "matriz.xlsx"])
         self.assertEqual([e["uri"] for e in m["entradas"]["orientacoes_estaduais"]], ["diretrizes.pdf"])
         self.assertEqual(m["entradas"]["referencial_ice"], [])
 
+    def test_request_id_is_mandatory(self):  # "UF-ANO-01" made two requests of the same UF/year collide (QUA-12 x QUA-13)
+        with self.assertRaises(SR.ManifestError) as cm:
+            ES.manifest("ce", 2026, ["diretrizes.pdf"], ["cluster4.xlsx"], [])
+        self.assertEqual(cm.exception.code, "SOLICITACAO_AUSENTE")
+
+    def test_notion_download_keeps_the_page_link_as_origin(self):
+        link = "https://app.notion.com/p/4233eb42d1288193a6c9f8dc77bfbb5e#Orienta%C3%A7%C3%B5es%20estaduais"
+        m = ES.manifest("CE", 2026, ["baixados/diretrizes.pdf"], ["baixados/cluster4.xlsx"], [], solicitacao="QUA-13",
+                        origens={"baixados/diretrizes.pdf": link})
+        SR.validate_manifest(m)
+        self.assertEqual(m["entradas"]["orientacoes_estaduais"], [{"uri": link, "copia_local": "baixados/diretrizes.pdf", "papel": "orientacao"}])
+        m["entradas"]["orientacoes_estaduais"][0].pop("copia_local")
+        with self.assertRaises(SR.ManifestError):  # a Notion attachment is never fetched by the program
+            SR.validate_manifest(m)
+
     def test_cli(self):
         with tempfile.TemporaryDirectory() as t:
             out = Path(t) / "Qualidade-CE-2026" / "manifesto.json"
-            code, r = cli("manifesto-montar", "--uf", "CE", "--ano", "2026", "--estado", "a.pdf", "b.docx", "--template", "c.xlsx", "--saida", str(out))
+            code, r = cli("manifesto-montar", "--uf", "CE", "--ano", "2026", "--solicitacao", "QUA-13", "--estado", "a.pdf", "b.docx", "--template", "c.xlsx", "--saida", str(out))
             self.assertEqual((code, r["code"]), (0, "MANIFESTO_MONTADO"))
             self.assertIn("referencial configurado", r["message"])
             self.assertEqual(len(json.loads(out.read_text(encoding="utf-8"))["entradas"]["orientacoes_estaduais"]), 2)
-            code, r = cli("manifesto-montar", "--uf", "CE", "--ano", "2026", "--estado", "a.pdf", "--saida", str(out))
+            code, r = cli("manifesto-montar", "--uf", "CE", "--ano", "2026", "--solicitacao", "QUA-13", "--estado", "a.pdf", "--saida", str(out))
             self.assertEqual((code, r["code"]), (1, "CLASSE_AUSENTE"))
 
 

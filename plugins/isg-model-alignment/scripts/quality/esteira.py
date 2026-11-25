@@ -15,8 +15,9 @@ Stages, in order:
   8 template     filled COPY of the cluster template (one line per orientation with Sim/Não, the UF matrix tab), newer
                  than the result: the deliverable the analyst reviews (lesson of the CE 2026 pilot); a copy with
                  blocking layout problems is not a valid delivery
-  9 publicacao   the valid copy attached to the Notion request (publicacao.json confirmed on the page); optional: only
-                 when the run came from a Notion request with its page id
+  9 publicacao   the delivery in Notion (0.1.8: the only output): run, orientations, matrix components and elements and
+                 the grouped review queue, checked after writing (notion_saida.json), and the valid copy attached to the
+                 request (publicacao.json); only when the run came from a Notion request with its page id
 The AI steps (reading images, transcribing, evaluating) are done by Claude; the program checks and records them.
 """
 from __future__ import annotations
@@ -34,7 +35,7 @@ TITLES = {
     "cruzamento": "Cruzar matriz e orientações",
     "resultado": "Gerar o resultado e a fila de revisão",
     "template": "Preencher a cópia do template do cluster",
-    "publicacao": "Publicar o template preenchido na solicitação do Notion",
+    "publicacao": "Gravar o resultado no Notion (bases e template preenchido)",
 }
 NEXT = {
     "entradas": "manifesto-montar → iniciar",
@@ -45,7 +46,7 @@ NEXT = {
     "cruzamento": "afirmacoes-registrar (se algum documento afirmar carga ou oferta) → cruzar",
     "resultado": "resultado → revisao-fila --agrupada",
     "template": "template-preencher",
-    "publicacao": "publicar-preparar → conector do Notion (upload) → publicar-enviar → publicar-confirmar",
+    "publicacao": "notion-iniciar → por base (execucao, orientacoes, componentes, elementos, fila): notion-linhas, notion-planejar, conector, notion-conferir → publicar-* (template) → notion-entregar",
 }
 
 
@@ -128,8 +129,13 @@ def status(run_dir: Path) -> dict:
                 ("O resultado mudou depois do último preenchimento: preencha de novo." if tpl.exists() else "Cópia do template ainda não preenchida."))
     import notion_publish as NP
 
+    import notion_results as NR
+
+    out = NR.pipeline_state(run_dir)
     pub = NP.pipeline_state(run_dir)
-    if pub is not None:  # only runs that came from a Notion request (publicar-preparar was called) have this stage
+    if out is not None:  # 0.1.8: the Notion bases + the template are the delivery of a run that came from a Notion request
+        add("publicacao", out["estado"], out["detalhe"])
+    elif pub is not None:  # only runs that came from a Notion request (publicar-preparar was called) have this stage
         add("publicacao", pub["estado"], pub["detalhe"])
     return _close(stages)
 
@@ -145,15 +151,27 @@ def _close(stages: list) -> dict:
             "concluida": nxt is None}
 
 
-def manifest(uf: str, ano: int, estado: list, template: list, ice: list, matriz: list | None = None, solicitacao: str | None = None) -> dict:
+def manifest(uf: str, ano: int, estado: list, template: list, ice: list, matriz: list | None = None, solicitacao: str | None = None, revisao: int = 1,
+             origens: dict | None = None) -> dict:
     """Manifest from the files the analyst sent, already split by the skill: state documents count both as orientations
     and as the matrix source (the program finds the matrix inside them); `matriz` = state files that only hold the
-    matrix; an empty ICE list = the configured reference. Files, folders and SharePoint links are all accepted."""
+    matrix; an empty ICE list = the configured reference. Files, folders and SharePoint links are all accepted.
+    `solicitacao` (the request id, e.g. QUA-13) is mandatory; `origens` maps a downloaded file path to the Notion link it
+    came from (the request page + property), recorded as the entry's uri with the file as copia_local."""
     matriz = matriz or []
-    return {"schema_version": "1.0", "solicitacao_id": solicitacao or f"{uf.upper()}-{ano}-01", "revisao": 1, "uf": uf.upper(), "ano": int(ano),
+    origens = origens or {}
+
+    def entry(u, papel):  # a file downloaded from the Notion request keeps the page link as origin (uri) and the copy as copia_local
+        return {"uri": origens[u], "copia_local": u, "papel": papel} if u in origens else {"uri": u, "papel": papel}
+    if not str(solicitacao or "").strip():  # no more "UF-ANO-01": two requests of the same UF/year collided (QUA-12 x QUA-13)
+        import source_resolver as SR
+
+        raise SR.ManifestError("SOLICITACAO_AUSENTE", "Informe o ID da solicitação (--solicitacao, por exemplo QUA-13, o 'ID da Solicitação' no Notion). "
+                               "Ele identifica a execução e entra na chave de cada linha gravada no Notion.")
+    return {"schema_version": "1.0", "solicitacao_id": str(solicitacao).strip(), "revisao": revisao, "uf": uf.upper(), "ano": int(ano),
             "modelo": "9h", "modalidade": "propedeutico",
-            "entradas": {"orientacoes_estaduais": [{"uri": u, "papel": "orientacao"} for u in estado],
-                         "matriz_estadual": [{"uri": u, "papel": "matriz"} for u in estado + matriz],
-                         "template_cluster": [{"uri": u, "papel": "template"} for u in template],
-                         "referencial_ice": [{"uri": u, "papel": "referencial"} for u in ice]},
+            "entradas": {"orientacoes_estaduais": [entry(u, "orientacao") for u in estado],
+                         "matriz_estadual": [entry(u, "matriz") for u in estado + matriz],
+                         "template_cluster": [entry(u, "template") for u in template],
+                         "referencial_ice": [entry(u, "referencial") for u in ice]},
             "homologacao_ice": None, "regras_homologadas": [], "aplicabilidade_codigos": None}

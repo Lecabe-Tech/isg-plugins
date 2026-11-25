@@ -99,6 +99,56 @@ def _val(origin, ev, value):
     return {"origem": origin, "fonte_id": ev["fonte_id"] if ev else None, "unidade": ev["unidade"] if ev else None, "valor": value}
 
 
+def _upper(cell: dict):
+    """Largest weekly load a cell can have: the verified value, the top of a range or the value read but not verified."""
+    if cell.get("faixa"):
+        return cell["faixa"]["max"], False
+    if cell["status"] == "verificado":
+        return cell["valor"] or 0, True
+    if cell.get("valor_proposto") is not None:
+        return cell["valor_proposto"], False
+    return 0, cell["status"] == "ausente_na_fonte"
+
+
+def _minimum_load(rule: dict, comps: list, matrix: dict, conflicts: list, chk) -> None:
+    """ICE table 1 (approved in manifesto_ice.json): the load of a diversified element, summed over the components with
+    that accepted class, against the minimum. Compares with the LARGEST possible value (top of a range, value read from an
+    image), so a conflict means 'below the minimum even in the best case'; unverified values are said in the detail."""
+    cls = DN.fold(rule["classificacao"])
+    pending = [c["id"] for c in comps if c["classificacao_status"] != "aceita"]
+    members = [c for c in comps if c["classificacao_status"] == "aceita" and DN.fold(c["classificacao"] or "") == cls]
+    if pending and not members:
+        chk("carga_minima", "nao_aplicavel", f"{rule['classificacao']}: há classificação pendente ({', '.join(pending[:6])}); comparação adiada")
+        return
+    per, sure = {}, True
+    for s in SERIES:
+        vals = [_upper(c["aulas_semanais"][s]) for c in members]
+        per[s] = sum(v for v, _ in vals)
+        sure = sure and all(ok for _, ok in vals)
+    below = []
+    for s, need in (rule.get("minimo_por_serie") or {}).items():
+        if per[s] < need:
+            below.append(f"{s[-1]}ª série {QRfmt(per[s])} < {QRfmt(need)}")
+    if rule.get("minimo_total") is not None and sum(per.values()) < rule["minimo_total"]:
+        below.append(f"total {QRfmt(sum(per.values()))} < {QRfmt(rule['minimo_total'])}")
+    if not below:
+        chk("carga_minima", "sem_conflito", f"{rule['classificacao']}: carga da matriz atinge o mínimo aprovado do ICE")
+        return
+    ev = next((c["aulas_semanais"][s]["evidencia"] for c in members for s in SERIES if c["aulas_semanais"][s].get("evidencia")), None)
+    conflicts.append({"codigo": "CARGA_ABAIXO_MINIMO", "gravidade": "media", "predicado": "carga mínima do componente (ICE)", "entidade": rule["classificacao"],
+                      "valores": [{"origem": "referencial_ice", "fonte_id": None, "unidade": None, "valor": {"minimo_por_serie": rule.get("minimo_por_serie"),
+                                                                                                              "minimo_total": rule.get("minimo_total")}},
+                                  _val("matriz", ev, per)],
+                      "fontes": [matrix["selecao"]["fonte_id"]] if matrix["selecao"]["fonte_id"] else [], "resolucao_pendente": True,
+                      "detalhe": f"{rule['classificacao']} abaixo do mínimo aprovado do ICE: " + "; ".join(below)
+                                 + (f" (componentes: {', '.join(c['nome_original'] for c in members) or 'nenhum'})"
+                                    + ("" if sure else "; comparação com o maior valor possível, há valores em faixa ou não verificados") + ".")})
+
+
+def QRfmt(v):
+    return str(int(v)) if isinstance(v, float) and v.is_integer() else str(v)
+
+
 def run(run_dir: Path) -> dict:
     """Recomputes consistencia.json from the current fronts. Deterministic; read-only on both fronts."""
     manifest = RUN.load_manifest(run_dir)
@@ -179,6 +229,8 @@ def run(run_dir: Path) -> dict:
             conflicts.append({"codigo": "COBERTURA_DOCUMENTAL_INCOMPLETA", "gravidade": "media", "predicado": "leitura completa das fontes estaduais", "entidade": f["id"],
                               "valores": [{"origem": "inventario", "fonte_id": f["id"], "unidade": None, "valor": f["status_leitura"]}], "fontes": [f["id"]], "resolucao_pendente": True,
                               "detalhe": f"{f['nome']}: " + ("; ".join(p["detalhe"] for p in f["pendencias"]) or "leitura incompleta") + ". Nenhuma conclusão negativa é tirada só da ausência."})
+    for rule in (manifest.get("configuracao_ice") or {}).get("carga_minima") or []:
+        _minimum_load(rule, comps, matrix, conflicts, chk)
     offered = [c["nome_original"] for c in comps if any(MA.offered(c["aulas_semanais"][s]) for s in SERIES)]
     chk("oferta_x_orientacao", "sem_conflito", "Oferta de componente com carga positiva e ausência de orientação específica são avaliações diferentes: não geram conflito"
         + (f" ({len(offered)} componente(s) com carga)." if offered else "."))

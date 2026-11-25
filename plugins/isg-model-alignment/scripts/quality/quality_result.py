@@ -1,7 +1,8 @@
 """SPEC-017 G5: final JSON, semantic checks, PT-BR review summary and parity report.
 
-`resultado_qualidade.v1.json` is the only deliverable: both fronts, cross-check, coverage, pending items and status
-(completo / parcial / bloqueado). It is validated against the versioned schema AND against semantic rules (a `Sim`
+`resultado_qualidade.v1.json` holds both fronts, cross-check, coverage, pending items and status (completo / parcial /
+bloqueado). Since 0.1.8 it is the engine's internal state, not a deliverable: the delivery is in Notion
+(notion_results.py) and the filled template. It is validated against the versioned schema AND against semantic rules (a `Sim`
 without a verified quote, a `Não` without full coverage, a total without an approved rule... are errors). The
 content hash ignores only the generation time, so the same inputs and decisions give the same hash (AC-017-14).
 Nothing is written outside the run folder: no SG_* rows, spreadsheet, SharePoint or BI (AC-017-17).
@@ -28,6 +29,18 @@ SERIES = MA.SERIES
 NON_BLOCKING = {"TIPO_DIVERGENTE", "FONTE_DUPLICADA"}
 RESULT_FILE = "resultado_qualidade.v1.json"
 SUMMARY_FILE = "resumo.md"
+
+
+PLUGIN_MANIFEST = Path(__file__).resolve().parents[2] / ".claude-plugin" / "plugin.json"
+
+
+def plugin_version() -> str:
+    """Version of the installed plugin (plugin.json), shown by `esteira`/`iniciar` and recorded in the Notion run row,
+    so every run says which plugin produced it (the QUA-13 run could not tell)."""
+    try:
+        return str(json.loads(PLUGIN_MANIFEST.read_text(encoding="utf-8")).get("version") or "desconhecida")
+    except (OSError, ValueError):
+        return "desconhecida"
 
 
 def content_hash(result: dict) -> str:
@@ -100,9 +113,7 @@ def build(run_dir: Path) -> dict:
         "orientacoes": orient,
         "consistencia": consist,
         "pendencias": pend,
-        "revisao_humana": {"necessaria": True, "status": "aguardando",
-                           "itens": sum(c["revisar"] for c in matrix["componentes"]) + int(matrix["selecao"]["revisar"]) + len(open_conflicts)
-                                    + sum(o["revisar"] for k in OA.TYPES for o in orient[k])},
+        "revisao_humana": {"necessaria": True, "status": "aguardando", "itens": 0},
         "metricas": {
             "cobertura_documental": {"numerador": sum(f["cobertura"]["unidades_lidas"] for f in state_docs), "denominador": sum(f["cobertura"]["unidades_total"] for f in state_docs),
                                      "descricao": "Unidades lidas (páginas, células, parágrafos, linhas, imagens) sobre as identificadas nas fontes estaduais."},
@@ -119,6 +130,8 @@ def build(run_dir: Path) -> dict:
     complete = (not any(p["bloqueia_completude"] for p in pend) and matrix["completude"]["status"] == "completa"
                 and all(orient["completude"][k]["status"] == "completa" for k in OA.TYPES) and not open_conflicts and hom_ice)
     result["execucao"]["status"] = "bloqueado" if (matrix_blocked and orient_blocked) else ("completo" if complete else "parcial")
+    # one definition of "items for review": the detailed queue (the QUA-13 run had 105 here and 110 in the queue)
+    result["revisao_humana"]["itens"] = len(review_queue(result))
     result["execucao"]["conteudo_sha256"] = content_hash(result)
     return result
 
@@ -172,6 +185,8 @@ def semantic_errors(result: dict) -> list:
             errors.append("status completo com pendências ou conflitos abertos")
         if result["referencias"]["ice"]["homologacao"]["status"] != "declarada_no_manifesto":
             errors.append("status completo sem homologação do ICE")
+    if result["revisao_humana"]["itens"] != len(review_queue(result)):
+        errors.append("revisao_humana.itens não confere com a fila de revisão")
     if result["execucao"]["conteudo_sha256"] != content_hash(result):
         errors.append("conteudo_sha256 não confere com o conteúdo")
     return errors
@@ -329,7 +344,12 @@ def review_queue(r: dict) -> list:
             add(2, "decisao", p["codigo"] + (f" ({p['fonte_id']})" if p["fonte_id"] else ""), DECISION_PENDING[p["codigo"]], (), [p["detalhe"]])
     sel = r["matriz"]["selecao"]
     if sel["revisar"] and not sel["confirmada_por_analista"]:
-        add(5, "matriz", "Seleção da matriz", "Conferir a escolha da matriz.", _where(sel["evidencias"]), sel["motivos"])
+        pending = next((i for i in items if i["tipo"] == "decisao" and i["referencia"] == "MATRIZ_NAO_CONFIRMADA"), None)
+        if pending:  # the same decision: one item, with the selection evidence and reasons (it was counted twice before)
+            pending["onde"] += [w for w in _where(sel["evidencias"]) if w not in pending["onde"]]
+            pending["motivos"] += [m for m in sel["motivos"] if m not in pending["motivos"]]
+        else:
+            add(5, "matriz", "Seleção da matriz", "Conferir a escolha da matriz.", _where(sel["evidencias"]), sel["motivos"])
     mins = r["matriz"]["minutos_aula"]
     if sel["status"] != "nao_registrada" and mins["status"] != "verificado":
         add(5, "matriz", "Hora-aula", "Informar a duração oficial da hora-aula (minutos), com o documento que a define.",

@@ -89,8 +89,8 @@ O Notion poderá receber os quatro documentos (ou conjuntos de arquivos); templa
     contradições reais / ausências de prova
                     |
                     v
-    [resultado_qualidade.v1.json]
-    [Resumo PT-BR para Jhon e gestor]
+    [resultado_qualidade.v1.json]  (estado interno desde a 0.1.8)
+    [Notion: bases "Resultados — …" + template preenchido na solicitação]
                     |
           PARAR A ENTREGA AQUI
 ```
@@ -148,3 +148,26 @@ Enquanto não existir um ciclo 9h **avaliado, confrontado com preenchimento huma
 | Notion | `publicar-*`: o programa confere a solicitação (page_id; sem ele, ID de negócio com correspondência única; **nunca** a mais recente), o XLSX (hash, resultado atual, entrega válida) e a página relida. O upload e a escrita são do conector autenticado. Anexos anteriores ficam; o status não regride; a linha de execução é criada ou atualizada sem tocar em "Validação humana". |
 
 O que ainda não está comprovado: o upload integrado em uma solicitação de teste do Notion (depende de autorização) e a medição do esforço humano de revisão no piloto CE 2026.
+
+## 9. Notion como única saída (0.1.8)
+
+O resultado passa a ser entregue **só no Notion**:
+- as bases "Resultados — Execuções", "Orientações", "Matriz (componentes)", "Matriz (elementos)" e "Fila de revisão", ligadas à solicitação;
+- o template preenchido em "Template Preenchido".
+
+O `resultado_qualidade.v1.json` e o `resumo.md` continuam na pasta da execução como **estado interno**: eles amarram o XLSX e cada linha ao mesmo hash de conteúdo, mas não são anexados nem linkados. O campo "Resultado JSON" deixa de ser preenchido.
+
+| Tema | Regra |
+|---|---|
+| Comandos | `notion-iniciar` (confere a solicitação) → por base: `notion-linhas`, `notion-planejar` (criar / atualizar / manter, nunca apagar), gravação pelo conector, `notion-conferir` (releitura) → template (`publicar-*`) → `notion-entregar` (só então "Aguardando Validação"). Estado em `notion_saida.json`; retomada sem duplicar. |
+| Chaves | `<UF>-<ano>-<execução>-<item>` (ex.: `CE-2026-QUA13r1-AC1`). Duas execuções do mesmo estado e ano não colidem. O ID da solicitação é obrigatório no `manifesto-montar`. |
+| Campos humanos | Decisão humana, Classificação humana, Comentário analista, Validação humana (só "Aguardando" na criação), Status e Decisão registrada da fila: nunca gravados. Tarefa já fora de "Aberta" não é tocada. |
+| Matriz | Faixa e componente ausente ficam vazios no Notion, nunca zero. Elementos só com a regra do template homologada; sem ela, o motivo vai para a linha da execução. |
+| Fila | Uma linha por tarefa da fila agrupada. "Itens na fila" da execução = tarefas; o total de itens detalhados vai em "Observações". `revisao_humana.itens` passa a ser exatamente a fila detalhada (o QUA-13 tinha 105 contra 110). |
+| Entradas | Os anexos da solicitação são baixados pelo conector e entram no manifesto com o link da solicitação como origem (`--origem`). |
+| Regras do ICE | `configuracao_ice` (do `manifesto_ice.json` aprovado ou de `--config-ice`): códigos, carga mínima (`CARGA_ABAIXO_MINIMO`) e equivalências de componentes (`equivalencia_aprovada`). Os valores são da Qualidade. |
+| Versão | `esteira` mostra a versão do plugin, e a linha da execução a registra em "Motor". |
+
+A rotina na nuvem e o webhook do Notion estão em [notion/ROTINA.md](notion/ROTINA.md).
+
+O que ainda não está comprovado: a gravação real nas bases e o upload numa solicitação de teste do Notion. Os testes usam um Notion simulado.

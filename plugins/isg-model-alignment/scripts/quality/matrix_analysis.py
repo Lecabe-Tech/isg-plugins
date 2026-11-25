@@ -271,6 +271,9 @@ def register(run_dir: Path, proposal: dict) -> dict:
         minutos = _value(proposal.get("minutos_aula"), index, classes, region, "duração da hora-aula")
     allowed = refs["template"]["classificacoes"]
     by_fold = {DN.fold(c): c for c in allowed}
+    approved = RUN.load_manifest(run_dir).get("configuracao_ice") or {}
+    uf = RUN.load_manifest(run_dir)["uf"]
+    equiv = {DN.fold(e["nome"]): e for e in approved.get("equivalencias_componentes") or [] if e.get("uf") in (None, uf)}
     comps = []
     for i, c in enumerate(proposal.get("componentes") or [], start=1):
         name = str(c.get("nome_original") or "").strip()
@@ -298,6 +301,14 @@ def register(run_dir: Path, proposal: dict) -> dict:
         cls = by_fold.get(DN.fold(cls_raw))
         just = str(c.get("justificativa_classificacao") or "").strip()
         base = c.get("base_classificacao") if c.get("base_classificacao") in ("funcao_educacional", "nome") else "nao_informada"
+        eq = equiv.get(DN.fold(name))
+        eq_cls = by_fold.get(DN.fold(eq["classificacao"])) if eq else None
+        if eq_cls and (not cls_raw or DN.fold(cls_raw) == DN.fold(eq_cls)):  # an approved equivalence decides the class
+            cls, base = eq_cls, "equivalencia_aprovada"
+            just = (f"Equivalência aprovada pela Qualidade ({approved.get('aprovado_por')}, {approved.get('data') or 'sem data'}): "
+                    f"{eq['nome']} = {eq_cls}. " + just).strip()
+        elif eq_cls:
+            cm.append(f"classificação proposta '{cls_raw}' difere da equivalência aprovada ({eq['nome']} = {eq_cls})")
         status = "aceita"
         if not allowed:
             status = "pendente"
@@ -305,10 +316,10 @@ def register(run_dir: Path, proposal: dict) -> dict:
         elif not cls:
             status = "pendente"
             cm.append(f"CLASSIFICACAO_PENDENTE: '{cls_raw or '(vazia)'}' não está na lista do template")
-        elif base != "funcao_educacional" or len(just) < 15:
+        elif base not in ("funcao_educacional", "equivalencia_aprovada") or len(just) < 15:
             status = "pendente"
             cm.append("CLASSIFICACAO_PENDENTE: a classificação precisa de justificativa pela função educacional do componente, não só pelo nome")
-        conf = c.get("confianca_classificacao")
+        conf = c.get("confianca_classificacao") if base != "equivalencia_aprovada" else None  # approved: no confidence guess
         revisar_c = status == "pendente" or (isinstance(conf, (int, float)) and conf < MIN_CLASS_CONFIDENCE) or any(a["status"] == "nao_verificado" for a in aulas.values()) \
             or any(a["evidencia"] and a["evidencia"]["metodo"] == "interpretacao_ia" for a in aulas.values()) or bool(cm)
         if isinstance(conf, (int, float)) and conf < MIN_CLASS_CONFIDENCE:

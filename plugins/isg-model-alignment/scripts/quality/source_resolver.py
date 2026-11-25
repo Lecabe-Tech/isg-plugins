@@ -4,7 +4,8 @@ Closed inputs (decision of 2026-11-17, after the MG pilot): the analysis runs ON
 the folders they pointed to. The plugin never searches the web nor downloads documents; an http(s) address in the
 manifest is refused with ORIGEM_NAO_PERMITIDA. A SharePoint link is an informed location: it is read from the copy the
 OneDrive client keeps on this computer, or from `copia_local` (see sharepoint_link.py); without a copy it becomes
-FONTE_AUSENTE with what to do. A folder entry is expanded into the files inside it. The real type comes
+FONTE_AUSENTE with what to do. A file attached to the Notion request (the cloud flow, 0.1.8) is an informed location
+too: the skill downloads it through the connector and gives the path in `copia_local`; the program never fetches it. A folder entry is expanded into the files inside it. The real type comes
 from the bytes, not from the extension. Original bytes are copied to the run folder so the same run can be reproduced
 and every quote checked again.
 """
@@ -94,14 +95,33 @@ def validate_manifest(manifest) -> dict:
             scheme = urlparse(e["uri"]).scheme.lower()
             if SP.is_sharepoint(e["uri"]):
                 continue
+            if is_notion(e["uri"]):
+                if not e.get("copia_local"):
+                    raise ManifestError("MANIFESTO_INVALIDO", f"Arquivo do Notion sem copia_local ({CLASS_LABEL[cls]}: {e['uri']}): baixe o anexo da solicitação "
+                                        "pelo conector (link temporário de download) e informe o caminho baixado em copia_local.")
+                continue
             if e.get("copia_local"):
-                raise ManifestError("MANIFESTO_INVALIDO", f"copia_local só vale para link do SharePoint ({CLASS_LABEL[cls]}: {e['uri']}).")
+                raise ManifestError("MANIFESTO_INVALIDO", f"copia_local só vale para link do SharePoint ou anexo do Notion ({CLASS_LABEL[cls]}: {e['uri']}).")
             if scheme in ("http", "https", "ftp", "ftps"):
                 raise ManifestError("ORIGEM_NAO_PERMITIDA", f"Endereço da internet em {CLASS_LABEL[cls]}: {e['uri']}. O plugin analisa só os arquivos enviados, "
                                     "a pasta informada ou links do SharePoint do Instituto; ele não baixa documentos. Envie o arquivo ou informe a pasta onde ele está.")
             if scheme not in ("", "file") and not re.fullmatch(r"[a-z]", scheme):
                 raise ManifestError("URI_NAO_PERMITIDA", f"Endereço não permitido em {CLASS_LABEL[cls]}: {e['uri']}. Informe o caminho de um arquivo ou de uma pasta.")
     return m
+
+
+NOTION_HOSTS = ("notion.so", "notion.site", "notion.com")
+
+
+def is_notion(uri) -> bool:
+    """A file attached to a Notion page: an https page link on notion.so / notion.site / app.notion.com (optionally with
+    '#Propriedade'), or the 'notion://' form. It is never fetched by the program: the skill downloads the attachment
+    through the connector into the run folder and gives the path in `copia_local`."""
+    u = urlparse(str(uri or ""))
+    if u.scheme.lower() == "notion":
+        return True
+    host = (u.hostname or "").lower()
+    return u.scheme.lower() == "https" and any(host == h or host.endswith("." + h) for h in NOTION_HOSTS)
 
 
 def _note(entry: dict, text: str) -> str:
@@ -113,6 +133,11 @@ def expand_entry(entry: dict, base: Path) -> list:
     it (subfolders included, sorted, Office lock and hidden files skipped). A SharePoint link is read from its local copy.
     A missing path, an empty folder or a link without copy returns [(entry, None, motivo)] so the gap is reported."""
     uri = entry["uri"]
+    if is_notion(uri):  # a file attached to the Notion request, downloaded by the skill through the connector
+        src = _local_path(entry["copia_local"], base)
+        if not src.is_file():
+            return [(entry, None, f"A cópia baixada do anexo do Notion não existe: {src} ({uri}). Baixe de novo pelo conector.")]
+        return [({**entry, "observacao": _note(entry, f"(anexo da solicitação no Notion: {uri}; cópia baixada {src.name})")}, src, "")]
     if SP.is_sharepoint(uri):
         if entry.get("copia_local"):
             src, how = _local_path(entry["copia_local"], base), "cópia informada"

@@ -2,6 +2,35 @@
 
 Todas as mudanças relevantes deste plugin são registradas aqui.
 
+## [0.1.8] - não lançada
+
+### Alterado
+- **O Notion é a única saída da análise.** O próprio plugin grava e confere as bases "Resultados — Execuções", "Orientações", "Matriz (componentes)", "Matriz (elementos)" e "Fila de revisão", e anexa o template preenchido na solicitação. O `resultado_qualidade.v1.json` e o `resumo.md` viram estado interno da execução: não são mais anexados nem linkados ("Resultado JSON" deixa de ser preenchido). O conteúdo do resumo vai para o corpo da página da execução.
+- **Chave por execução** em todas as linhas: `<UF>-<ano>-<execução>-<item>` (ex.: `CE-2026-QUA13r1-AC1`). Duas execuções do mesmo estado e ano não colidem mais.
+- **`manifesto-montar` exige `--solicitacao`** (o ID da solicitação no Notion). Acabou o padrão `UF-ANO-01`. Novas opções: `--revisao` e `--origem "<arquivo>=<link>"`.
+- **Contagem da fila:** `revisao_humana.itens` passa a ser exatamente o número de itens da fila detalhada. Uma regra semântica confere isso. A seleção da matriz não conta mais duas vezes (`MATRIZ_NAO_CONFIRMADA` + "Seleção da matriz").
+- A etapa 9 da esteira passa a ser a saída no Notion (bases + template).
+- A skill `analisar` lê o `page_id` do gatilho, baixa os anexos da solicitação pelo conector, avança o Status sem regredir, proíbe agendamentos e espera, e proíbe busca na web.
+
+### Adicionado
+- Comandos `notion-iniciar`, `notion-linhas`, `notion-planejar`, `notion-conferir`, `notion-entregar` e `notion-falha` (`scripts/quality/notion_results.py`):
+  - criar, atualizar ou manter, nunca apagar;
+  - releitura obrigatória;
+  - campos do analista nunca gravados;
+  - tarefa da fila já fora de "Aberta" não é tocada;
+  - retomada sem duplicar;
+  - Status "Aguardando Validação" só com tudo conferido.
+- Anexos baixados da solicitação do Notion como origem aceita no manifesto (link da solicitação + `copia_local`).
+- **Regras aprovadas do ICE** (`configuracao_ice`), vindas do `manifesto_ice.json` aprovado ou de `manifesto-montar --config-ice`:
+  - `codigos`: um ICE em PDF deixa de gerar `CODIGOS_NAO_IDENTIFICADOS`;
+  - `carga_minima`: novo conflito `CARGA_ABAIXO_MINIMO`;
+  - `equivalencias_componentes`: nova base de classificação `equivalencia_aprovada`.
+- A versão do plugin aparece na `esteira` e na linha da execução ("Motor").
+- `docs/notion/ROTINA.md`: rotina na nuvem, webhook do Notion com o `page_id` e prompt-modelo.
+
+### Pendências
+- A gravação real nas bases e o upload numa solicitação de teste do Notion ainda não foram comprovados. Os testes usam um Notion simulado.
+
 ## [0.1.7] - 2026-11-25
 
 ### Adicionado

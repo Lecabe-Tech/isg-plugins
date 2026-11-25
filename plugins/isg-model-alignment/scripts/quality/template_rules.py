@@ -269,6 +269,13 @@ def build_references(run_dir: Path, manifest: dict, inv: dict) -> dict:
                 ice["codigos"][k] += codes[k]
         else:
             ice["avisos"].append(f"{f['id']} não é planilha: os códigos de orientação dele não são lidos automaticamente.")
+    approved = manifest.get("configuracao_ice") or {}
+    if approved.get("codigos"):  # codes decided by the Quality team: an ICE in PDF no longer leaves them unidentified
+        for k in ("pedagogicas", "gestao"):
+            have = {c["codigo"] for c in ice["codigos"][k]}
+            ice["codigos"][k] += [{"codigo": c["codigo"], "texto": c.get("texto") or "", "elemento": re.match(r"[A-Z]+", c["codigo"]).group(0)}
+                                  for c in approved["codigos"].get(k) or [] if c["codigo"] not in have]
+        ice["avisos"].append(f"Códigos do ICE da configuração aprovada (versão {approved.get('versao')}, aprovada por {approved.get('aprovado_por')}).")
     hom = manifest.get("homologacao_ice")
     ice["versao"] = (hom or {}).get("versao") or next((e.get("versao") for c in ("referencial_ice",) for e in manifest["entradas"][c] if e.get("versao")), None)
     ice["homologacao"] = hom
