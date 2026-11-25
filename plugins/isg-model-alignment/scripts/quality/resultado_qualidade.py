@@ -50,6 +50,11 @@ def read_json_file(path: str):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+HISTORY_MSG = ("O template do cluster não é fonte de evidência: as respostas, observações e valores já preenchidos nele são histórico. "
+               "A análise usa só os documentos do estado e o referencial ICE; o template entra na estrutura (códigos, classificações, layout) "
+               "e no preenchimento da cópia. Para comparar com o histórico, use o comando paridade depois do resultado.")
+
+
 # ---------------- G0 / G1 ----------------
 
 def cmd_esquema(args):
@@ -97,6 +102,9 @@ def cmd_template_preencher(args):
            "Células em amarelo pedem decisão do analista. %sO template original não foi alterado." % (
                r["arquivo"], o["pedagogicas"]["Sim"], o["pedagogicas"]["Não"], o["pedagogicas"]["Pendente"], o["gestao"]["Sim"], o["gestao"]["Não"],
                o["gestao"]["Pendente"], r["linhas_matriz"], "" if args.todas_ufs else "Só a UF analisada fica visível; as outras UFs estão ocultas, não apagadas. ")) + ("" if not r["avisos"] else " Avisos: " + " ".join(r["avisos"]))
+    if r["bloqueios"]:
+        return emit(args, False, "template-preencher", "ENTREGA_BLOQUEADA", "A cópia foi gravada só para conferência e NÃO é uma entrega válida: " + "; ".join(r["bloqueios"])
+                    + ". Ela não pode ser publicada no Notion. " + msg, r)
     return emit(args, True, "template-preencher", "TEMPLATE_PREENCHIDO", msg, r)
 
 
@@ -144,6 +152,10 @@ def cmd_buscar(args):
     run = Path(args.pasta)
     inv = RUN.load_inventory(run)
     units = RUN.load_units(run)
+    if args.classe == "template_cluster":
+        return emit(args, False, "buscar", "TEMPLATE_NAO_E_FONTE", HISTORY_MSG)
+    hidden = {f["id"] for f in RUN.docs_of_class(inv, "template_cluster")}
+    units = {k: v for k, v in units.items() if k not in hidden}  # the template's answers are history, never evidence
     if args.classe:
         allowed = {f["id"] for f in RUN.docs_of_class(inv, args.classe)}
         units = {k: v for k, v in units.items() if k in allowed}
@@ -155,6 +167,9 @@ def cmd_buscar(args):
 def cmd_unidades(args):
     import quality_run as RUN
 
+    inv = RUN.load_inventory(Path(args.pasta))
+    if args.fonte in {f["id"] for f in RUN.docs_of_class(inv, "template_cluster")}:
+        return emit(args, False, "unidades", "TEMPLATE_NAO_E_FONTE", HISTORY_MSG)
     units = RUN.load_units(Path(args.pasta), args.fonte).get(args.fonte)
     if units is None:
         return emit(args, False, "unidades", "FONTE_INEXISTENTE", "Fonte desconhecida: %s" % args.fonte)
@@ -413,15 +428,161 @@ def cmd_orientacoes_conferir(args):
 def cmd_revisao_fila(args):
     import quality_result as QR
 
-    data = read_json_file(args.resultado)
+    if not args.resultado and not args.pasta:
+        return emit(args, False, "revisao-fila", "USO_INCORRETO", "Informe o arquivo do resultado ou --pasta da execução.", exit_code=EXIT_USAGE)
+    path = Path(args.resultado) if args.resultado else Path(args.pasta) / QR.RESULT_FILE
+    data = read_json_file(str(path))
     v = QR.validate(data)
     if not v["valido"]:
         return emit(args, False, "revisao-fila", "RESULTADO_INVALIDO", "A fila só é gerada de um resultado válido. Rode o comando validar para ver os erros.", v)
+    if args.agrupada:
+        g = QR.grouped_review_queue(data)
+        if args.saida:
+            Path(args.saida).write_text(json.dumps(g, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+        lines = ["%d. %s [%s] — %s (%d item(ns) detalhado(s)%s)" % (x["ordem"], x["titulo"], x["id"], x["acao"], len(x["itens"]),
+                                                                   ", %d célula(s)" % len(x["celulas"]) if x["celulas"] else "") for x in g["grupos"]]
+        msg = ("%d tarefa(s) agrupada(s) para o analista, reunindo %d item(ns) da fila detalhada (%d célula(s) não verificada(s), %d em faixa). "
+               "O número de tarefas não é o número de campos não verificados; a fila detalhada sai sem --agrupada." % (
+                   g["total_grupos"], g["total_itens_detalhados"], g["celulas"]["nao_verificadas"], g["celulas"]["em_faixa"]))
+        return emit(args, True, "revisao-fila", "FILA_AGRUPADA", msg, g, extra_text="\n".join(lines))
     q = QR.review_queue(data)
     if args.saida:
         Path(args.saida).write_text(json.dumps(q, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     lines = ["%d. %s (%s) — %s" % (i["ordem"], i["referencia"], i["tipo"], i["decisao"]) for i in q]
-    return emit(args, True, "revisao-fila", "FILA", "%d decisão(ões) para o analista, da mais importante para a menos importante." % len(q), {"fila": q}, extra_text="\n".join(lines))
+    return emit(args, True, "revisao-fila", "FILA", "%d decisão(ões) para o analista, da mais importante para a menos importante (fila detalhada; "
+                "use --agrupada para a fila por tarefa)." % len(q), {"fila": q}, extra_text="\n".join(lines))
+
+
+# ---------------- second pass (reanálise) ----------------
+
+def cmd_reanalise_planejar(args):
+    import second_pass as SP
+
+    r = SP.plan(Path(args.pasta), Path(args.saida), args.tamanho)
+    if r["ja_concluida"]:
+        res = r["registro"]["resumo"]
+        return emit(args, True, "reanalise-planejar", "REANALISE_JA_CONCLUIDA", "A segunda passagem já foi feita para estas entradas e não se repete (%d melhorada(s), "
+                    "%d divergente(s), %d mantida(s)). Ela só reabre se as entradas mudarem." % (res["substituidas"], res["divergentes"], res["mantidas"]), r["registro"])
+    msg = "%s segunda passagem: %d orientação(ões) em %d lote(s) em %s e %d componente(s) da matriz para segunda leitura (%s). Os lotes não trazem a decisão anterior." % (
+        "Retomada a" if r["retomada"] else "Planejada a", r["orientacoes"], len(r["lotes"]), r["pasta"], r["componentes"], ", ".join(r["unidades_matriz"]) or "—")
+    return emit(args, True, "reanalise-planejar", "REANALISE_PLANEJADA", msg, r)
+
+
+def cmd_reanalise_registrar(args):
+    import second_pass as SP
+
+    r = SP.register_orientations(Path(args.pasta), read_json_file(args.propostas))
+    msg = ("Segunda passagem registrada: %d melhorada(s) com evidência conferida, %d divergente(s) mantida(s) em revisão, %d sem evidência melhor, "
+           "%d decisão(ões) do analista preservada(s); faltam %d." % (len(r["substituidas"]), len(r["divergentes"]), len(r["mantidas"]),
+                                                                    len(r["preservadas_do_analista"]), len(r["faltam"])))
+    if r["fora_da_selecao"] or r["ja_reavaliadas"]:
+        msg += " Ignoradas: %s." % ", ".join(r["fora_da_selecao"] + r["ja_reavaliadas"])
+    return emit(args, True, "reanalise-registrar", "REANALISE_REGISTRADA", msg, r)
+
+
+def cmd_reanalise_matriz(args):
+    import second_pass as SP
+
+    r = SP.register_matrix(Path(args.pasta), read_json_file(args.leitura))
+    msg = "Segunda leitura da matriz comparada: %d componente(s), %d conferem (continuam não verificados se vieram de imagem), %d divergem%s. Nenhum valor foi alterado." % (
+        r["comparados"], r["conferem"], len(r["divergem"]), (": " + ", ".join(r["divergem"])) if r["divergem"] else "")
+    return emit(args, True, "reanalise-matriz", "MATRIZ_RELIDA", msg, r)
+
+
+def cmd_reanalise_documento(args):
+    import second_pass as SP
+
+    r = SP.request_document(Path(args.pasta), args.titulo, args.motivo, args.campos)
+    return emit(args, True, "reanalise-documento", "DOCUMENTO_SOLICITADO", "Documento solicitado uma única vez: %s (%d campo(s) afetado(s)). Nada foi pesquisado nem baixado." % (
+        r["titulo"], len(r["campos"])), r)
+
+
+def cmd_reanalise_concluir(args):
+    import second_pass as SP
+
+    r = SP.finish(Path(args.pasta))
+    msg = ("Segunda passagem concluída: %d de %d orientação(ões) reavaliada(s) — %d melhorada(s), %d divergente(s), %d mantida(s); %d componente(s) relido(s) de %d. "
+           "Refaça o cruzamento, o resultado e o preenchimento." % (r["reavaliadas"], r["selecionadas"], r["substituidas"], r["divergentes"], r["mantidas"],
+                                                                   r["componentes_relidos"], r["componentes_selecionados"]))
+    return emit(args, True, "reanalise-concluir", "REANALISE_CONCLUIDA", msg, r)
+
+
+# ---------------- publication in the Notion request ----------------
+
+def cmd_publicar_localizar(args):
+    import notion_publish as NP
+
+    inv = __import__("quality_run").load_inventory(Path(args.pasta))
+    r = NP.select_request(read_json_file(args.linhas), args.solicitacao, inv["uf"], inv["ano"])
+    return emit(args, True, "publicar-localizar", "SOLICITACAO_LOCALIZADA", "Solicitação %s localizada sem ambiguidade: page_id %s." % (args.solicitacao, r["page_id"]), r)
+
+
+def cmd_publicar_preparar(args):
+    import notion_publish as NP
+
+    r = NP.prepare(Path(args.pasta), args.pagina, args.solicitacao or None)
+    if r["acao"] == "nada_a_fazer":
+        return emit(args, True, "publicar-preparar", "JA_PUBLICADO", "Este arquivo (%s, sha256 %s) já está conferido nesta solicitação; nada a publicar." % (r["nome"], r["sha256"][:12]), r)
+    return emit(args, True, "publicar-preparar", "PUBLICACAO_PREPARADA", "Publicação preparada: %s (%d bytes, sha256 %s) para a página %s. Próximo: ler a página pelo conector "
+                "e rodar publicar-pagina. Nada foi enviado ao Notion ainda." % (r["nome"], r["tamanho_bytes"], r["sha256"][:12], r["page_id"]), r)
+
+
+def cmd_publicar_pagina(args):
+    import notion_publish as NP
+
+    r = NP.check_page(Path(args.pasta), read_json_file(args.pagina_json))
+    msg = ("Página conferida: é a solicitação desta execução (status atual: %s). " % (r["status_solicitacao"] or "—")) + (
+        "O arquivo %s já está anexado: vá direto para publicar-confirmar." % r["nome"] if r["ja_anexado"] else "Pode criar o upload de %s pelo conector." % r["nome"])
+    return emit(args, True, "publicar-pagina", "PAGINA_CONFERIDA", msg, r)
+
+
+def cmd_publicar_enviar(args):
+    import notion_publish as NP
+
+    if args.url:
+        r = NP.send(Path(args.pasta), args.url, read_json_file(args.cabecalhos) if args.cabecalhos else {}, args.upload_id)
+    else:
+        r = NP.record_upload(Path(args.pasta), args.upload_id, read_json_file(args.resposta) if args.resposta else None)
+    return emit(args, True, "publicar-enviar", "ARQUIVO_ENVIADO", "Arquivo enviado ao Notion (upload %s), ainda NÃO anexado nem conferido. Próximo: publicar-propriedades." % r["file_upload_id"],
+                {k: v for k, v in r.items() if k != "historico"})
+
+
+def cmd_publicar_propriedades(args):
+    import notion_publish as NP
+
+    r = NP.properties_payload(Path(args.pasta), read_json_file(args.pagina_json))
+    if args.saida and r["propriedades"]:
+        Path(args.saida).write_text(json.dumps(r, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    msg = ("O arquivo já está na propriedade: nada a atualizar; releia a página e rode publicar-confirmar." if r["acao"] == "ja_anexado" else
+           "Valor de 'Template Preenchido' montado (anexos anteriores mantidos + o novo upload). Grave com o conector (update_properties) e depois releia a página.")
+    return emit(args, True, "publicar-propriedades", "PROPRIEDADES", msg, r)
+
+
+def cmd_publicar_confirmar(args):
+    import notion_publish as NP
+
+    r = NP.confirm(Path(args.pasta), read_json_file(args.pagina_json))
+    msg = "Publicação CONFIRMADA na página relida: %s está em 'Template Preenchido'. " % r["nome"] + (
+        "Agora a solicitação pode ir para '%s'." % r["novo_status"] if r["novo_status"] else "O status não muda (%s)." % r["motivo_status"])
+    return emit(args, True, "publicar-confirmar", "PUBLICACAO_CONFIRMADA", msg, r)
+
+
+def cmd_publicar_execucao(args):
+    import notion_publish as NP
+
+    r = NP.execution_payload(Path(args.pasta), read_json_file(args.linhas) if args.linhas else [])
+    if args.saida:
+        Path(args.saida).write_text(json.dumps(r, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    msg = ("Linha de execução a CRIAR em 'Resultados — Execuções' (Validação humana = Aguardando)." if r["acao"] == "criar" else
+           "Linha de execução existente a ATUALIZAR (%s), sem tocar na Validação humana." % r["page_id"])
+    return emit(args, True, "publicar-execucao", "EXECUCAO", msg, r)
+
+
+def cmd_publicar_falha(args):
+    import notion_publish as NP
+
+    r = NP.fail(Path(args.pasta), args.codigo, args.mensagem)
+    return emit(args, True, "publicar-falha", "FALHA_REGISTRADA", "Falha de publicação registrada (%s); os arquivos ficam locais e a publicação pode ser retomada." % args.codigo, r)
 
 
 def cmd_ice_padrao(args):
@@ -462,6 +623,11 @@ HANDLERS = {
     "imagens": cmd_imagens, "tabela-pdf": cmd_tabela_pdf, "orientacoes-lotes": cmd_orientacoes_lotes, "orientacoes-conferir": cmd_orientacoes_conferir,
     "revisao-fila": cmd_revisao_fila, "sharepoint": cmd_sharepoint, "ice-padrao": cmd_ice_padrao,
     "manifesto-montar": cmd_manifesto_montar, "esteira": cmd_esteira, "template-preencher": cmd_template_preencher,
+    "reanalise-planejar": cmd_reanalise_planejar, "reanalise-registrar": cmd_reanalise_registrar, "reanalise-matriz": cmd_reanalise_matriz,
+    "reanalise-documento": cmd_reanalise_documento, "reanalise-concluir": cmd_reanalise_concluir,
+    "publicar-localizar": cmd_publicar_localizar, "publicar-preparar": cmd_publicar_preparar, "publicar-pagina": cmd_publicar_pagina,
+    "publicar-enviar": cmd_publicar_enviar, "publicar-propriedades": cmd_publicar_propriedades, "publicar-confirmar": cmd_publicar_confirmar,
+    "publicar-execucao": cmd_publicar_execucao, "publicar-falha": cmd_publicar_falha,
 }
 
 
@@ -547,8 +713,42 @@ def build_parser():
     sp.add_argument("--tamanho", type=int, default=35, help="orientações por lote (padrão 35)")
     add("orientacoes-conferir").add_argument("propostas")
     sp = add("revisao-fila", run=False)
-    sp.add_argument("resultado")
+    sp.add_argument("resultado", nargs="?", default="", help="resultado_qualidade.v1.json (ou use --pasta)")
+    sp.add_argument("--pasta", default="", help="pasta da execução (lê <pasta>/resultado_qualidade.v1.json)")
+    sp.add_argument("--agrupada", action="store_true", help="fila por tarefa (causa, ação e fonte comum); sem a opção, a fila detalhada para auditoria")
     sp.add_argument("--saida", default="")
+    sp = add("reanalise-planejar")
+    sp.add_argument("--saida", required=True, help="pasta onde gravar os lotes da segunda passagem")
+    sp.add_argument("--tamanho", type=int, default=35)
+    add("reanalise-registrar").add_argument("propostas", help="propostas da segunda passagem (mesmo formato de orientacoes-registrar)")
+    add("reanalise-matriz").add_argument("leitura", help="matriz_segunda_leitura.json")
+    sp = add("reanalise-documento")
+    sp.add_argument("--titulo", required=True)
+    sp.add_argument("--motivo", default="")
+    sp.add_argument("--campos", nargs="+", required=True, help="campos afetados (por exemplo: C005 2ª série, EL2)")
+    add("reanalise-concluir")
+    sp = add("publicar-localizar")
+    sp.add_argument("--solicitacao", required=True, help="ID de negócio (por exemplo QUA-12)")
+    sp.add_argument("--linhas", required=True, help="JSON com as solicitações lidas pelo conector: [{page_id, id_solicitacao, uf, ano}]")
+    sp = add("publicar-preparar")
+    sp.add_argument("--pagina", required=True, help="page_id (ou link) da solicitação no Notion")
+    sp.add_argument("--solicitacao", default="", help="ID de negócio da solicitação, para conferência")
+    add("publicar-pagina").add_argument("--pagina-json", required=True, help="JSON da página lida pelo conector: {page_id, id_solicitacao, uf, ano, status, template_preenchido}")
+    sp = add("publicar-enviar")
+    sp.add_argument("--upload-id", required=True, help="id do upload criado pelo conector")
+    sp.add_argument("--url", default="", help="URL de upload criada pelo conector (não é gravada)")
+    sp.add_argument("--cabecalhos", default="", help="JSON com os cabeçalhos devolvidos pelo conector (não é gravado)")
+    sp.add_argument("--resposta", default="", help="JSON da resposta do envio, quando o conector fez o envio")
+    sp = add("publicar-propriedades")
+    sp.add_argument("--pagina-json", required=True)
+    sp.add_argument("--saida", default="")
+    add("publicar-confirmar").add_argument("--pagina-json", required=True, help="JSON da página RELIDA depois da atualização")
+    sp = add("publicar-execucao")
+    sp.add_argument("--linhas", default="", help="JSON com as linhas de execução já existentes da solicitação: [{page_id, execucao}]")
+    sp.add_argument("--saida", default="")
+    sp = add("publicar-falha")
+    sp.add_argument("--codigo", required=True)
+    sp.add_argument("--mensagem", required=True)
     add("sharepoint", run=False).add_argument("link", help="link do SharePoint (arquivo ou pasta)")
     add("ice-padrao", run=False).add_argument("--referencial", default="", help="pasta do referencial ICE (opção quality_ice_reference)")
     return p
@@ -562,6 +762,8 @@ def main(argv):
     import cross_check as CC
     import ice_config as ICE
     import matrix_analysis as MA
+    import notion_publish as NP
+    import second_pass as SP
     import template_fill as TF
     import orientation_analysis as OA
     import quality_run as RUN
@@ -571,7 +773,7 @@ def main(argv):
         return HANDLERS[args.comando](args)
     except SR.ManifestError as e:
         return emit(args, False, args.comando, e.code, e.message, {"erros": e.errors})
-    except (RUN.RunError, MA.MatrixError, OA.OrientationError, CC.CrossCheckError, ICE.IceConfigError, TF.FillError) as e:
+    except (RUN.RunError, MA.MatrixError, OA.OrientationError, CC.CrossCheckError, ICE.IceConfigError, TF.FillError, SP.SecondPassError, NP.PublishError) as e:
         return emit(args, False, args.comando, e.code, e.message)
     except json.JSONDecodeError:
         return emit(args, False, args.comando, "JSON_INVALIDO", "O arquivo JSON informado não é válido.")

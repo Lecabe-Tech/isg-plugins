@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 import evidence_check as EC
+import quality_policy as QP
 import quality_run as RUN
 import source_resolver as SR
 import template_rules as TR
@@ -98,12 +99,15 @@ def decide(proposal: dict, index: dict, classes: dict, ctx: dict, origem: str = 
             evs.append(r["evidencia"])
         if not r["ok"]:
             motivos.append("evidência rejeitada: " + r["motivo"])
-    eqv_evs = [{"verificada": e["verificacao"] == "conferida", "relacao": e["relacao"] or "Equivalente",
+    # a quote whose declared relation is 'Distinto' says the document talks about something else: it never supports Sim
+    eqv_evs = [{"verificada": e["verificacao"] == "conferida" and e["relacao"] != "Distinto", "relacao": e["relacao"] or "Equivalente",
                 "origem": "imagem" if e["metodo"] == "interpretacao_ia" else "texto", "pagina_nao_confiavel": False} for e in evs]
+    if evs and all(e["relacao"] == "Distinto" for e in evs if e["verificacao"] == "conferida") and any(e["verificacao"] == "conferida" for e in evs):
+        motivos.append("as citações conferidas têm relação 'Distinto' com a orientação: não comprovam presença")
     checked = [str(x) for x in proposal.get("fontes_verificadas") or []]
     ausencia = proposal.get("ausencia")
     verdict = EQV_RULES.decide({"valor": pres or "Não", "confianca": proposal.get("confianca", 0), "ausencia": ausencia}, eqv_evs,
-                               EQV_RULES.DEFAULT_MINIMUM, {"cobertura_completa": ctx["cobertura_completa"], "risco_de_ocultar": ctx["risco_de_ocultar"]})
+                               QP.QUALITY_MIN_CONFIDENCE, {"cobertura_completa": ctx["cobertura_completa"], "risco_de_ocultar": ctx["risco_de_ocultar"]})
     pendencias = []
     just = str(proposal.get("justificativa") or "").strip()
     if not just:
@@ -131,8 +135,9 @@ def decide(proposal: dict, index: dict, classes: dict, ctx: dict, origem: str = 
         pendencias.append("PENDENTE_EVIDENCIA")
         motivos.append("sem decisão: evidência insuficiente")
     if presenca:
-        status = "decidido_revisar" if (verdict["revisar"] or not just) else "decidido"
-        motivos += verdict["motivos"]
+        explicit = QP.review_reasons(presenca, eqv_evs, ctx)  # indirect/unreliable evidence and absence risk: review regardless of the %
+        status = "decidido_revisar" if (verdict["revisar"] or not just or explicit) else "decidido"
+        motivos += verdict["motivos"] + explicit
     revisar = presenca is None or status == "decidido_revisar"
     return {"presenca": presenca, "status": status, "justificativa": just, "evidencias": evs, "fontes_verificadas": checked,
             "revisar": revisar, "confianca": verdict["confianca"] if presenca else None, "origem": origem, "pendencias": pendencias,
@@ -309,7 +314,8 @@ Para cada código do lote, grave em `propostas_X.json`:
 Regras:
 1. Compare com o significado do TEXTO da orientação ICE, não com o nome do elemento.
 2. "Sim" exige citação literal (mínimo de 20 letras e dígitos; "…" entre pedaços da mesma unidade). relacao: Equivalente,
-   Parte de, Cobre ou Indireta. Confiança de 0 a 100; abaixo de 85 vai para revisão humana.
+   Parte de, Cobre ou Indireta. Confiança de 0 a 100; abaixo de 70 vai para reanálise e, se persistir, para revisão
+   humana. Evidência só Indireta continua em revisão mesmo acima de 70: prefira um trecho que afirme a orientação.
 3. Trechos que valem só para o EMTI Profissional (formação técnica, EPT) não comprovam orientação para o propedêutico.
 4. "Não" só depois de ler todos os documentos: itens considerados, onde procurou e TODAS as fontes em fontes_verificadas.
    Na dúvida, presenca null com justificativa: falta de prova não é "Não".
@@ -319,9 +325,10 @@ Regras:
 """
 
 
-def export_batches(run_dir: Path, out_dir: Path, size: int = 35) -> dict:
+def export_batches(run_dir: Path, out_dir: Path, size: int = 35, only: set | None = None, extra_rules: str = "") -> dict:
     """Work packages for evaluating the orientations in parallel: the state documents' text by unit, the ICE texts split
-    in batches and the rules. Nothing from the template answers goes out."""
+    in batches and the rules. Nothing from the template answers goes out, nor any earlier decision (`only` limits the
+    codes, for the second pass; `extra_rules` is appended to the instructions)."""
     inv, refs, manifest, rec, known = _state(run_dir)
     units = RUN.load_units(run_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -336,9 +343,10 @@ def export_batches(run_dir: Path, out_dir: Path, size: int = 35) -> dict:
             else:
                 lines += [f"## {u['id']}", u["texto"], ""]
     (out_dir / "documentos.md").write_text("\n".join(lines), encoding="utf-8", newline="\n")
-    (out_dir / "INSTRUCOES.md").write_text(BATCH_RULES, encoding="utf-8", newline="\n")
+    (out_dir / "INSTRUCOES.md").write_text(BATCH_RULES + extra_rules, encoding="utf-8", newline="\n")
     elems = {c["codigo"]: c.get("elemento", "") for k in TYPES for c in refs["ice"]["codigos"][k] + refs["template"]["codigos"][k]}
-    codes = [{"codigo": o["codigo"], "tipo": TYPES[k], "elemento": elems.get(o["codigo"], ""), "texto": o["texto"]} for k in TYPES for o in rec["avaliar"][k]]
+    codes = [{"codigo": o["codigo"], "tipo": TYPES[k], "elemento": elems.get(o["codigo"], ""), "texto": o["texto"]} for k in TYPES for o in rec["avaliar"][k]
+             if only is None or o["codigo"] in only]
     batches = []
     for i in range(0, len(codes), max(1, size)):
         name = chr(ord("A") + len(batches))

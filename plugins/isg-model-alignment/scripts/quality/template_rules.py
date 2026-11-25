@@ -1,8 +1,11 @@
 """SPEC-017: what the cluster template and the ICE reference contribute (structure and rules, never evidence of offer).
 
 Template: the classification list (hidden sheet), the UF matrix tab ('2.x Revisão Matriz <UF>'), the consolidation
-formulas read from the cells and turned into a rule with a SHA-256 fingerprint, the orientation codes of tabs 1.1/1.2
-(EQV reader) and, when the analysts filled it, their answers (used only as the parity key).
+formulas read from the cells and turned into a rule with a SHA-256 fingerprint and the orientation codes of tabs 1.1/1.2
+(EQV reader). The analysts' answers already in the template (Sim/Não, observations, matrix values, class-hour minutes,
+validity year) are HISTORY, never evidence: `build_references` keeps only a structural projection in referencias.json
+(how many answers there were, not their values). The template bytes stay in originais/ for the filled copy and for the
+optional parity, which runs only after the independent result is written.
 ICE: the orientation codes per type and the approval record declared in the manifest.
 A formula the parser does not know makes the rule `desconhecida` (REGRA_DESCONHECIDA): nothing is guessed.
 """
@@ -188,6 +191,16 @@ def matrix_rule(sheet: dict, classifications: list) -> dict:
     return out
 
 
+HISTORY_KEYS = ("preenchimento", "elementos_preenchidos", "metadados")
+
+
+def structural_projection(rule: dict) -> dict:
+    """The matrix tab without the analysts' values: layout, consolidation rule and warnings only. What the analysts typed
+    (components, weekly lessons, classifications, element totals, class-hour minutes, validity year) is left out, so no
+    later step can read it as evidence."""
+    return {k: v for k, v in rule.items() if k not in HISTORY_KEYS}
+
+
 def ice_codes(wb: dict) -> dict:
     """{'pedagogicas': [...], 'gestao': [...]} from sheets with 'Código da orientação' + 'Orientação' headers."""
     out = {"pedagogicas": [], "gestao": []}
@@ -210,7 +223,7 @@ def ice_codes(wb: dict) -> dict:
 
 def build_references(run_dir: Path, manifest: dict, inv: dict) -> dict:
     refs = {"template": {"fonte_id": None, "aba_matriz": None, "classificacoes": [], "aba_classificacoes": None, "codigos": {"pedagogicas": [], "gestao": []},
-                         "matriz": None, "gabarito_orientacoes": {}, "avisos": []},
+                         "matriz": None, "historico_isolado": {"orientacoes_preenchidas": 0, "linhas_matriz_preenchidas": 0}, "avisos": []},
             "ice": {"fonte_ids": [], "versao": None, "homologacao": None, "codigos": {"pedagogicas": [], "gestao": []}, "avisos": []}}
     t = refs["template"]
     for f in inv["fontes"]:
@@ -226,8 +239,10 @@ def build_references(run_dir: Path, manifest: dict, inv: dict) -> dict:
         t["avisos"] += warn
         if tab:
             t["aba_matriz"] = tab["nome"]
-            t["matriz"] = matrix_rule(tab, t["classificacoes"])
-            t["avisos"] += t["matriz"]["avisos"]
+            rule = matrix_rule(tab, t["classificacoes"])
+            t["matriz"] = structural_projection(rule)
+            t["historico_isolado"]["linhas_matriz_preenchidas"] = len(rule["preenchimento"])
+            t["avisos"] += rule["avisos"]
         else:
             t["avisos"].append(f"O template não tem a aba '2.x Revisão Matriz {manifest['uf']}'.")
         T = _eqv()
@@ -236,8 +251,7 @@ def build_references(run_dir: Path, manifest: dict, inv: dict) -> dict:
             t["codigos"] = {"pedagogicas": [{"codigo": o["codigo"], "texto": o["orientacao"], "elemento": o.get("grupo", "")} for o in read["abas"].get("1.1", {}).get("orientacoes", [])],
                             "gestao": [{"codigo": o["codigo"], "texto": o["orientacao"], "elemento": o.get("grupo", "")} for o in read["abas"].get("1.2", {}).get("orientacoes", [])]}
             key = f"{manifest['uf']}|{manifest['ano']}"
-            t["gabarito_orientacoes"] = {k.split("|")[0] + "|" + k.split("|")[1]: v["valor"] for k, v in read["gabarito"].items()
-                                         if "|".join(k.split("|")[2:4]) == key}
+            t["historico_isolado"]["orientacoes_preenchidas"] = sum(1 for k in read["gabarito"] if "|".join(k.split("|")[2:4]) == key)
         except T.TemplateError as e:
             t["avisos"].append("Abas de orientações do template: " + e.message)
         if tab:

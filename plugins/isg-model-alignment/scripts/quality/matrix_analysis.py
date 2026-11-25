@@ -18,13 +18,14 @@ from pathlib import Path
 
 import document_normalizer as DN
 import evidence_check as EC
+import quality_policy as QP
 import quality_run as RUN
 import source_resolver as SR
 import template_rules as TR
 
 SERIES = ("serie1", "serie2", "serie3")
 NULL_REASONS = ("ausente_na_fonte", "nao_verificado")
-MIN_CLASS_CONFIDENCE = 85
+MIN_CLASS_CONFIDENCE = QP.QUALITY_MIN_CONFIDENCE  # a valid category and a justification by function are still required
 SIGNALS = {
     "9h": r"\b9 ?h\b|\b9 horas\b|nove horas|45 aulas|tempo integral|\bintegral\b",
     "propedeutico": r"propedeut",
@@ -263,7 +264,11 @@ def register(run_dir: Path, proposal: dict) -> dict:
                "revisar": revisar, "motivos": motivos}
     if same and previous["selecao"].get("confirmada_por_analista"):
         selecao.update(status="confirmada", confirmada_por_analista=True, confirmacao=previous["selecao"]["confirmacao"])
-    minutos = _value(proposal.get("minutos_aula"), index, classes, region, "duração da hora-aula")
+    if proposal.get("minutos_aula") is None:  # not given at all (CE 2026 pilot): say so, never inherit a previous value
+        minutos = {"valor": None, "status": "nao_verificado", "valor_proposto": None, "evidencia": None,
+                   "motivo": "duração da hora-aula: não informada na proposta (a fonte selecionada não traz o valor ou ele não foi localizado)"}
+    else:
+        minutos = _value(proposal.get("minutos_aula"), index, classes, region, "duração da hora-aula")
     allowed = refs["template"]["classificacoes"]
     by_fold = {DN.fold(c): c for c in allowed}
     comps = []

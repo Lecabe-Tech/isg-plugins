@@ -135,3 +135,16 @@ Rota de teste do mantenedor: `npm run check`. **Este PR é apenas documentação
 Enquanto não existir um ciclo 9h **avaliado, confrontado com preenchimento humano e devolvido em JSON com evidências**, não iniciar desenvolvimento de gravação da base intermediária, Power Query, aprovação no Excel, BI ou serviço de gatilho automático do Notion. Preservar o que já existe; a proibição é de **desviar o foco** agora.
 
 **Próximo passo real:** obter as quatro entradas válidas do piloto, homologar a versão ICE e fechar os códigos de orientação aplicáveis. Depois concluir **Matriz (G2)** e **Orientações (G3)** como entregas demonstráveis, antes de juntar os resultados.
+
+## 8. Análise independente, revisão enxuta e entrega no Notion (0.1.7)
+
+| Tema | Regra |
+|---|---|
+| Fontes | Documentos do estado = evidência. Referencial ICE = critério. Template = estrutura (códigos, textos, classificações, layout, fórmulas). As respostas, observações e valores que já estão no template são **histórico**, nunca evidência: o `referencias.json` guarda só quantas respostas havia, e `buscar`/`unidades` recusam o template. A paridade continua opcional e só depois do resultado gravado. |
+| Excel | `template-preencher` limpa todo o bloco da UF e do ano (inclusive colunas de observação ocultas) e escreve só o resultado novo. Campo sem resultado (hora-aula, vigência, orientação sem decisão) sai vazio e amarelo. Anos anteriores, outras UFs e fórmulas ficam. Sem o bloco UF/ano ou sem o layout da matriz, a cópia é gravada só para conferência e marcada `entrega_valida: false` (`ENTREGA_BLOQUEADA`). |
+| Confiança | Limiar técnico de **70%** só no fluxo de Qualidade (`scripts/quality/quality_policy.py`); a EQV legada continua com 85%. Evidência só indireta, só de imagem ou página com aviso e "Não" com imagens pendentes ficam em revisão mesmo acima de 70%. Sem citação estadual válida, pendente. Na matriz, imagem, faixa e divergência nunca viram "verificado". |
+| Reanálise | Uma segunda passagem por versão das entradas (`reanalise-planejar`, `reanalise-registrar`, `reanalise-matriz`, `reanalise-documento`, `reanalise-concluir`), registrada em `reanalise.json`. Os subagentes não veem a resposta anterior. Troca só por evidência melhor; resposta contrária fica em revisão; decisão do analista nunca é tocada. |
+| Fila | `revisao-fila --agrupada`: tarefas por causa, ação e fonte, com os itens detalhados originais. A fila detalhada continua disponível para auditoria. |
+| Notion | `publicar-*`: o programa confere a solicitação (page_id; sem ele, ID de negócio com correspondência única; **nunca** a mais recente), o XLSX (hash, resultado atual, entrega válida) e a página relida. O upload e a escrita são do conector autenticado. Anexos anteriores ficam; o status não regride; a linha de execução é criada ou atualizada sem tocar em "Validação humana". |
+
+O que ainda não está comprovado: o upload integrado em uma solicitação de teste do Notion (depende de autorização) e a medição do esforço humano de revisão no piloto CE 2026.
