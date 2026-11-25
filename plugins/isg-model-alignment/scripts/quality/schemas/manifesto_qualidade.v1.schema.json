@@ -79,6 +79,24 @@
         }
       ]
     },
+    "configuracao_ice": {
+      "description": "Regras aprovadas pela Qualidade no manifesto_ice.json (códigos, carga mínima, equivalências de componentes). Nunca preenchidas pelo plugin.",
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "required": ["versao", "aprovado_por"],
+          "properties": {
+            "versao": {"type": "string", "minLength": 1},
+            "aprovado_por": {"type": "string", "minLength": 2},
+            "data": {"type": ["string", "null"]},
+            "codigos": {"type": "object"},
+            "carga_minima": {"type": "array"},
+            "equivalencias_componentes": {"type": "array"}
+          }
+        }
+      ]
+    },
     "observacoes": {"type": ["string", "null"]}
   },
   "definitions": {
@@ -88,7 +106,7 @@
       "required": ["uri"],
       "properties": {
         "uri": {"type": "string", "minLength": 1},
-        "copia_local": {"type": ["string", "null"], "description": "Só para link do SharePoint: arquivo ou pasta local com a cópia (baixada ou sincronizada)."},
+        "copia_local": {"type": ["string", "null"], "description": "Só para link do SharePoint (arquivo ou pasta local com a cópia, baixada ou sincronizada) ou anexo de solicitação do Notion (arquivo baixado pelo conector)."},
         "papel": {"type": ["string", "null"]},
         "titulo": {"type": ["string", "null"]},
         "emissor": {"type": ["string", "null"]},

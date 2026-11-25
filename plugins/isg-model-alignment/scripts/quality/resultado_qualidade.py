@@ -83,7 +83,17 @@ def cmd_manifesto_montar(args):
         return emit(args, False, "manifesto-montar", "CLASSE_AUSENTE", "Informe ao menos um documento do estado (--estado).")
     if not args.template:
         return emit(args, False, "manifesto-montar", "CLASSE_AUSENTE", "Informe o template do cluster da UF (--template).")
-    m = ES.manifest(args.uf, args.ano, args.estado, args.template, args.ice, args.matriz, args.solicitacao or None)
+    origens = {}
+    for o in args.origem:
+        path, sep, uri = o.partition("=")
+        if not sep or not path.strip() or not uri.strip():
+            return emit(args, False, "manifesto-montar", "ORIGEM_INVALIDA", "Use --origem \"<arquivo baixado>=<link da solicitação no Notion>\" (%s)." % o)
+        origens[path.strip()] = uri.strip()
+    m = ES.manifest(args.uf, args.ano, args.estado, args.template, args.ice, args.matriz, args.solicitacao, args.revisao, origens)
+    if args.config_ice:  # approved ICE rules kept with the plugin (cloud flow): codes, minimum load, equivalences
+        import ice_config as ICE
+
+        m["configuracao_ice"] = ICE.read_rules_file(args.config_ice)
     SR.validate_manifest(m)
     out = Path(args.saida)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -111,7 +121,10 @@ def cmd_template_preencher(args):
 def cmd_esteira(args):
     import esteira as ES
 
+    import quality_result as QR
+
     s = ES.status(Path(args.pasta))
+    s["versao_plugin"] = QR.plugin_version()
     mark = {"feita": "[x]", "em_andamento": "[~]", "pendente": "[ ]"}
     lines = ["%s %d. %s — %s" % (mark[e["estado"]], i, e["titulo"], e["detalhe"]) for i, e in enumerate(s["etapas"], start=1)]
     if s["concluida"]:
@@ -119,6 +132,7 @@ def cmd_esteira(args):
     else:
         n = [e["etapa"] for e in s["etapas"]].index(s["proxima"]) + 1
         msg = "Próxima etapa: %d. %s. Comandos: %s." % (n, ES.TITLES[s["proxima"]], s["proximo_passo"])
+    msg = "Plugin isg-model-alignment %s. %s" % (s["versao_plugin"], msg)
     return emit(args, True, "esteira", "ESTEIRA", msg, s, extra_text="\n".join(lines))
 
 
@@ -585,6 +599,70 @@ def cmd_publicar_falha(args):
     return emit(args, True, "publicar-falha", "FALHA_REGISTRADA", "Falha de publicação registrada (%s); os arquivos ficam locais e a publicação pode ser retomada." % args.codigo, r)
 
 
+# ---------------- the output in Notion (0.1.8: the only place the results are delivered) ----------------
+
+def _write_out(args, data):
+    if getattr(args, "saida", ""):
+        Path(args.saida).write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
+def cmd_notion_iniciar(args):
+    import notion_results as NR
+
+    r = NR.start(Path(args.pasta), read_json_file(args.pagina_json))
+    return emit(args, True, "notion-iniciar", "SAIDA_INICIADA", "Solicitação conferida (%s, %s %d, execução %s). Grave nesta ordem: execucao, orientacoes, componentes, elementos, fila; "
+                "depois o template (publicar-*) e, por fim, notion-entregar. Nada foi gravado no Notion ainda." % (r["solicitacao_id"], r["uf"], r["ano"], r["execucao_id"]), r)
+
+
+def cmd_notion_linhas(args):
+    import notion_publish as NP
+    import notion_results as NR
+
+    rows = NR.desired_rows(Path(args.pasta), args.base)
+    data = {"base": args.base, "titulo": NR.BASE_TITLES[args.base], "data_source_id": NR.DATA_SOURCES[args.base], "linhas": rows}
+    if args.base == "execucao":
+        data["corpo"] = NR.execution_body(NP._result(Path(args.pasta)))
+    _write_out(args, data)
+    return emit(args, True, "notion-linhas", "LINHAS", "%s: %d linha(s) para esta execução." % (NR.BASE_TITLES[args.base], len(rows))
+                + (" Sem linhas: a regra do template não está homologada (o motivo vai na linha da execução)." if args.base == "elementos" and not rows else ""), data)
+
+
+def cmd_notion_planejar(args):
+    import notion_results as NR
+
+    r = NR.plan(Path(args.pasta), args.base, read_json_file(args.existentes) if args.existentes else [])
+    _write_out(args, r)
+    msg = "%s: criar %d, atualizar %d, manter %d%s%s. Grave pelo conector (só os campos listados; nunca os campos do analista), releia e rode notion-conferir." % (
+        NR.BASE_TITLES[args.base], len(r["criar"]), len(r["atualizar"]), len(r["manter"]),
+        ", %d bloqueada(s) pelo analista (não mexer)" % len(r["bloqueadas"]) if r["bloqueadas"] else "",
+        ", %d obsoleta(s) (avise o analista; nada é apagado)" % len(r["obsoletas"]) if r["obsoletas"] else "")
+    return emit(args, True, "notion-planejar", "PLANO", msg, r)
+
+
+def cmd_notion_conferir(args):
+    import notion_results as NR
+
+    r = NR.confirm(Path(args.pasta), args.base, read_json_file(args.relidas))
+    return emit(args, True, "notion-conferir", "BASE_CONFERIDA", "%s CONFERIDA na releitura: %d linha(s)." % (NR.BASE_TITLES[args.base], r["linhas"]), r)
+
+
+def cmd_notion_entregar(args):
+    import notion_results as NR
+
+    r = NR.delivery(Path(args.pasta), args.status_atual or None)
+    if not r["pronta"]:
+        return emit(args, False, "notion-entregar", "ENTREGA_INCOMPLETA", "Ainda não: %s. O status da solicitação NÃO muda." % r["motivo"], r)
+    msg = ("Tudo conferido no Notion: mude o Status da solicitação para '%s'." % r["novo_status"]) if r["novo_status"] else "Tudo conferido no Notion; o status não muda (%s)." % r["motivo"]
+    return emit(args, True, "notion-entregar", "ENTREGA_CONFERIDA", msg, r)
+
+
+def cmd_notion_falha(args):
+    import notion_results as NR
+
+    r = NR.fail(Path(args.pasta), args.base, args.codigo, args.mensagem)
+    return emit(args, True, "notion-falha", "FALHA_REGISTRADA", "Falha registrada em %s (%s); a gravação pode ser retomada sem duplicar." % (args.base, args.codigo), r)
+
+
 def cmd_ice_padrao(args):
     import ice_config as ICE
 
@@ -628,6 +706,8 @@ HANDLERS = {
     "publicar-localizar": cmd_publicar_localizar, "publicar-preparar": cmd_publicar_preparar, "publicar-pagina": cmd_publicar_pagina,
     "publicar-enviar": cmd_publicar_enviar, "publicar-propriedades": cmd_publicar_propriedades, "publicar-confirmar": cmd_publicar_confirmar,
     "publicar-execucao": cmd_publicar_execucao, "publicar-falha": cmd_publicar_falha,
+    "notion-iniciar": cmd_notion_iniciar, "notion-linhas": cmd_notion_linhas, "notion-planejar": cmd_notion_planejar,
+    "notion-conferir": cmd_notion_conferir, "notion-entregar": cmd_notion_entregar, "notion-falha": cmd_notion_falha,
 }
 
 
@@ -653,7 +733,10 @@ def build_parser():
     sp.add_argument("--matriz", nargs="*", default=[], help="documentos do estado que só trazem a matriz")
     sp.add_argument("--template", nargs="*", default=[], help="template do cluster da UF")
     sp.add_argument("--ice", nargs="*", default=[], help="referencial ICE enviado (vazio = o configurado no plugin)")
-    sp.add_argument("--solicitacao", default="", help="identificador da solicitação (padrão: UF-ANO-01)")
+    sp.add_argument("--solicitacao", required=True, help="ID da solicitação no Notion (por exemplo QUA-13): identifica a execução e as chaves no Notion")
+    sp.add_argument("--revisao", type=int, default=1, help="número da revisão desta solicitação (padrão 1; use 2 para refazer a análise)")
+    sp.add_argument("--config-ice", default="", help="manifesto_ice.json aprovado (ou a pasta dele) com as regras da Qualidade: códigos, carga mínima, equivalências")
+    sp.add_argument("--origem", action="append", default=[], help='"<arquivo baixado>=<link da solicitação no Notion>" para cada anexo baixado da solicitação (repetível)')
     sp.add_argument("--saida", required=True, help="arquivo manifesto.json a gravar")
     add("esteira")
     sp = add("template-preencher")
@@ -749,6 +832,23 @@ def build_parser():
     sp = add("publicar-falha")
     sp.add_argument("--codigo", required=True)
     sp.add_argument("--mensagem", required=True)
+    bases = ("execucao", "orientacoes", "componentes", "elementos", "fila")
+    add("notion-iniciar").add_argument("--pagina-json", required=True, help="JSON da solicitação lida pelo conector: {page_id, id_solicitacao, uf, ano, status}")
+    sp = add("notion-linhas")
+    sp.add_argument("--base", required=True, choices=bases)
+    sp.add_argument("--saida", default="")
+    sp = add("notion-planejar")
+    sp.add_argument("--base", required=True, choices=bases)
+    sp.add_argument("--existentes", default="", help="JSON com as linhas desta execução já existentes na base (lidas pelo conector)")
+    sp.add_argument("--saida", default="")
+    sp = add("notion-conferir")
+    sp.add_argument("--base", required=True, choices=bases)
+    sp.add_argument("--relidas", required=True, help="JSON com as linhas relidas pelo conector depois da gravação")
+    add("notion-entregar").add_argument("--status-atual", default="", help="Status atual da solicitação, relido pelo conector")
+    sp = add("notion-falha")
+    sp.add_argument("--base", required=True, choices=bases)
+    sp.add_argument("--codigo", required=True)
+    sp.add_argument("--mensagem", required=True)
     add("sharepoint", run=False).add_argument("link", help="link do SharePoint (arquivo ou pasta)")
     add("ice-padrao", run=False).add_argument("--referencial", default="", help="pasta do referencial ICE (opção quality_ice_reference)")
     return p
@@ -763,6 +863,7 @@ def main(argv):
     import ice_config as ICE
     import matrix_analysis as MA
     import notion_publish as NP
+    import notion_results as NR
     import second_pass as SP
     import template_fill as TF
     import orientation_analysis as OA
@@ -773,7 +874,7 @@ def main(argv):
         return HANDLERS[args.comando](args)
     except SR.ManifestError as e:
         return emit(args, False, args.comando, e.code, e.message, {"erros": e.errors})
-    except (RUN.RunError, MA.MatrixError, OA.OrientationError, CC.CrossCheckError, ICE.IceConfigError, TF.FillError, SP.SecondPassError, NP.PublishError) as e:
+    except (RUN.RunError, MA.MatrixError, OA.OrientationError, CC.CrossCheckError, ICE.IceConfigError, TF.FillError, SP.SecondPassError, NP.PublishError, NR.NotionOutputError) as e:
         return emit(args, False, args.comando, e.code, e.message)
     except json.JSONDecodeError:
         return emit(args, False, args.comando, "JSON_INVALIDO", "O arquivo JSON informado não é válido.")

@@ -416,7 +416,7 @@
         "classificacao": {"type": ["string", "null"]},
         "classificacao_status": {"enum": ["aceita", "pendente"]},
         "justificativa_classificacao": {"type": "string"},
-        "base_classificacao": {"enum": ["funcao_educacional", "nome", "nao_informada"]},
+        "base_classificacao": {"enum": ["funcao_educacional", "equivalencia_aprovada", "nome", "nao_informada"]},
         "evidencias": {"type": "array", "items": {"$ref": "#/definitions/evidencia"}},
         "revisar": {"type": "boolean"},
         "motivos": {"type": "array", "items": {"type": "string"}}
@@ -463,7 +463,7 @@
       "additionalProperties": false,
       "required": ["codigo", "gravidade", "predicado", "entidade", "valores", "fontes", "resolucao_pendente", "detalhe"],
       "properties": {
-        "codigo": {"enum": ["CONTRADICAO_OFERTA_CARGA", "NORMATIVO_VS_OFERTA", "CONFLITO_ENTRE_FONTES", "CLASSIFICACAO_PENDENTE", "COBERTURA_DOCUMENTAL_INCOMPLETA"]},
+        "codigo": {"enum": ["CONTRADICAO_OFERTA_CARGA", "NORMATIVO_VS_OFERTA", "CONFLITO_ENTRE_FONTES", "CLASSIFICACAO_PENDENTE", "COBERTURA_DOCUMENTAL_INCOMPLETA", "CARGA_ABAIXO_MINIMO"]},
         "gravidade": {"enum": ["alta", "media", "baixa"]},
         "predicado": {"type": "string"},
         "entidade": {"type": "string"},
