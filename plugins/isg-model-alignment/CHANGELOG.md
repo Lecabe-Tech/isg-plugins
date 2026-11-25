@@ -2,7 +2,7 @@
 
 Todas as mudanças relevantes deste plugin são registradas aqui.
 
-## [0.1.7] - não lançada
+## [0.1.7] - 2026-11-25
 
 ### Adicionado
 - **Segunda passagem (reanálise)**, etapa 5 da esteira, limitada a uma rodada por versão das entradas e retomável (`reanalise-planejar`, `reanalise-registrar`, `reanalise-matriz`, `reanalise-documento`, `reanalise-concluir`, registro em `reanalise.json`):
