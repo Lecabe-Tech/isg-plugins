@@ -16,6 +16,7 @@ import cross_check as CC
 import document_normalizer as DN
 import matrix_analysis as MA
 import orientation_analysis as OA
+import quality_policy as QP
 import quality_run as RUN
 import schema_check
 import source_resolver as SR
@@ -60,6 +61,11 @@ def build(run_dir: Path) -> dict:
     for p in inv["pendencias"]:
         pend.append({"codigo": p["codigo"], "frente": "geral", "detalhe": p["detalhe"], "fonte_id": None, "bloqueia_completude": True})
     pend += mpend + opend
+    import second_pass as SP
+
+    for d in SP.requested_documents(run_dir):  # one request per missing document, with every affected field
+        pend.append({"codigo": "FONTE_AUSENTE", "frente": "geral", "detalhe": f"Documento solicitado na reanálise: {d['titulo']}"
+                     + (f" ({d['motivo']})" if d.get("motivo") else "") + f". Campos afetados: {', '.join(d['campos'])}.", "fonte_id": None, "bloqueia_completude": True})
     open_conflicts = [c for c in consist["conflitos"] if c["resolucao_pendente"]]
     by_code: dict = {}
     for c in open_conflicts:
@@ -259,14 +265,21 @@ def summary_md(r: dict) -> str:
         L += [f"- [{c['gravidade']}] **{c['codigo']}** — {c['entidade']}: {c['detalhe']}" for c in r["consistencia"]["conflitos"]]
     else:
         L.append("Nenhum conflito encontrado.")
-    queue = review_queue(r)
-    L += ["", "## Fila de revisão", "", f"{len(queue)} decisão(ões) para o analista, da mais importante para a menos importante. "
-          "Cada item diz o que decidir e onde está a evidência; nada aqui foi aprovado.", ""]
-    for q in queue[:40]:
-        L.append(f"{q['ordem']}. **{q['referencia']}** ({q['tipo']}) — {q['decisao']}" + (f" Evidência: {'; '.join(q['onde'][:3])}." if q["onde"] else "")
-                 + (f" Motivo: {'; '.join(q['motivos'][:2])}." if q["motivos"] else ""))
-    if len(queue) > 40:
-        L.append(f"… e mais {len(queue) - 40} item(ns) no comando `revisao-fila`.")
+    grouped = grouped_review_queue(r)
+    L += ["", "## Fila de revisão (agrupada)", "",
+          f"{grouped['total_grupos']} tarefa(s) para o analista, agrupadas por causa, ação e fonte comum, da mais importante para a menos importante. "
+          f"Elas reúnem {grouped['total_itens_detalhados']} item(ns) da fila detalhada; células de aulas: {grouped['celulas']['nao_verificadas']} não verificada(s) "
+          f"e {grouped['celulas']['em_faixa']} em faixa. **O número de tarefas não é o número de campos ainda não verificados**, e confirmar uma tarefa "
+          "não confirma automaticamente cada valor dela. Nada aqui foi aprovado.", ""]
+    for g in grouped["grupos"][:40]:
+        cells = f" Células: {len(g['celulas'])} ({'; '.join(g['celulas'][:6])}{'; …' if len(g['celulas']) > 6 else ''})." if g["celulas"] else ""
+        L.append(f"{g['ordem']}. **{g['titulo']}** [`{g['id']}`] — {g['acao']} Itens detalhados: {len(g['itens'])}.{cells}"
+                 + (f" Onde: {'; '.join(g['referencias'][:4])}{'; …' if len(g['referencias']) > 4 else ''}." if g["referencias"] else ""))
+    if len(grouped["grupos"]) > 40:
+        L.append(f"… e mais {len(grouped['grupos']) - 40} tarefa(s).")
+    L += ["", "A fila detalhada (um item por campo, para auditoria) sai com "
+          "`revisao-fila resultado_qualidade.v1.json --saida revisao-detalhada.json`; a agrupada, com "
+          "`revisao-fila resultado_qualidade.v1.json --agrupada --saida revisao-agrupada.json`."]
     L += ["", "## Pendências", ""]
     L += [f"- {'**' if p['bloqueia_completude'] else ''}{p['codigo']}{'**' if p['bloqueia_completude'] else ''} ({p['frente']}): {p['detalhe']}" for p in r["pendencias"]] or ["Nenhuma."]
     mt = r["metricas"]
@@ -317,6 +330,10 @@ def review_queue(r: dict) -> list:
     sel = r["matriz"]["selecao"]
     if sel["revisar"] and not sel["confirmada_por_analista"]:
         add(5, "matriz", "Seleção da matriz", "Conferir a escolha da matriz.", _where(sel["evidencias"]), sel["motivos"])
+    mins = r["matriz"]["minutos_aula"]
+    if sel["status"] != "nao_registrada" and mins["status"] != "verificado":
+        add(5, "matriz", "Hora-aula", "Informar a duração oficial da hora-aula (minutos), com o documento que a define.",
+            _where([mins["evidencia"]] if mins.get("evidencia") else []), [mins.get("motivo") or "duração não verificada"])
     for c in r["matriz"]["componentes"]:
         if c["revisar"]:
             evs = [c["aulas_semanais"][s]["evidencia"] for s in SERIES if c["aulas_semanais"][s]["evidencia"]]
@@ -331,6 +348,132 @@ def review_queue(r: dict) -> list:
     for n, i in enumerate(items, start=1):
         i["ordem"] = n
     return items
+
+
+# ---------------- grouped review queue (what the analyst works on) ----------------
+
+GROUP_ACTIONS = {
+    "MATRIZ_IMAGEM": ("Matriz lida de imagem", 3, "Conferir, em uma única tarefa, as páginas de origem da matriz contra os valores lidos por IA; "
+                      "cada célula listada continua não verificada até ser conferida."),
+    "FAIXA": ("Cargas horárias em faixa", 2, "Obter o documento oficial com o valor exato por série (ou registrar a decisão) para cada célula listada; "
+              "nenhum valor dentro da faixa é escolhido automaticamente."),
+    "HORA_AULA": ("Hora-aula ausente", 4, "Informar a duração oficial da hora-aula (minutos), com o documento que a define."),
+    "SELECAO": ("Confirmar a matriz selecionada", 2, "Confirmar se a matriz selecionada é a propedêutica de 9h vigente (comando matriz-confirmar), "
+                "conferindo as evidências listadas."),
+    "CLASSIFICACAO": ("Classificações pendentes", 5, "Decidir a classificação de cada componente listado pela função educacional; é uma decisão por componente."),
+    "ORIENTACOES_COBERTURA": ("Orientações à espera de leitura completa", 4, "Completar a leitura dos documentos de orientação (ou enviar o documento que falta); "
+                              "depois, reavaliar cada orientação listada."),
+    "ORIENTACOES_IMAGENS": ("Orientações com imagens ou páginas com aviso", 5, "Conferir as imagens e páginas com aviso que podem conter as orientações listadas; "
+                            "depois, confirmar cada uma."),
+}
+QUALITY_DECISIONS = ("REGRA_NAO_HOMOLOGADA", "REGRA_DESCONHECIDA", "REFERENCIAL_NAO_HOMOLOGADO", "CODIGOS_NAO_RECONCILIADOS")
+
+
+def grouped_review_queue(r: dict) -> dict:
+    """The detailed queue (`review_queue`, kept for audit) grouped by common cause, action and shared source, for the
+    analyst. Nothing of the result changes. Every detailed item is in at least one group (a component can be in the
+    image, range and classification groups at once); independent conflicts and individual orientation doubts keep
+    their own group, so no generic decision closes them. A group is a task list: confirming it does not confirm each
+    value (`confirmacao_individual`)."""
+    detailed = review_queue(r)
+    comps = {c["id"]: c for c in r["matriz"]["componentes"]}
+    oris = {o["codigo"]: o for k in ("pedagogicas", "gestao") for o in r["orientacoes"][k]}
+    cited = r["matriz"].get("documento_oficial_citado")
+    groups: dict = {}
+
+    def group(key, title, prio, cause, action, individual=True):
+        gid = "G-" + key
+        if gid not in groups:
+            groups[gid] = {"id": gid, "titulo": title, "prioridade": prio, "causa": cause, "acao": action, "fontes": set(), "referencias": [],
+                           "celulas": [], "itens": [], "confirmacao_individual": individual}
+        g = groups[gid]
+        g["prioridade"] = min(g["prioridade"], prio)
+        return g
+
+    def attach(g, item):
+        if all(i["ordem"] != item["ordem"] for i in g["itens"]):
+            g["itens"].append(item)
+        for w in item["onde"]:
+            if w not in g["referencias"]:
+                g["referencias"].append(w)
+            g["fontes"].add(w.split(" ")[0])
+        return g
+
+    def std(key, item, cause):
+        title, prio, action = GROUP_ACTIONS[key]
+        return attach(group(key, title, min(prio, item["prioridade"]), cause, action), item)
+
+    for item in detailed:
+        t, ref = item["tipo"], item["referencia"]
+        if t == "conflito":
+            code = ref.split(" — ")[0]
+            if code == "CLASSIFICACAO_PENDENTE":
+                std("CLASSIFICACAO", item, "Componentes sem classificação aceita.")
+            else:  # each real conflict stays visible on its own
+                attach(group(f"CONFLITO-{item['ordem']:03d}", f"Conflito: {ref}", item["prioridade"], "; ".join(item["motivos"]), item["decisao"]), item)
+        elif t == "decisao":
+            code = ref.split(" ")[0]
+            if code == "VALOR_EM_FAIXA":
+                g = std("FAIXA", item, "A fonte imprime faixas em vez de valores por série.")
+                if cited and cited.get("titulo"):
+                    g["documento_solicitado"] = cited["titulo"]
+            elif code == "MATRIZ_NAO_CONFIRMADA":
+                std("SELECAO", item, "A seleção da matriz ainda não foi confirmada por um analista.")
+            elif code in QUALITY_DECISIONS:  # one decision per business requirement, with its impact
+                attach(group(f"HOMOLOGACAO-{code}", f"Decisão da Qualidade: {code}", item["prioridade"], "; ".join(item["motivos"]),
+                             item["decisao"] + " Impacto: " + "; ".join(item["motivos"]), False), item)
+            else:
+                key = "ENTRADA-" + "-".join(ref.replace("(", "").replace(")", "").split())
+                attach(group(key, f"Entrada: {ref}", item["prioridade"], "; ".join(item["motivos"]), item["decisao"]), item)
+        elif t == "matriz":
+            if ref == "Hora-aula":
+                std("HORA_AULA", item, "Duração da hora-aula sem verificação.")
+            else:
+                std("SELECAO", item, "Seleção da matriz marcada para revisão.")
+        elif t == "componente" and comps.get(ref.split(" ")[0]):
+            c = comps[ref.split(" ")[0]]
+            placed = False
+            for s in SERIES:
+                cell = c["aulas_semanais"][s]
+                label = f"{c['id']} {c['nome_original']}, {s[-1]}ª série"
+                image = (cell.get("evidencia") or {}).get("metodo") == "interpretacao_ia"
+                if cell.get("faixa"):
+                    std("FAIXA", item, "A fonte imprime faixas em vez de valores por série.")["celulas"].append(
+                        label + f" ({_fmt(cell['faixa']['min'])} a {_fmt(cell['faixa']['max'])})")
+                    placed = True
+                elif image:
+                    std("MATRIZ_IMAGEM", item, "Valores da matriz lidos de imagem por IA: não verificáveis pelo programa.")["celulas"].append(
+                        label + (f" (lido: {_fmt(cell['valor_proposto'])})" if cell.get("valor_proposto") is not None else " (lido: em branco)"))
+                    placed = True
+            if c["classificacao_status"] != "aceita" or any(m.startswith("confiança da classificação") for m in c["motivos"]):
+                std("CLASSIFICACAO", item, "Componentes sem classificação aceita ou com confiança baixa.")
+                placed = True
+            other = [m for m in c["motivos"] if not (m.startswith(MA.RANGE_PENDING) or "imagem" in m or m.startswith("CLASSIFICACAO_PENDENTE")
+                                                      or m.startswith("confiança da classificação"))]
+            if other or not placed:  # anything else about this component is its own task
+                attach(group(f"COMPONENTE-{c['id']}", f"Componente {c['id']} {c['nome_original']}", item["prioridade"],
+                             "; ".join(other) or "; ".join(item["motivos"]), item["decisao"]), item)
+        elif t == "orientacao":
+            o = oris.get(ref)
+            if o and "COBERTURA_DOCUMENTAL_INCOMPLETA" in o["pendencias"]:
+                std("ORIENTACOES_COBERTURA", item, "Não sem leitura completa de todos os documentos de orientação.")
+            elif o and QP.REASON_ABSENCE_RISK in o["motivos"]:
+                std("ORIENTACOES_IMAGENS", item, "Ausência declarada com imagens pendentes ou páginas com aviso.")
+            else:  # an individual doubt: reviewed separately, by code
+                attach(group(f"ORIENTACAO-{ref}", f"Orientação {ref}", item["prioridade"], "; ".join(m for m in item["motivos"] if m) or "dúvida individual",
+                             item["decisao"]), item)
+        else:
+            attach(group(f"ITEM-{item['ordem']:03d}", ref, item["prioridade"], "; ".join(item["motivos"]), item["decisao"]), item)
+    out = sorted(groups.values(), key=lambda g: (g["prioridade"], g["id"]))
+    for n, g in enumerate(out, start=1):
+        g["ordem"] = n
+        g["fontes"] = sorted(x for x in g["fontes"] if x.startswith("DOC-"))
+        g["itens"].sort(key=lambda i: i["ordem"])
+    cc = r["matriz"]["completude"]
+    return {"grupos": out, "total_grupos": len(out), "total_itens_detalhados": len(detailed),
+            "celulas": {"nao_verificadas": cc.get("celulas_nao_verificadas", 0), "em_faixa": cc.get("celulas_em_faixa", 0)},
+            "observacao": "Agrupamento só para a apresentação: a decisão técnica, o JSON e os bloqueios de completude não mudam. "
+                          "O número de grupos não é o número de campos não verificados; confirmar um grupo não confirma cada valor dele."}
 
 
 def _loc(loc: dict) -> str:

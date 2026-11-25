@@ -71,7 +71,8 @@ class TemplateRuleTest(MatrixBase):
         self.assertEqual(kinds["Matriz completa"], "soma_elementos")
         self.assertEqual(kinds["Tutoria"], "soma_classificacao")
         self.assertEqual(kinds["Parte Diversificada"], "expressao")
-        self.assertEqual(len(t["matriz"]["preenchimento"]), 6)  # analysts' fill = parity key only
+        self.assertNotIn("preenchimento", t["matriz"])  # analysts' fill is history: only its size is kept, never its values
+        self.assertEqual(t["historico_isolado"]["linhas_matriz_preenchidas"], 6)
         self.assertEqual({k: len(v) for k, v in refs["ice"]["codigos"].items()}, {"pedagogicas": 3, "gestao": 2})
 
 
@@ -97,9 +98,8 @@ class MatrixFlowTest(MatrixBase):
         self.assertEqual(el["Projeto de Vida + Pós-Médio"], (2, 2, 0))
         self.assertEqual(el["Itinerários Formativos"], (8, 10, 8))
         self.assertEqual(el["Parte Diversificada"], (8, 8, 6))
-        fill = {e["elemento"]: e for e in TR.load_references(self.run)["template"]["matriz"]["elementos_preenchidos"]}
+        self.assertNotIn("elementos_preenchidos", TR.load_references(self.run)["template"]["matriz"])  # history stays out of the analysis
         self.assertNotIn("Horas totais", json.dumps(sec, ensure_ascii=False))  # no hours: no week factor was approved
-        self.assertTrue(fill)  # synthetic template has formulas without cached values: parity key comes from the rows
 
     def test_reregister_keeps_confirmation_only_for_same_selection(self):
         MA.register(self.run, proposal())

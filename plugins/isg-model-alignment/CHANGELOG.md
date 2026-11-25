@@ -2,6 +2,32 @@
 
 Todas as mudanças relevantes deste plugin são registradas aqui.
 
+## [0.1.7] - não lançada
+
+### Adicionado
+- **Segunda passagem (reanálise)**, etapa 5 da esteira, limitada a uma rodada por versão das entradas e retomável (`reanalise-planejar`, `reanalise-registrar`, `reanalise-matriz`, `reanalise-documento`, `reanalise-concluir`, registro em `reanalise.json`):
+  - só as orientações pendentes ou em revisão e os componentes da matriz em dúvida; os subagentes não veem a resposta anterior;
+  - a decisão só é trocada por outra com evidência melhor; resposta contrária fica em revisão com as duas versões; decisão do analista nunca muda;
+  - a segunda leitura da matriz é comparada célula a célula e nunca altera valores: duas leituras de imagem iguais continuam não verificadas;
+  - documento que falta é pedido uma única vez, com todos os campos afetados.
+- **Fila de revisão agrupada** (`revisao-fila --agrupada`): tarefas por causa, ação e fonte comum (matriz lida de imagem, cargas em faixa, hora-aula, decisões da Qualidade, classificações), com os itens detalhados originais. Conflitos e dúvidas individuais ficam separados. O `resumo.md` mostra a fila agrupada e o total de itens detalhados.
+- **Publicação do template preenchido na solicitação do Notion** (`publicar-localizar`, `publicar-preparar`, `publicar-pagina`, `publicar-enviar`, `publicar-propriedades`, `publicar-confirmar`, `publicar-execucao`, `publicar-falha`):
+  - identifica a solicitação pelo `page_id`; sem ele, só por ID de negócio com uma única correspondência. **Não há mais escolha da solicitação mais recente;**
+  - confere UF, ano e ID antes de escrever, o hash do XLSX e se ele é do resultado atual;
+  - mantém os anexos anteriores e só dá a publicação como feita depois de reler a página;
+  - não regride o status e cria ou atualiza a linha da execução sem tocar na validação humana. Falha fica registrada e pode ser retomada.
+- `revisao-fila --pasta <execução>`.
+
+### Alterado
+- **Confiança mínima técnica de 70%** no fluxo de Qualidade (`quality_policy.py`), em orientações, classificação da matriz e marcações do Excel. A EQV legada continua com 85%. Evidência só indireta, só de imagem ou página com aviso e "Não" com imagens pendentes ficam em revisão mesmo acima de 70%. Citação com relação "Distinto" não comprova presença.
+- **Histórico do template fora da análise:** `referencias.json` não guarda mais respostas, observações, valores de matriz, hora-aula nem vigência do template, só quantos havia. `buscar` e `unidades` recusam o template. Documento declarado ao mesmo tempo como estadual e como template ou ICE não serve de prova de oferta.
+- `template-preencher`:
+  - o amarelo segue o estado de revisão do resultado;
+  - hora-aula e vigência ausentes saem vazias e amarelas, sem herdar o ciclo anterior;
+  - falta do bloco UF/ano ou do layout da matriz gera `ENTREGA_BLOQUEADA` (cópia só para conferência);
+  - o registro `template_preenchido.json` guarda o hash do arquivo.
+- Hora-aula ausente na proposta da matriz tem motivo claro, não mais "valor vazio sem motivo", e entra na fila como tarefa própria.
+
 ## [0.1.6] - 2026-11-19
 
 ### Corrigido

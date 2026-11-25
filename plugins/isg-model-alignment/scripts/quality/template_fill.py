@@ -15,12 +15,20 @@ tab of the UF. Counts in a summary do not replace that view. This module writes 
   * A template that arrives already filled for the UF and year (lesson of the MG 2026 rerun: comments of the analysts
     survived next to the plugin answers) is reported: nothing of that fill stays in the copy, and it can be compared
     with the result by the `paridade` command;
-  * cells that need a human decision are highlighted in yellow; formulas are recalculated when Excel opens the file.
+  * cells that need a human decision are highlighted in yellow, from the review state recorded in the result (`revisar`,
+    pending, not verified), never from the confidence alone; formulas are recalculated when Excel opens the file;
+  * a current field without a result (class-hour minutes, validity year, an orientation without a decision) is written
+    empty and yellow: it never keeps the previous cycle's value;
+  * when the UF/year block of tab 1.1 or 1.2 or the UF matrix layout is missing, the copy is still written for
+    inspection, but it is NOT a valid delivery: `template_preenchido.json` records `entrega_valida: false` and the reasons,
+    and the Notion publication refuses it.
 Everything else (other UFs, styles, lists, drawings, formulas) is copied byte for byte. Standard library only: the
 workbook is a zip of XML and only the touched parts are rewritten. Nothing is written to the central base or SharePoint.
 """
 from __future__ import annotations
 
+import datetime as _dt
+import hashlib
 import json
 import re
 import zipfile
@@ -28,12 +36,14 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 import document_normalizer as DN
+import quality_policy as QP
 import quality_result as QR
 import source_resolver as SR
 import template_rules as TR
 
 YELLOW = "FFFFE699"
-MIN_CONF = 85
+MIN_CONF = QP.QUALITY_MIN_CONFIDENCE
+RECORD_FILE = "template_preenchido.json"
 
 
 class FillError(Exception):
@@ -260,17 +270,17 @@ def _where(ev: dict, names: dict) -> str:
 
 
 def orientation_cells(o: dict, names: dict) -> tuple:
-    """(value, observation, needs_decision) of one orientation line."""
+    """(value, observation, needs_decision) of one orientation line. The yellow mark follows the review state of the
+    result (`revisar`, pending): a confidence below the floor already sets `revisar` in the engine."""
     conf = o.get("confianca")
-    low = isinstance(conf, (int, float)) and conf < MIN_CONF
     tail = f" [Revisar: confiança {conf}%]" if (o.get("revisar") and conf is not None) else (" [Revisar]" if o.get("revisar") else "")
     if o["presenca"] == "Sim":
         evs = [e for e in o["evidencias"] if e.get("verificacao") == "conferida"] or o["evidencias"]
         txt = " | ".join(f'{_where(e, names)}: "{e.get("trecho_literal", "").strip()}"' for e in evs[:3])
-        return "Sim", (txt or (o.get("justificativa") or "")) + tail, bool(o.get("revisar") or low)
+        return "Sim", (txt or (o.get("justificativa") or "")) + tail, bool(o.get("revisar"))
     if o["presenca"] == "Não":
         docs = ", ".join(names.get(d, d) for d in o.get("fontes_verificadas") or [])
-        return "Não", f"{(o.get('justificativa') or '').strip()} [Ausência verificada em: {docs}]".strip() + tail, bool(o.get("revisar") or low)
+        return "Não", f"{(o.get('justificativa') or '').strip()} [Ausência verificada em: {docs}]".strip() + tail, bool(o.get("revisar"))
     why = (o.get("justificativa") or "") or "; ".join(o.get("motivos") or [])
     return "Pendente", f"PENDENTE (sem prova suficiente para Sim ou Não): {why}".strip(), True
 
@@ -450,13 +460,14 @@ def fill(run_dir: Path, out: Path | None = None, somente_uf: bool = True) -> dic
     tname = next(f["nome"] for f in result["fontes"] if f["id"] == tid)
     out = Path(out) if out else (default_path(run_dir) or run_dir.parent / f"{Path(tname).stem} - preenchido {uf} {ano} (resultado do plugin).xlsx")
     T = TR._eqv()
-    avisos, counts = [], {"pedagogicas": {"Sim": 0, "Não": 0, "Pendente": 0}, "gestao": {"Sim": 0, "Não": 0, "Pendente": 0}}
+    avisos, bloqueios, counts = [], [], {"pedagogicas": {"Sim": 0, "Não": 0, "Pendente": 0}, "gestao": {"Sim": 0, "Não": 0, "Pendente": 0}}
     prior = {"orientacoes": 0, "matriz_linhas": 0, "observacoes_matriz": 0}  # what the analysts had already filled for this UF and year
     try:
         tpl = T.read_template(src)
     except T.TemplateError as e:
         tpl = None
         avisos.append("Abas de orientações não preenchidas: " + e.message)
+        bloqueios.append("ABAS_ORIENTACOES_ILEGIVEIS: " + e.message)
     wb = DN.read_workbook(src)
     mtab = TR.matrix_tab(wb, uf)
     rule = TR.matrix_rule(mtab, refs["template"]["classificacoes"]) if mtab else None
@@ -473,6 +484,7 @@ def fill(run_dir: Path, out: Path | None = None, somente_uf: bool = True) -> dic
             col = a["colunas"].get(f"{uf}-{ano}")
             if not col:
                 avisos.append(f"A aba {a['nome']} não tem a coluna de {uf} {ano}; as orientações dessa aba não foram preenchidas.")
+                bloqueios.append(f"BLOCO_UF_ANO_AUSENTE: a aba {a['nome']} não tem o bloco de {uf} {ano}")
                 continue
             sh = Sheet(parts[paths[a["nome"]]].decode("utf-8"), styles)
             by = {o["codigo"]: o for o in result["orientacoes"][kind]}
@@ -541,12 +553,13 @@ def fill(run_dir: Path, out: Path | None = None, somente_uf: bool = True) -> dic
         if pos:
             sh.set(f"{DN.num_to_col(pos[0] + 1)}{pos[1]}", mval, yellow=mval is None or minutes["status"] != "verificado")
         pos = TR.find_label(cells, "ano", "vigencia")
-        if pos and result["matriz"]["selecao"].get("vigencia"):
-            v = result["matriz"]["selecao"]["vigencia"]
-            sh.set(f"{DN.num_to_col(pos[0] + 1)}{pos[1]}", int(v) if str(v).isdigit() else v)
+        if pos:  # without a validity year in the result the cell is emptied and marked: the previous cycle's year never stays
+            v = result["matriz"]["selecao"].get("vigencia")
+            sh.set(f"{DN.num_to_col(pos[0] + 1)}{pos[1]}", (int(v) if str(v).isdigit() else v) if v else None, yellow=not v)
         changed[paths[mtab["nome"]]] = sh.finish(drop_formula_cache=True)
     else:
         avisos.append(f"O template não tem a aba de matriz de {uf} com o layout esperado; a matriz não foi preenchida.")
+        bloqueios.append(f"LAYOUT_MATRIZ_AUSENTE: a aba de matriz de {uf} não tem o layout esperado")
 
     if not changed:
         raise FillError("NADA_PREENCHIDO", "Nada pôde ser preenchido no template: " + " ".join(avisos))
@@ -578,5 +591,17 @@ def fill(run_dir: Path, out: Path | None = None, somente_uf: bool = True) -> dic
     if any(prior.values()):
         avisos.append(f"O template enviado já tinha preenchimento de {uf} {ano} ({prior['orientacoes']} linha(s) de orientação, {prior['matriz_linhas']} linha(s) de matriz, "
                       f"{prior['observacoes_matriz']} observação(ões) na aba de matriz). Nada desse preenchimento ficou na cópia; para comparar com o resultado, use o comando paridade.")
-    return {"arquivo": str(out), "uf": uf, "ano": ano, "orientacoes": counts, "linhas_matriz": matrix_rows, "avisos": avisos,
-            "preenchimento_anterior": prior, "resultado_sha256": result["execucao"]["conteudo_sha256"]}
+    record = {"arquivo": str(out), "uf": uf, "ano": ano, "execucao_id": result["execucao"]["id"], "orientacoes": counts, "linhas_matriz": matrix_rows,
+              "avisos": avisos, "bloqueios": bloqueios, "entrega_valida": not bloqueios, "preenchimento_anterior": prior,
+              "resultado_sha256": result["execucao"]["conteudo_sha256"], "arquivo_sha256": file_sha256(out),
+              "gerado_em": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat()}
+    SR.write_json(run_dir / RECORD_FILE, record)
+    return record
+
+
+def file_sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()

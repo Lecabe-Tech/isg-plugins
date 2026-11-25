@@ -16,6 +16,8 @@ if str(HERE.parent / "eqv") not in sys.path:
 from isg_eqv.evidence import fragments, squash  # noqa: E402
 
 IMAGE_STATUS = ("requer_interpretacao", "interpretada_ia")
+STATE_CLASSES = {"orientacoes_estaduais", "matriz_estadual"}
+NOT_STATE = {"template_cluster", "referencial_ice"}
 
 
 def quote_found(quote: str, text: str, min_len: int) -> tuple:
@@ -53,6 +55,11 @@ def check(ref: dict, index: dict, doc_classes: dict, allowed: tuple, min_len: in
           "metodo": "citacao_conferida", "verificacao": "nao_conferida", "relacao": rel if rel in ("Equivalente", "Parte de", "Cobre", "Indireta", "Distinto") else None}
     if not set(doc_classes.get(doc_id, [])) & set(allowed):
         return {"ok": False, "motivo": f"{doc_id} não é fonte aceita para esta evidência ({', '.join(allowed)})", "evidencia": ev}
+    wrong = set(doc_classes.get(doc_id, [])) & (NOT_STATE - set(allowed))
+    if wrong and set(allowed) & STATE_CLASSES:
+        # the same file declared as a state document AND as template or ICE (an input classification mistake): the
+        # template's historical answers and the ICE criteria are never proof of what the state offers
+        return {"ok": False, "motivo": f"{doc_id} também está declarado como {', '.join(sorted(wrong))}: não serve como prova de oferta estadual", "evidencia": ev}
     if region and not in_region(uid, region):
         return {"ok": False, "motivo": "a unidade está fora da matriz selecionada", "evidencia": ev}
     if unit["status"] in IMAGE_STATUS:

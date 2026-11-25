@@ -5,7 +5,7 @@
   "description": "Marketplace e plugins do Instituto Sonho Grande (ferramentas de desenvolvimento; sem dependências)",
   "scripts": {
     "test": "node --test test/lib.test.mjs test/scripts.test.mjs",
-    "test:cfp": "python -m unittest test.cfp.test_cfp test.eqv.test_eqv -v test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates test.quality.test_q17_aprendizados test.quality.test_q17_layout test.quality.test_q17_sharepoint test.quality.test_q17_ce test.quality.test_q17_esteira test.quality.test_q17_template_fill test.quality.test_q17_result test.quality.test_q17_crosscheck test.quality.test_q17_orientations test.quality.test_q17_matrix test.quality.test_q17_extract test.quality.test_q17_contracts",
+    "test:cfp": "python -m unittest test.cfp.test_cfp test.eqv.test_eqv -v test.quality.test_quality_payload test.quality.test_quality_structured test.quality.test_quality_templates test.quality.test_q17_aprendizados test.quality.test_q17_layout test.quality.test_q17_sharepoint test.quality.test_q17_ce test.quality.test_q17_esteira test.quality.test_q17_template_fill test.quality.test_q17_result test.quality.test_q17_crosscheck test.quality.test_q17_orientations test.quality.test_q17_matrix test.quality.test_q17_extract test.quality.test_q17_contracts test.quality.test_q18_revisao_enxuta",
     "check": "node scripts/ci/run-all.mjs",
     "check:release": "node scripts/ci/check-consistency.mjs --release"
   },
